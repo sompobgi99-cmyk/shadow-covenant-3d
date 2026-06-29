@@ -374,12 +374,15 @@ function activateShrine(o){
   },1000);
 }
 function openShop(o){
-  shopOffers=[];
-  // 3 random items for sale
-  for (let i = 0; i < 3; i++) {
-    const shopItem = rollItemDrop();
-    if (shopItem) shopOffers.push({ name:shopItem.name, desc:shopItem.desc, icon:shopItem.icon, rarity:shopItem.rarity, isItem:true, item:shopItem, apply:()=>{ shopItem.apply(player); player.items.push(shopItem); }, price:Math.round(40+(shopItem.rarity==='legendary'?200:shopItem.rarity==='rare'?120:shopItem.rarity==='uncommon'?80:40)) });
+  if(!o.shopOffers){
+    o.shopOffers=[];
+    // 3 random items for sale. The merchant keeps this stock for the run/stage.
+    for (let i = 0; i < 3; i++) {
+      const shopItem = rollItemDrop();
+      if (shopItem) o.shopOffers.push({ name:shopItem.name, desc:shopItem.desc, icon:shopItem.icon, rarity:shopItem.rarity, isItem:true, item:shopItem, apply:()=>{ shopItem.apply(player); player.items.push(shopItem); }, price:Math.round(40+(shopItem.rarity==='legendary'?200:shopItem.rarity==='rare'?120:shopItem.rarity==='uncommon'?80:40)) });
+    }
   }
+  shopOffers=o.shopOffers;
   buildShop(); document.getElementById('shop').style.display='flex'; paused=true;
 }
 function buildShop(){
