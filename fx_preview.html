@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Slash Skill FX Preview</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a060f;color:#cdbff0;font-family:monospace;padding:20px}
+h1{color:#ffb38a;margin-bottom:8px}
+.sub{color:#9a8fc0;font-size:13px;margin-bottom:24px}
+.card{display:inline-block;background:#1c1430;border:1px solid #7a3044;border-radius:8px;padding:16px;text-align:center}
+canvas{image-rendering:auto;background:#151022;display:block;margin:0 auto 8px}
+.label{color:#ffe08a;font-size:14px}
+.info{color:#9a8fc0;font-size:11px}
+</style>
+</head>
+<body>
+<h1>Shadow Covenant 3D - Handmade Slash FX</h1>
+<p class="sub">Procedural canvas texture preview. The game now builds this effect in code.</p>
+
+<div class="card">
+  <canvas id="fx" width="256" height="256"></canvas>
+  <div class="label">Blade Whirl Slash</div>
+  <div class="info">No PNG asset. Drawn by JavaScript.</div>
+</div>
+
+<script>
+const ctx=document.getElementById('fx').getContext('2d');
+ctx.clearRect(0,0,256,256);
+ctx.lineCap='round'; ctx.lineJoin='round'; ctx.globalCompositeOperation='source-over';
+function stroke(points, width, color, alpha, op){
+  ctx.save(); ctx.globalCompositeOperation=op || 'source-over'; ctx.globalAlpha=alpha; ctx.strokeStyle=color; ctx.lineWidth=width;
+  ctx.beginPath(); ctx.moveTo(points[0], points[1]);
+  ctx.bezierCurveTo(points[2], points[3], points[4], points[5], points[6], points[7]);
+  ctx.stroke(); ctx.restore();
+}
+stroke([34,202, 70,98, 152,52, 230,34], 30, '#a41634', 0.72);
+stroke([32,206, 78,116, 172,92, 238,62], 23, '#ff422c', 0.66, 'lighter');
+stroke([58,200, 106,132, 168,112, 228,82], 28, '#39196f', 0.28, 'lighter');
+stroke([58,198, 94,132, 170,108, 240,76], 28, 'rgba(0,0,0,1)', 1, 'destination-out');
+stroke([48,198, 80,112, 160,70, 230,40], 10, '#fff0aa', 0.95, 'lighter');
+stroke([58,196, 92,124, 164,84, 222,54], 4, '#ffffff', 0.92, 'lighter');
+stroke([46,214, 104,166, 178,154, 238,124], 5, '#ff9a32', 0.62, 'lighter');
+stroke([42,224, 112,188, 178,184, 232,158], 5, '#6b35c8', 0.5, 'lighter');
+stroke([26,220, 62,210, 92,194, 122,174], 4, '#ff3b2f', 0.62, 'lighter');
+for (let i=0;i<18;i++){
+  const x=28+Math.random()*190, y=56+Math.random()*160;
+  const len=5+Math.random()*14, a=-0.75+Math.random()*0.35;
+  ctx.save(); ctx.globalAlpha=0.35+Math.random()*0.45; ctx.strokeStyle=i%3?'#ff5a2a':'#fff0a8'; ctx.lineWidth=1+Math.random()*2;
+  ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*len,y+Math.sin(a)*len); ctx.stroke(); ctx.restore();
+}
+</script>
+</body>
+</html>

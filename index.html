@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:,">
+<title>Shadow Covenant 3D — Prototype</title>
+<link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="topleft">
+    <div class="bar"><i id="hpfill"></i><span id="hptext">100 / 100</span></div>
+    <div class="bar"><i id="xpfill"></i><span id="xptext">LV 1</span></div>
+    <div id="gold">⬤ 0</div>
+    <div id="dash">⚡ DASH</div>
+  </div>
+  <div id="topright">
+    <div class="t" id="time">00:00</div>
+    <div id="biome">Bleakfield</div>
+    <div id="charname" style="color:#cdbff0"></div>
+    <div id="kills">Kills: 0</div>
+    <div id="enemies">Enemies: 0</div>
+    <div id="fps" style="color:#888"></div>
+  </div>
+  <div id="dmg"></div>
+  <div id="weapons"></div>
+  <button id="pausebtn">⏸</button>
+  <div id="pause"><h2>⏸ PAUSED</h2><div id="pauseinfo"></div><small>กด P / Esc เพื่อเล่นต่อ</small><button id="quitbtn">⌂ ออกไปหน้าแรก</button></div>
+  <div id="toast">LEVEL UP!</div>
+  <div id="bossbar"><i id="bossfill"></i><span id="bossname"></span></div>
+  <div id="altar"></div>
+  <div id="over"><h1 id="overtitle">YOU DIED</h1><p id="overstats"></p><small>Press R to restart · C to choose character</small></div>
+  <div id="levelup"><h2>LEVEL UP — choose an upgrade</h2><div id="cards"></div></div>
+  <div id="select"><h2>เลือกตัวละคร</h2><div class="sub">Choose your hero</div><div id="selcards"></div></div>
+  <div id="prompt"></div>
+  <div id="shop"><h2>พ่อค้าเร่</h2><div id="shopgold"></div><div id="shopcards"></div><button id="shopclose">ออก [F]</button></div>
+</div>
+<div id="load">Loading Shadow Covenant 3D…</div>
+<div id="title">
+  <div class="titlecontent">
+    <div class="eyebrow">Gothic Action Survivors</div>
+    <h1>SHADOW<br>COVENANT</h1>
+    <div class="ts">ฝ่าดงอสูร สะสมอาวุธ และทำลายพันธสัญญาแห่งความมืดก่อนคืนจันทราจะกลืนกินทุกสิ่ง</div>
+    <div class="titlemeta"><span><i></i>8 นักล่า</span><span><i></i>3 เขตต้องสาป</span><span><i></i>10 นาทีต่อรอบ</span></div>
+    <button id="playbtn">▶ เริ่มเกม</button>
+  </div>
+  <div class="titlecontrols"><span><b>WASD</b>เคลื่อนที่</span><span><b>SPACE</b>พุ่งหลบ</span><span><b>F</b>โต้ตอบ</span><span><b>P</b>หยุดเกม</span></div>
+  <div class="titleversion">SHADOW COVENANT · PROTOTYPE BUILD</div>
+  <div id="leaderboard"></div>
+</div>
+
+<script src="lib/three.min.js"></script>
+<script src="lib/CopyShader.js"></script>
+<script src="lib/LuminosityHighPassShader.js"></script>
+<script src="lib/EffectComposer.js"></script>
+<script src="lib/RenderPass.js"></script>
+<script src="lib/ShaderPass.js"></script>
+<script src="lib/UnrealBloomPass.js"></script>
+<script src="js/game-data.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/game-runtime.js"></script>
+<script src="js/game-loop.js"></script>
+<script src="js/game-systems.js"></script>
+</body>
+</html>

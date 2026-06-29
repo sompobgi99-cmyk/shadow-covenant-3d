@@ -1,0 +1,248 @@
+const $ = id => document.getElementById(id);
+const SP = 'assets/sprites/';
+const MANIFEST = {
+  player: 'hero.png',
+  player_walk: 'hero_walk.png',   // 8-dir grid: 6 cols x 8 rows
+  player_idle: 'hero_idle.png',   // 8-dir grid: 4 cols x 8 rows (falls back to walk if missing)
+  char_sorceress_walk:'char_sorceress_walk.png',
+  char_sorceress_idle:'char_sorceress_idle.png',
+  char_templar_walk:'char_templar_walk.png',
+  char_templar_idle:'char_templar_idle.png',
+  char_necromancer_walk:'char_necromancer_walk.png',
+  char_necromancer_idle:'char_necromancer_idle.png',
+  char_slayer_walk:'char_slayer_walk.png',
+  char_slayer_idle:'char_slayer_idle.png',
+  char_huntress_walk:'char_huntress_walk.png',
+  char_huntress_idle:'char_huntress_idle.png',
+  char_ranger_walk:'char_ranger_walk.png',
+  char_ranger_idle:'char_ranger_idle.png',
+  char_priestess_walk:'char_priestess_walk.png',
+  char_priestess_idle:'char_priestess_idle.png',
+  // Tier 0 — Bleakfield
+  enemy_shade:'enemy_shade.png', enemy_bone_stalker:'enemy_bone_stalker.png', enemy_wraith:'enemy_wraith.png',
+  enemy_dire_bat:'enemy_dire_bat.png', enemy_rot_hound:'enemy_rot_hound.png', enemy_grave_robber:'enemy_grave_robber.png',
+  enemy_crypt_spider:'enemy_crypt_spider.png', enemy_cursed_knight:'enemy_cursed_knight.png', enemy_plague_rat:'enemy_plague_rat.png',
+  // Tier 1 — Fenmire
+  enemy_bog_fiend:'enemy_bog_fiend.png', enemy_marsh_lurker:'enemy_marsh_lurker.png', enemy_toxic_spore:'enemy_toxic_spore.png',
+  enemy_swamp_witch:'enemy_swamp_witch.png', enemy_leech_swarm:'enemy_leech_swarm.png', enemy_willow_wisp:'enemy_willow_wisp.png',
+  enemy_fen_stalker:'enemy_fen_stalker.png', enemy_blight_treant:'enemy_blight_treant.png', enemy_muck_slime:'enemy_muck_slime.png',
+  enemy_bog_elemental:'enemy_bog_elemental.png',
+  // Tier 2 — Void Rift
+  enemy_void_walker:'enemy_void_walker.png', enemy_abyssal_horror:'enemy_abyssal_horror.png', enemy_chaos_wisp:'enemy_chaos_wisp.png',
+  enemy_shadow_weaver:'enemy_shadow_weaver.png', enemy_void_reaper:'enemy_void_reaper.png', enemy_nether_drake:'enemy_nether_drake.png',
+  enemy_rift_phantom:'enemy_rift_phantom.png', enemy_oblivion_orb:'enemy_oblivion_orb.png', enemy_dark_apostle:'enemy_dark_apostle.png',
+  // Minibosses
+  miniboss_colossus:'miniboss_colossus.png', miniboss_executioner:'miniboss_executioner.png', miniboss_horror:'miniboss_horror.png',
+  miniboss_skeleton_lord:'miniboss_skeleton_lord.png', miniboss_troll:'miniboss_troll.png', miniboss_warden:'miniboss_warden.png',
+  // Pickups + scenery
+  icon_xp:'icon_xp_orb.png', icon_gold:'icon_gold_coin.png',
+  tree_dead:'tree_ai_dead_clear.png', tree_oak:'tree_ai_oak_clear.png',
+  px_tree_pine:'px_tree_pine.png', px_tree_oak:'px_tree_oak.png', px_tree_dead:'px_tree_dead.png',
+  px_tree_willow:'px_tree_willow.png', px_tree_spore:'px_tree_spore.png',
+  px_bush:'px_bush.png', px_bush_berry:'px_bush_berry.png', px_rock:'px_rock.png', px_rock_small:'px_rock_small.png',
+  px_grass:'px_grass.png', px_mushroom:'px_mushroom.png', px_wisp:'px_wisp.png', px_flower:'px_flower.png', px_ground:'px_ground.png',
+  map2_ground:'map2_ground.png', map2_border_wall:'map2_border_wall.png',
+  map2_rock:'map2_rock.png', map2_pillar:'map2_pillar.png', map2_crystal:'map2_crystal.png',
+  map3_ground:'map3_ground.png', map3_border_wall:'map3_border_wall.png',
+  map3_shard:'map3_shard.png', map3_obelisk:'map3_obelisk.png', map3_crystal:'map3_crystal.png',
+  wpn_bolt:'wpn_bolt.png', wpn_spread:'wpn_spread.png', wpn_nova:'wpn_nova.png', wpn_orbit:'wpn_orbit.png',
+  wpn_arrow:'wpn_arrow.png', wpn_smite:'wpn_smite.png', wpn_bladewhirl:'wpn_bladewhirl.png', wpn_soulspiral:'wpn_soulspiral.png',
+  tomeic_might:'tomeic_might.png', tomeic_vitality:'tomeic_vitality.png', tomeic_celerity:'tomeic_celerity.png', tomeic_precision:'tomeic_precision.png', tomeic_multishot:'tomeic_multishot.png', tomeic_swiftness:'tomeic_swiftness.png', tomeic_regen:'tomeic_regen.png', tomeic_magnet:'tomeic_magnet.png', tomeic_exp:'tomeic_exp.png', tomeic_greed:'tomeic_greed.png', tomeic_fortitude:'tomeic_fortitude.png', tomeic_lifesteal:'tomeic_lifesteal.png', tomeic_duration:'tomeic_duration.png', tomeic_velocity:'tomeic_velocity.png', tomeic_growth:'tomeic_growth.png', tomeic_impact:'tomeic_impact.png',
+  px_ruin_wall:'px_ruin_wall.png', px_ruin_pillar:'px_ruin_pillar.png', px_ruin_arch:'px_ruin_arch.png',
+  border_wall:'border_wall.png',
+  px_ruin_grave:'px_ruin_grave.png', px_ruin_rubble:'px_ruin_rubble.png', px_ruin_statue:'px_ruin_statue.png',
+  enemy_shade_8dir:'enemy_shade_8dir.png',
+  chest_common:'chest_common.png', chest_rare:'chest_rare.png', chest_epic:'chest_epic.png',
+  obj_shrine:'obj_shrine.png', obj_merchant:'obj_merchant.png', obj_altar:'obj_altar.png', obj_portal:'obj_portal.png',
+  obj_shrine_elite:'obj_shrine_elite.png', obj_shrine_blood:'obj_shrine_blood.png', obj_shrine_speed:'obj_shrine_speed.png',
+  obj_shrine_curse:'obj_shrine_curse.png', obj_shrine_gamble:'obj_shrine_gamble.png',
+  enemy_bone_stalker_8dir:'enemy_bone_stalker_8dir.png',
+  enemy_wraith_8dir:'enemy_wraith_8dir.png',
+  enemy_dire_bat_8dir:'enemy_dire_bat_8dir.png',
+  enemy_rot_hound_8dir:'enemy_rot_hound_8dir.png',
+  enemy_cursed_knight_8dir:'enemy_cursed_knight_8dir.png',
+  enemy_plague_rat_8dir:'enemy_plague_rat_8dir.png',
+  enemy_marsh_lurker_8dir:'enemy_marsh_lurker_8dir.png',
+  enemy_swamp_witch_8dir:'enemy_swamp_witch_8dir.png',
+  enemy_crypt_spider_8dir:'enemy_crypt_spider_8dir.png',
+  enemy_bog_fiend_8dir:'enemy_bog_fiend_8dir.png',
+  enemy_leech_swarm_8dir:'enemy_leech_swarm_8dir.png',
+  enemy_willow_wisp_8dir:'enemy_willow_wisp_8dir.png',
+  enemy_fen_stalker_8dir:'enemy_fen_stalker_8dir.png',
+  enemy_blight_treant_8dir:'enemy_blight_treant_8dir.png',
+  enemy_muck_slime_8dir:'enemy_muck_slime_8dir.png',
+  enemy_bog_elemental_8dir:'enemy_bog_elemental_8dir.png',
+  enemy_void_walker_8dir:'enemy_void_walker_8dir.png',
+  enemy_abyssal_horror_8dir:'enemy_abyssal_horror_8dir.png',
+  enemy_nether_drake_8dir:'enemy_nether_drake_8dir.png',
+  enemy_rift_phantom_8dir:'enemy_rift_phantom_8dir.png',
+  enemy_oblivion_orb_8dir:'enemy_oblivion_orb_8dir.png',
+  enemy_dark_apostle_8dir:'enemy_dark_apostle_8dir.png',
+  miniboss_executioner_8dir:'miniboss_executioner_8dir.png',
+  miniboss_horror_8dir:'miniboss_horror_8dir.png',
+  miniboss_skeleton_lord_8dir:'miniboss_skeleton_lord_8dir.png',
+  miniboss_troll_8dir:'miniboss_troll_8dir.png',
+  miniboss_warden_8dir:'miniboss_warden_8dir.png',
+  enemy_grave_robber_8dir:'enemy_grave_robber_8dir.png',
+  enemy_toxic_spore_8dir:'enemy_toxic_spore_8dir.png',
+  enemy_chaos_wisp_8dir:'enemy_chaos_wisp_8dir.png',
+  enemy_shadow_weaver_8dir:'enemy_shadow_weaver_8dir.png',
+  enemy_void_reaper_8dir:'enemy_void_reaper_8dir.png',
+  miniboss_colossus_8dir:'miniboss_colossus_8dir.png',
+  boss_lich_8dir:'boss_lich_8dir.png',
+  boss_behemoth_8dir:'boss_behemoth_8dir.png',
+  boss_reaper_8dir:'boss_reaper_8dir.png',
+  boss_dragon_8dir:'boss_dragon_8dir.png',
+  boss_overlord_8dir:'boss_overlord_8dir.png',
+  // enemy walk sheets (4-frame strips; drop a PixelLab strip with same name to upgrade)
+  enemy_abyssal_horror_walk:'enemy_abyssal_horror_walk.png',
+  enemy_blight_treant_walk:'enemy_blight_treant_walk.png',
+  enemy_bog_elemental_walk:'enemy_bog_elemental_walk.png',
+  enemy_bog_fiend_walk:'enemy_bog_fiend_walk.png',
+  enemy_bone_stalker_walk:'enemy_bone_stalker_walk.png',
+  enemy_chaos_wisp_walk:'enemy_chaos_wisp_walk.png',
+  enemy_crypt_spider_walk:'enemy_crypt_spider_walk.png',
+  enemy_cursed_knight_walk:'enemy_cursed_knight_walk.png',
+  enemy_dark_apostle_walk:'enemy_dark_apostle_walk.png',
+  enemy_dire_bat_walk:'enemy_dire_bat_walk.png',
+  enemy_fen_stalker_walk:'enemy_fen_stalker_walk.png',
+  enemy_grave_robber_walk:'enemy_grave_robber_walk.png',
+  enemy_leech_swarm_walk:'enemy_leech_swarm_walk.png',
+  enemy_marsh_lurker_walk:'enemy_marsh_lurker_walk.png',
+  enemy_muck_slime_walk:'enemy_muck_slime_walk.png',
+  enemy_nether_drake_walk:'enemy_nether_drake_walk.png',
+  enemy_oblivion_orb_walk:'enemy_oblivion_orb_walk.png',
+  enemy_plague_rat_walk:'enemy_plague_rat_walk.png',
+  enemy_rift_phantom_walk:'enemy_rift_phantom_walk.png',
+  enemy_rot_hound_walk:'enemy_rot_hound_walk.png',
+  enemy_shade_walk:'enemy_shade_walk.png',
+  enemy_shadow_weaver_walk:'enemy_shadow_weaver_walk.png',
+  enemy_swamp_witch_walk:'enemy_swamp_witch_walk.png',
+  enemy_toxic_spore_walk:'enemy_toxic_spore_walk.png',
+  enemy_void_reaper_walk:'enemy_void_reaper_walk.png',
+  enemy_void_walker_walk:'enemy_void_walker_walk.png',
+  enemy_willow_wisp_walk:'enemy_willow_wisp_walk.png',
+  enemy_wraith_walk:'enemy_wraith_walk.png',
+  miniboss_colossus_walk:'miniboss_colossus_walk.png',
+  miniboss_executioner_walk:'miniboss_executioner_walk.png',
+  miniboss_horror_walk:'miniboss_horror_walk.png',
+  miniboss_skeleton_lord_walk:'miniboss_skeleton_lord_walk.png',
+  miniboss_troll_walk:'miniboss_troll_walk.png',
+  miniboss_warden_walk:'miniboss_warden_walk.png',
+  // item sprites (PixelLab generated)
+  item_backpack:'item_backpack.png',
+  item_battery:'item_battery.png',
+  item_beefy_ring:'item_beefy_ring.png',
+  item_beer:'item_beer.png',
+  item_big_bonk:'item_big_bonk.png',
+  item_boss_buster:'item_boss_buster.png',
+  item_brass_knuckle:'item_brass_knuckle.png',
+  item_campfire:'item_campfire.png',
+  item_chonkplate:'item_chonkplate.png',
+  item_clover:'item_clover.png',
+  item_credit_card:'item_credit_card.png',
+  item_demon_blood:'item_demon_blood.png',
+  item_demon_soul:'item_demon_soul.png',
+  item_dragonfire:'item_dragonfire.png',
+  item_eagle_claw:'item_eagle_claw.png',
+  item_echo_shard:'item_echo_shard.png',
+  item_energy_core:'item_energy_core.png',
+  item_gamer_goggles:'item_gamer_goggles.png',
+  item_gold_glove:'item_gold_glove.png',
+  item_gym_sauce:'item_gym_sauce.png',
+  item_holy_book:'item_holy_book.png',
+  item_ice_crystal:'item_ice_crystal.png',
+  item_idle_juice:'item_idle_juice.png',
+  item_leech_crystal:'item_leech_crystal.png',
+  item_medkit:'item_medkit.png',
+  item_mirror:'item_mirror.png',
+  item_oats:'item_oats.png',
+  item_power_gloves:'item_power_gloves.png',
+  item_shatter_know:'item_shatter_know.png',
+  item_slip_ring:'item_slip_ring.png',
+  item_slurp_gloves:'item_slurp_gloves.png',
+  item_soul_harvester:'item_soul_harvester.png',
+  item_spicy_meatball:'item_spicy_meatball.png',
+  item_spiky_shield:'item_spiky_shield.png',
+  item_thunder_mitts:'item_thunder_mitts.png',
+  item_time_brace:'item_time_brace.png',
+  item_turbo_socks:'item_turbo_socks.png',
+  item_wrench:'item_wrench.png'
+};
+// ---- item icon textures (canvas-generated fallback, replaced by PixelLab sprites) ----
+function makeItemIconTex(item) {
+  const cv = document.createElement('canvas'); cv.width = 16; cv.height = 16;
+  const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
+  const col = '#' + ('000000' + (RARITY_COLORS[item.rarity]||0x888888).toString(16)).slice(-6);
+  ctx.fillStyle = col; ctx.fillRect(0, 0, 16, 16);
+  ctx.fillStyle = '#111'; ctx.fillRect(1, 1, 14, 14);
+  ctx.fillStyle = col; ctx.fillRect(11, 11, 4, 4);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(item.name[0].toUpperCase(), 8, 11);
+  const t = new THREE.CanvasTexture(cv);
+  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
+  t.generateMipmaps = false;
+  return t;
+}
+
+// Enemy roster (ported from the 2D project; speeds scaled to world units)
+const ENEMY_TYPES = [
+  // tier 0 — Bleakfield
+  { name:'Shade',hp:15,atk:7,spd:80,xp:5,h:1.4,sprite:'enemy_shade',tier:0 },
+  { name:'Bone Stalker',hp:25,atk:11,spd:60,xp:8,h:1.7,sprite:'enemy_bone_stalker',tier:0 },
+  { name:'Wraith',hp:12,atk:8,spd:110,xp:6,h:1.3,sprite:'enemy_wraith',tier:0 },
+  { name:'Dire Bat',hp:14,atk:8,spd:140,xp:6,h:1.3,sprite:'enemy_dire_bat',tier:0 },
+  { name:'Rot Hound',hp:22,atk:12,spd:95,xp:9,h:1.5,sprite:'enemy_rot_hound',tier:0 },
+  { name:'Grave Robber',hp:18,atk:9,spd:70,xp:10,h:1.5,sprite:'enemy_grave_robber',tier:0 },
+  { name:'Crypt Spider',hp:16,atk:10,spd:100,xp:7,h:1.4,sprite:'enemy_crypt_spider',tier:0 },
+  { name:'Cursed Knight',hp:35,atk:15,spd:55,xp:14,h:1.9,sprite:'enemy_cursed_knight',tier:0 },
+  { name:'Plague Rat',hp:10,atk:6,spd:120,xp:5,h:1.1,sprite:'enemy_plague_rat',tier:0 },
+  // tier 1 — Fenmire
+  { name:'Bog Fiend',hp:32,atk:13,spd:70,xp:10,h:1.8,sprite:'enemy_bog_fiend',tier:1 },
+  { name:'Marsh Lurker',hp:22,atk:11,spd:90,xp:8,h:1.5,sprite:'enemy_marsh_lurker',tier:1 },
+  { name:'Toxic Spore',hp:15,atk:16,spd:50,xp:12,h:1.3,sprite:'enemy_toxic_spore',tier:1 },
+  { name:'Swamp Witch',hp:25,atk:12,spd:65,xp:11,h:1.6,sprite:'enemy_swamp_witch',tier:1 },
+  { name:'Leech Swarm',hp:12,atk:7,spd:100,xp:7,h:1.2,sprite:'enemy_leech_swarm',tier:1 },
+  { name:'Willow Wisp',hp:8,atk:11,spd:150,xp:8,h:1.1,sprite:'enemy_willow_wisp',tier:1 },
+  { name:'Fen Stalker',hp:28,atk:14,spd:85,xp:10,h:1.6,sprite:'enemy_fen_stalker',tier:1 },
+  { name:'Blight Treant',hp:55,atk:19,spd:30,xp:20,h:2.3,sprite:'enemy_blight_treant',tier:1 },
+  { name:'Muck Slime',hp:18,atk:7,spd:45,xp:6,h:1.5,sprite:'enemy_muck_slime',tier:1 },
+  { name:'Bog Elemental',hp:42,atk:18,spd:55,xp:15,h:2.0,sprite:'enemy_bog_elemental',tier:1 },
+  // tier 2 — Void Rift
+  { name:'Void Walker',hp:50,atk:19,spd:75,xp:18,h:1.9,sprite:'enemy_void_walker',tier:2 },
+  { name:'Abyssal Horror',hp:40,atk:18,spd:85,xp:15,h:1.7,sprite:'enemy_abyssal_horror',tier:2 },
+  { name:'Chaos Wisp',hp:18,atk:14,spd:130,xp:10,h:1.2,sprite:'enemy_chaos_wisp',tier:2 },
+  { name:'Shadow Weaver',hp:28,atk:13,spd:90,xp:12,h:1.5,sprite:'enemy_shadow_weaver',tier:2 },
+  { name:'Void Reaper',hp:46,atk:21,spd:65,xp:18,h:2.0,sprite:'enemy_void_reaper',tier:2 },
+  { name:'Nether Drake',hp:36,atk:15,spd:100,xp:14,h:1.7,sprite:'enemy_nether_drake',tier:2 },
+  { name:'Rift Phantom',hp:15,atk:12,spd:120,xp:9,h:1.2,sprite:'enemy_rift_phantom',tier:2 },
+  { name:'Oblivion Orb',hp:32,atk:18,spd:60,xp:16,h:1.6,sprite:'enemy_oblivion_orb',tier:2 },
+  { name:'Dark Apostle',hp:55,atk:24,spd:50,xp:22,h:2.1,sprite:'enemy_dark_apostle',tier:2 },
+];
+
+const MINIBOSS_TYPES = [
+  { name:'Colossus',hp:450,atk:26,spd:40,xp:80,h:3.6,sprite:'miniboss_colossus' },
+  { name:'Executioner',hp:320,atk:32,spd:72,xp:70,h:3.3,sprite:'miniboss_executioner' },
+  { name:'Horror',hp:380,atk:24,spd:60,xp:75,h:3.5,sprite:'miniboss_horror' },
+  { name:'Skeleton Lord',hp:360,atk:27,spd:66,xp:75,h:3.4,sprite:'miniboss_skeleton_lord' },
+  { name:'Troll',hp:440,atk:26,spd:50,xp:80,h:3.6,sprite:'miniboss_troll' },
+  { name:'Warden',hp:340,atk:28,spd:76,xp:70,h:3.3,sprite:'miniboss_warden' },
+];
+const BOSS_TYPES = [
+  { name:'Lich King',        sprite:'boss_lich',     hp:1600, atk:38, h:3.8 },
+  { name:'Abyssal Behemoth', sprite:'boss_behemoth', hp:2000, atk:40, h:4.2 },
+  { name:'Soul Reaper',      sprite:'boss_reaper',   hp:1500, atk:39, h:3.8 },
+  { name:'Void Wyrm',        sprite:'boss_dragon',   hp:1800, atk:36, h:4.0 },
+  { name:'THE OVERLORD',     sprite:'boss_overlord', hp:3500, atk:48, h:6.8, final:true },
+];
+const BIOME_NAMES = ['Bleakfield','Fenmire','Void Rift'];
+
+// Auto-fill sprite manifest entries from the rosters so new enemies/minibosses/bosses
+// need no hand-edited MANIFEST keys. Only fills MISSING keys (existing literals win).
+(function deriveSpriteManifest(){
+  const set = (k,f)=>{ if(!(k in MANIFEST)) MANIFEST[k]=f; };
+  const addUnit = (sp,withWalk)=>{ set(sp,sp+'.png'); set(sp+'_8dir',sp+'_8dir.png'); if(withWalk) set(sp+'_walk',sp+'_walk.png'); };
+  ENEMY_TYPES.forEach(t=>addUnit(t.sprite,true));
+  MINIBOSS_TYPES.forEach(t=>addUnit(t.sprite,true));
+  BOSS_TYPES.forEach(t=>set(t.sprite+'_8dir',t.sprite+'_8dir.png'));
+})();

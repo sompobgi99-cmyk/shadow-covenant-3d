@@ -1,0 +1,13 @@
+{
+  "name": "shadow-covenant-3d",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check js/game-data.js && node --check js/audio.js && node --check js/combat.js && node --check js/game-runtime.js && node --check js/game-loop.js && node --check js/game-systems.js",
+    "pixellab:balance": "node scripts/pixellab.mjs balance",
+    "pixellab:generate": "node scripts/pixellab.mjs generate"
+  },
+  "dependencies": {
+    "@pixellab-code/pixellab": "^1.0.2"
+  }
+}

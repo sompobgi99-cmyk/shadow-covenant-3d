@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "7c5e026a-80c3-4604-abee-78596100b910",
+        "name": "a ghostly shade, tattered dark phantom body, faint glowing eyes, drifting menacingly 4-frame side-view walk cycle, 16-bit SNES gothic horror pixel art, dark muted palette, clean crisp pixels, transparent background, character centered, feet at the bottom, consistent frame size, no ground, no base, no shadow",
+        "prompt": "a ghostly shade, tattered dark phantom body, faint glowing eyes, drifting menacingly 4-frame side-view walk cycle, 16-bit SNES gothic horror pixel art, dark muted palette, clean crisp pixels, transparent background, character centered, feet at the bottom, consistent frame size, no ground, no base, no shadow",
+        "size": {
+          "width": 124,
+          "height": 124
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-06-19T06:26:08.95736+00:00"
+      },
+      "folder": "a_ghostly_shade_tattered_dark_phantom_body_faint_g",
+      "frames": {
+        "rotations": {
+          "south": "a_ghostly_shade_tattered_dark_phantom_body_faint_g/rotations/south.png",
+          "south-east": "a_ghostly_shade_tattered_dark_phantom_body_faint_g/rotations/south-east.png",
+          "east": "a_ghostly_shade_tattered_dark_phantom_body_faint_g/rotations/east.png",
+          "north-east": "a_ghostly_shade_tattered_dark_phantom_body_faint_g/rotations/north-east.png",
+          "north": "a_ghostly_shade_tattered_dark_phantom_body_faint_g/rotations/north.png",
+          "north-west": "a_ghostly_shade_tattered_dark_phantom_body_faint_g/rotations/north-west.png",
+          "west": "a_ghostly_shade_tattered_dark_phantom_body_faint_g/rotations/west.png",
+          "south-west": "a_ghostly_shade_tattered_dark_phantom_body_faint_g/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-19T07:06:32.760519"
+}
