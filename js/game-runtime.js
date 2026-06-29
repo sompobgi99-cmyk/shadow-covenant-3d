@@ -205,7 +205,7 @@ let won = false, altar = null, boss = null;
 let started = false;   // false until a character is chosen
 let composer = null;   // bloom post-processing
 const interactables = [];   // chests / shrines / merchant {type,tier,x,z,used,spr}
-let chestsOpened = 0, shopOffers = [];
+let chestsOpened = 0, shopOffers = [], currentShopMerchant = null;
 const groundItems = [];     // dropped item pickups {x,z,item, spr,glow}
 const CHEST_BASE=[40,100,220];
 function chestCost(tier){ const disc=Math.max(0.5, 1-0.08*((player&&player._wrench)||0)); return Math.round(CHEST_BASE[tier]*Math.pow(1.18, chestsOpened)*disc); }
@@ -496,6 +496,7 @@ function init() {
 
   addEventListener('resize', onResize);
   document.getElementById('pausebtn').onclick = togglePause;
+  document.getElementById('shopreroll').onclick = rerollShop;
   document.getElementById('shopclose').onclick = closeShop;
   addEventListener('wheel', (e)=>{ camDist = clamp(camDist + Math.sign(e.deltaY)*1.3, 13, 22); }, { passive:true });
   document.getElementById('quitbtn').onclick = quitToTitle;

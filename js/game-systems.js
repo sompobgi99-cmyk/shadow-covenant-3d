@@ -373,15 +373,19 @@ function activateShrine(o){
     }
   },1000);
 }
-function openShop(o){
-  if(!o.shopOffers){
-    o.shopOffers=[];
-    // 3 random items for sale. The merchant keeps this stock for the run/stage.
-    for (let i = 0; i < 3; i++) {
-      const shopItem = rollItemDrop();
-      if (shopItem) o.shopOffers.push({ name:shopItem.name, desc:shopItem.desc, icon:shopItem.icon, rarity:shopItem.rarity, isItem:true, item:shopItem, apply:()=>{ shopItem.apply(player); player.items.push(shopItem); }, price:Math.round(40+(shopItem.rarity==='legendary'?200:shopItem.rarity==='rare'?120:shopItem.rarity==='uncommon'?80:40)) });
-    }
+function shopRerollCost(o){
+  return Math.round(35*Math.pow(1.45,(o&&o.shopRerolls)||0));
+}
+function rollShopStock(o){
+  o.shopOffers=[];
+  for (let i = 0; i < 3; i++) {
+    const shopItem = rollItemDrop();
+    if (shopItem) o.shopOffers.push({ name:shopItem.name, desc:shopItem.desc, icon:shopItem.icon, rarity:shopItem.rarity, isItem:true, item:shopItem, apply:()=>{ shopItem.apply(player); player.items.push(shopItem); }, price:Math.round(40+(shopItem.rarity==='legendary'?200:shopItem.rarity==='rare'?120:shopItem.rarity==='uncommon'?80:40)) });
   }
+}
+function openShop(o){
+  currentShopMerchant=o;
+  if(!o.shopOffers) rollShopStock(o);
   shopOffers=o.shopOffers;
   buildShop(); document.getElementById('shop').style.display='flex'; paused=true;
 }
@@ -394,6 +398,25 @@ function buildShop(){
     d.innerHTML='<img src="assets/sprites/'+o.icon+'.png"><div class="nm">'+o.name+'</div><div class="ds">'+o.desc+'</div><div class="key" style="color:'+(aff?'#ffe08a':'#a55')+'">\u2b24 '+o.price+(o.sold?' \u2713':'')+'</div>';
     d.onclick=()=>buyOffer(i); wrap.appendChild(d); });
   document.getElementById('shopgold').textContent='\u2b24 '+player.gold;
+  const rr=document.getElementById('shopreroll');
+  if(rr && currentShopMerchant){
+    const cost=shopRerollCost(currentShopMerchant), can=player.gold>=cost;
+    rr.textContent='\u21bb Reroll \u2b24 '+cost;
+    rr.className=can?'':'disabled';
+  }
+}
+function rerollShop(){
+  const m=currentShopMerchant;
+  if(!m) return;
+  const cost=shopRerollCost(m);
+  if(player.gold<cost){ showToast('Not enough gold',1); buildShop(); return; }
+  player.gold-=cost;
+  m.shopRerolls=(m.shopRerolls||0)+1;
+  rollShopStock(m);
+  shopOffers=m.shopOffers;
+  sfx('buy');
+  spawnObjectPulse(m.x,m.z,0xffd86a,2.8,0.45);
+  buildShop();
 }
 function buyOffer(i){
   const o=shopOffers[i];
@@ -405,7 +428,7 @@ function buyOffer(i){
   o.sold=true;
   buildShop();
 }
-function closeShop(){ document.getElementById('shop').style.display='none'; paused=false; }
+function closeShop(){ document.getElementById('shop').style.display='none'; currentShopMerchant=null; paused=false; }
 // ---- Boss/Miniboss skill system ----
 function bossShot(e, a, dmgMul=1, ox=0, oz=0){
   spawnEnemyShot(e.x+ox,e.z+oz,Math.cos(a),Math.sin(a),Math.round(e.atk*dmgMul));
