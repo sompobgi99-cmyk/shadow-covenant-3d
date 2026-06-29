@@ -73,6 +73,39 @@
             box-shadow:4px 4px 0 #351121,0 0 18px rgba(181,42,67,.28); transition:transform .1s,background .1s; }
   #playbtn:hover{ background:#b6334d; transform:translateY(-2px); }
   #playbtn:active{ transform:translate(2px,2px); box-shadow:2px 2px 0 #351121; }
+  .titlemenu{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+  .titlemenu button{ background:rgba(18,11,24,.82); color:#ead18c; border:1px solid rgba(229,181,90,.62);
+                     border-radius:4px; font-family:monospace; font-size:13px; padding:8px 13px; cursor:pointer;
+                     box-shadow:2px 2px 0 rgba(53,17,33,.9); }
+  .titlemenu button:hover{ color:#fff8e8; border-color:#ffcc66; background:rgba(55,22,38,.88); transform:translateY(-1px); }
+  #guide{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:4;
+          background:rgba(4,3,8,.72); padding:28px; }
+  .guidepanel{ position:relative; width:min(960px,92vw); max-height:min(720px,86vh); overflow:hidden;
+               background:linear-gradient(180deg,rgba(16,10,18,.96),rgba(8,6,12,.94));
+               border:1px solid rgba(229,181,90,.72); border-radius:8px;
+               box-shadow:0 0 0 2px rgba(53,17,33,.85),0 24px 70px rgba(0,0,0,.6); }
+  #guideclose{ position:absolute; top:10px; right:10px; width:34px; height:34px; z-index:2;
+               background:#351121; color:#ffe08a; border:1px solid #8a4a5a; border-radius:5px;
+               font-family:monospace; font-size:20px; line-height:1; cursor:pointer; }
+  #guideclose:hover{ color:#fff; border-color:#ffcc66; }
+  #guidebody{ max-height:min(720px,86vh); overflow:auto; padding:22px 22px 24px; scrollbar-color:#8a4a5a #120b18; }
+  .guidehead{ display:flex; align-items:end; justify-content:space-between; gap:16px; padding:0 42px 14px 0;
+              border-bottom:1px solid rgba(229,181,90,.24); margin-bottom:14px; }
+  .guidehead h2{ color:#fff0bf; font-size:24px; text-shadow:0 1px 2px #000; }
+  .guidehead span{ color:#a99eb1; font-size:12px; text-align:right; }
+  .guidegrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:10px; }
+  .guidecard{ min-width:0; display:grid; grid-template-columns:44px 1fr; gap:10px; align-items:center;
+              background:rgba(28,20,48,.64); border:1px solid rgba(90,74,138,.66); border-radius:6px;
+              padding:9px; box-shadow:0 0 14px rgba(0,0,0,.16); }
+  .guidecard img{ width:42px; height:42px; object-fit:contain; image-rendering:pixelated; }
+  .guidecard.character img{ width:42px; height:66px; align-self:end; }
+  .guidecard b{ display:block; color:#fff8e8; font-size:13px; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .guidecard p{ color:#bda8e0; font-size:11px; line-height:1.28; margin-top:3px; }
+  .guidecard small{ display:block; color:#8fd0ff; font-size:10px; margin-top:4px; }
+  .guidecard.common{ border-color:rgba(126,207,90,.66); }
+  .guidecard.uncommon{ border-color:rgba(90,158,207,.76); }
+  .guidecard.rare{ border-color:rgba(207,90,207,.76); }
+  .guidecard.legendary{ border-color:rgba(207,192,90,.86); background:rgba(45,34,32,.72); }
   .titlecontrols{ position:absolute; z-index:1; left:clamp(28px,7vw,116px); bottom:28px; display:flex; gap:22px;
                   color:#a79eaa; font-size:11px; text-shadow:1px 1px #000; }
   .titlecontrols b{ color:#ead18c; font-weight:normal; margin-right:5px; }
@@ -115,6 +148,15 @@
     #title .ts{ font-size:13px; max-width:390px; }
     .titlemeta{ gap:12px; flex-wrap:wrap; }
     #playbtn{ width:100%; max-width:360px; }
+    .titlemenu{ width:100%; max-width:360px; }
+    .titlemenu button{ flex:1; min-width:92px; }
+    #guide{ padding:14px; align-items:flex-end; }
+    .guidepanel{ width:100%; max-height:82vh; }
+    #guidebody{ max-height:82vh; padding:18px 14px 18px; }
+    .guidehead{ align-items:flex-start; flex-direction:column; gap:5px; padding-right:42px; }
+    .guidehead h2{ font-size:20px; }
+    .guidehead span{ text-align:left; }
+    .guidegrid{ grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:8px; }
     .titlecontrols{ left:24px; right:24px; bottom:26px; gap:9px 18px; flex-wrap:wrap; }
     .titleversion{ display:none; }
     #leaderboard{ left:24px; right:24px; top:24px; transform:none; width:auto; }

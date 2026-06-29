@@ -256,6 +256,53 @@ function buildSelect(){
     wrap.appendChild(d);
   }
 }
+function escHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function guideCard(img, name, desc, meta, cls){
+  return '<div class="guidecard '+(cls||'')+'"><img src="'+img+'" loading="lazy"><div><b>'+escHtml(name)+'</b><p>'+escHtml(desc)+'</p>'+(meta?'<small>'+escHtml(meta)+'</small>':'')+'</div></div>';
+}
+function openGuide(kind){
+  const guide=document.getElementById('guide'), body=document.getElementById('guidebody');
+  if(!guide||!body) return;
+  let title='คู่มือ', note='', cards='';
+  if(kind==='characters'){
+    title='ตัวละคร';
+    note='อาวุธเริ่มต้นและ passive ที่โตตามเลเวล';
+    cards=Object.keys(CHARACTERS).map(key=>{
+      const c=CHARACTERS[key], w=WEAPON_TYPES[c.weapon]||{};
+      const stats=c.stats||{};
+      const statLine=[
+        stats.maxHp?'HP '+stats.maxHp:null,
+        stats.spd?'SPD '+stats.spd:null,
+        stats.def?'DEF '+stats.def:null,
+        stats.regen?'Regen '+stats.regen:null
+      ].filter(Boolean).join(' / ');
+      return guideCard('assets/sprites/char_'+key+'_portrait.png', c.name, (w.name||c.weapon)+' - '+c.passive.desc, statLine, 'character');
+    }).join('');
+  } else if(kind==='skills'){
+    title='สกิล';
+    note='อาวุธที่เลือกได้ตอนอัปเลเวล และร่าง evolved';
+    cards=Object.keys(WEAPON_TYPES).map(key=>{
+      const w=WEAPON_TYPES[key];
+      const meta=(w.hidden?'Evolved':'Base')+' / DMG '+(w.dmg||'-')+(w.rate?' / Rate '+w.rate:'')+(w.count?' / Count '+w.count:'');
+      return guideCard('assets/sprites/'+w.icon+'.png', w.name, w.desc, meta, w.hidden?'rare':'');
+    }).join('');
+  } else {
+    title='ไอเทม';
+    note='ไอเทม stack ได้ เก็บซ้ำแล้วคูณความสามารถต่อเนื่อง';
+    const order={common:0,uncommon:1,rare:2,legendary:3};
+    cards=ITEMS.slice().sort((a,b)=>order[a.rarity]-order[b.rarity]||a.name.localeCompare(b.name)).map(it=>
+      guideCard('assets/sprites/'+it.icon+'.png', it.name, it.desc, it.rarity, it.rarity)
+    ).join('');
+  }
+  body.innerHTML='<div class="guidehead"><h2>'+escHtml(title)+'</h2><span>'+escHtml(note)+'</span></div><div class="guidegrid">'+cards+'</div>';
+  guide.style.display='flex';
+}
+function closeGuide(){
+  const guide=document.getElementById('guide');
+  if(guide) guide.style.display='none';
+}
 function selectCharacter(key){
   currentChar=key;
   document.getElementById('select').style.display='none';
@@ -492,7 +539,10 @@ function init() {
   document.getElementById('title').style.display='flex';
   showLeaderboard();
   initAudio(); resumeAudio(); startTitleBGM();
-  document.getElementById('playbtn').onclick = ()=>{ document.getElementById('title').style.display='none'; initAudio(); resumeAudio(); stopTitleBGM(); buildSelect(); document.getElementById('select').style.display='flex'; };
+  document.getElementById('playbtn').onclick = ()=>{ closeGuide(); document.getElementById('title').style.display='none'; initAudio(); resumeAudio(); stopTitleBGM(); buildSelect(); document.getElementById('select').style.display='flex'; };
+  document.querySelectorAll('.titlemenu button').forEach(btn=>btn.onclick=()=>openGuide(btn.dataset.guide));
+  document.getElementById('guideclose').onclick = closeGuide;
+  document.getElementById('guide').onclick = e=>{ if(e.target.id==='guide') closeGuide(); };
 
   addEventListener('resize', onResize);
   document.getElementById('pausebtn').onclick = togglePause;
