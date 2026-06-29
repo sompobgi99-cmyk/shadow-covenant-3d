@@ -208,6 +208,8 @@ const interactables = [];   // chests / shrines / merchant {type,tier,x,z,used,s
 let chestsOpened = 0, shopOffers = [], currentShopMerchant = null;
 const groundItems = [];     // dropped item pickups {x,z,item, spr,glow}
 const CHEST_BASE=[40,100,220];
+const PLAYER_NAME_KEY='sc3_player_name';
+let playerName = localStorage.getItem(PLAYER_NAME_KEY) || 'Player';
 function chestCost(tier){ const disc=Math.max(0.5, 1-0.08*((player&&player._wrench)||0)); return Math.round(CHEST_BASE[tier]*Math.pow(1.18, chestsOpened)*disc); }
 let paused = false, pendingUps = 0, currentChoices = [];
 let userPaused = false;
@@ -240,11 +242,30 @@ function togglePause(){
 }
 function quitToTitle(){
   started=false; userPaused=false; paused=false;
-  for (const id of ['pause','shop','select','over','levelup']) document.getElementById(id).style.display='none';
+  for (const id of ['pause','shop','playersetup','select','over','levelup']) document.getElementById(id).style.display='none';
   document.getElementById('pausebtn').textContent='⏸';
   document.getElementById('title').style.display='flex';
   showLeaderboard();
   startTitleBGM();
+}
+function cleanPlayerName(v){
+  return String(v||'').trim().replace(/\s+/g,' ').slice(0,18) || 'Player';
+}
+function openPlayerSetup(){
+  closeGuide();
+  document.getElementById('title').style.display='none';
+  const box=document.getElementById('playersetup'), input=document.getElementById('playername');
+  input.value=playerName;
+  box.style.display='flex';
+  setTimeout(()=>{ input.focus(); input.select(); },0);
+}
+function confirmPlayerName(){
+  const input=document.getElementById('playername');
+  playerName=cleanPlayerName(input.value);
+  localStorage.setItem(PLAYER_NAME_KEY, playerName);
+  document.getElementById('playersetup').style.display='none';
+  buildSelect();
+  document.getElementById('select').style.display='flex';
 }
 function buildSelect(){
   const wrap=document.getElementById('selcards'); wrap.innerHTML='';
@@ -539,7 +560,9 @@ function init() {
   document.getElementById('title').style.display='flex';
   showLeaderboard();
   initAudio(); resumeAudio(); startTitleBGM();
-  document.getElementById('playbtn').onclick = ()=>{ closeGuide(); document.getElementById('title').style.display='none'; initAudio(); resumeAudio(); stopTitleBGM(); buildSelect(); document.getElementById('select').style.display='flex'; };
+  document.getElementById('playbtn').onclick = ()=>{ initAudio(); resumeAudio(); stopTitleBGM(); openPlayerSetup(); };
+  document.getElementById('nameconfirm').onclick = confirmPlayerName;
+  document.getElementById('playername').addEventListener('keydown', e=>{ if(e.code==='Enter') confirmPlayerName(); });
   document.querySelectorAll('.titlemenu button').forEach(btn=>btn.onclick=()=>openGuide(btn.dataset.guide));
   document.getElementById('guideclose').onclick = closeGuide;
   document.getElementById('guide').onclick = e=>{ if(e.target.id==='guide') closeGuide(); };
@@ -565,7 +588,7 @@ function init() {
     if ((e.code==='KeyP'||e.code==='Escape') && !e.repeat && !gameOver && !paused) togglePause();
     if (e.code==='KeyF' && !e.repeat){ if (document.getElementById('shop').style.display==='flex') closeShop(); else activateNearby(); }
     if (e.code==='KeyR' && (gameOver||won)) restart();
-    if (e.code==='KeyC' && (gameOver||won)){ started=false; buildSelect(); document.getElementById('select').style.display='flex'; document.getElementById('over').style.display='none'; }
+    if (e.code==='KeyC' && (gameOver||won)){ started=false; document.getElementById('select').style.display='none'; document.getElementById('over').style.display='none'; openPlayerSetup(); }
   });
   addEventListener('keyup', (e)=>{ keys[e.code]=false; });
 
