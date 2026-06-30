@@ -122,7 +122,7 @@ function killEnemy(e){
   const rm = rewardMul();
   if (e.isStageBoss){
     for (let i=0;i<14;i++) dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm));
-    for (let i=0;i<24;i++) dropPickup(e.x, e.z, 'gold', Math.round(8*rm));
+    for (let i=0;i<24;i++) dropPickup(e.x, e.z, 'gold', Math.round(5*rm));
     const nextStage=mapStage+1;
     const finalStage=mapStage>=3;
     spawnObjectPulse(e.x,e.z,finalStage?0x7ce7ff:mapStage>=2?0x9a55ff:0x57e0ff,10,0.7); shake(0.5,0.4);
@@ -130,10 +130,10 @@ function killEnemy(e){
     showToast(finalStage?'Final portal opened!':nextStage===3?'Portal to Void Citadel opened!':'Portal to Crimson Wastes opened!', 4);
   } else if (e.isBoss){
     for (let i=0;i<6;i++) dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm));
-    for (let i=0;i<10;i++) dropPickup(e.x, e.z, 'gold', Math.round(5*rm));
+    for (let i=0;i<10;i++) dropPickup(e.x, e.z, 'gold', Math.round(3*rm));
   } else {
     dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm));
-    dropPickup(e.x, e.z, 'gold', Math.max(1, Math.round(e.xp*0.5*rm)));
+    dropPickup(e.x, e.z, 'gold', Math.max(1, Math.round(e.xp*0.3*rm)));
     // 5% chance to drop HP orb (8-15 HP)
     if (Math.random() < 0.05) dropPickup(e.x, e.z, 'hp', 8+Math.floor(Math.random()*8));
   }
@@ -201,7 +201,7 @@ function summonBoss(){
   let spriteKey = b.sprite;                               // use dedicated boss art if loaded...
   if (!(DIR_SHEETS[spriteKey] && tex[DIR_SHEETS[spriteKey].key]))
     spriteKey = MINIBOSS_TYPES[(Math.random()*MINIBOSS_TYPES.length)|0].sprite;   // ...else recycle miniboss art
-  const sc = atkTimeScale()*1.3;
+  const sc = atkTimeScale()*1.3*stageAtkMul();
   const H = b.h, hp = Math.round(b.hp*bossHpScale());
   const { spr, anim } = entitySprite(spriteKey, H);
   const sh = makeShadow(H*0.34); scene.add(spr); scene.add(sh);
@@ -374,13 +374,15 @@ function activateShrine(o){
   },1000);
 }
 function shopRerollCost(o){
-  return Math.round(35*Math.pow(1.45,(o&&o.shopRerolls)||0));
+  return Math.round(40*Math.pow(1.6,(o&&o.shopRerolls)||0));   // each reroll ramps steeply
 }
 function rollShopStock(o){
   o.shopOffers=[];
+  const rerollMul = Math.pow(1.3, (o&&o.shopRerolls)||0);   // rerolled stock costs more each time
   for (let i = 0; i < 3; i++) {
     const shopItem = rollItemDrop();
-    if (shopItem) o.shopOffers.push({ name:shopItem.name, desc:shopItem.desc, icon:shopItem.icon, rarity:shopItem.rarity, isItem:true, item:shopItem, apply:()=>{ shopItem.apply(player); player.items.push(shopItem); }, price:Math.round(40+(shopItem.rarity==='legendary'?200:shopItem.rarity==='rare'?120:shopItem.rarity==='uncommon'?80:40)) });
+    const base = 40+(shopItem&&shopItem.rarity==='legendary'?200:shopItem&&shopItem.rarity==='rare'?120:shopItem&&shopItem.rarity==='uncommon'?80:40);
+    if (shopItem) o.shopOffers.push({ name:shopItem.name, desc:shopItem.desc, icon:shopItem.icon, rarity:shopItem.rarity, isItem:true, item:shopItem, apply:()=>{ shopItem.apply(player); player.items.push(shopItem); }, price:Math.round(base*rerollMul) });
   }
 }
 function openShop(o){
@@ -607,7 +609,10 @@ function dropPickup(x,z,type,value){
 }
 function collect(pk){ pk.alive=false; if(pk.type==='gold') player.gold+=Math.round(pk.value*player.goldMul); else if(pk.type==='hp') player.hp=Math.min(player.maxHp, player.hp+pk.value); else { let v=pk.value; if(player.echoChance && Math.random()<player.echoChance) v*=2; addXP(v); } }
 function addXP(v){ player.xp += Math.round(v*player.xpMul); while(player.xp>=player.xpToNext){ levelUp(); } }
-function levelUp(){ player.xp-=player.xpToNext; player.level++; player.xpToNext=xpRequired(player.level);
+function levelUp(){
+  if (player.level>=MAX_LEVEL){ player.xp=0; player.xpToNext=Infinity; return; }   // hard cap
+  player.xp-=player.xpToNext; player.level++;
+  player.xpToNext = player.level>=MAX_LEVEL ? Infinity : xpRequired(player.level);
   player.hp=Math.min(player.maxHp, player.hp+8);
   sfx('levelup');
   if (player.passive && player.passive.apply) player.passive.apply(player);   // character passive grows per level
@@ -742,8 +747,13 @@ function updateHUD(dt){
   hudAccum=0;
   $('hpfill').style.transform = `scaleX(${Math.max(0,player.hp/player.maxHp)})`;
   $('hptext').textContent = `${Math.ceil(player.hp)} / ${player.maxHp}`;
-  $('xpfill').style.transform = `scaleX(${Math.min(1,player.xp/player.xpToNext)})`;
-  $('xptext').textContent = `LV ${player.level}   ${player.xp}/${player.xpToNext}`;
+  if (player.level>=MAX_LEVEL || !isFinite(player.xpToNext)){
+    $('xpfill').style.transform = 'scaleX(1)';
+    $('xptext').textContent = `LV ${player.level}  MAX`;
+  } else {
+    $('xpfill').style.transform = `scaleX(${Math.min(1,player.xp/player.xpToNext)})`;
+    $('xptext').textContent = `LV ${player.level}   ${player.xp}/${player.xpToNext}`;
+  }
   $('gold').textContent = `⬤ ${player.gold}`;
   { const rdy=player.dashCd<=0; $('dash').textContent = rdy ? '⚡ DASH [Space]' : `⚡ ${player.dashCd.toFixed(1)}s`; $('dash').style.color = rdy ? '#7CE7FF' : '#5a5a66'; }
   if (gameTime < RUN_TARGET){ $('time').textContent = fmt(gameTime); $('time').style.color='#ffcc00'; }
@@ -784,6 +794,7 @@ function updateHUD(dt){
   $('charname').textContent = (CHARACTERS[player.char]||{}).name || '';
   $('toast').style.display = toastTimer>0 ? 'block' : 'none';
   updateWeaponHUD();
+  updateTomeHUD();
   if (gameOver || won){ $('over').style.display='flex';
     $('overtitle').textContent = won ? 'VICTORY' : 'YOU DIED';
     $('overtitle').style.color = won ? '#7CE7FF' : '#e85b5b';
@@ -877,7 +888,8 @@ function restart(){
   for (const w of novaWaves) scene.remove(w.mesh); novaWaves.length=0;
   for (const f of slashFx) scene.remove(f.mesh); slashFx.length=0;
   for (const tr of trails) scene.remove(tr.mesh); trails.length=0;
-  for (const d of dmgNums) d.el.remove(); dmgNums.length=0; weaponSig='';
+  for (const d of dmgNums) d.el.remove(); dmgNums.length=0; weaponSig=''; tomeSig='';
+  { const tw=document.getElementById('tomes'); if(tw) tw.innerHTML=''; }
   for (const pk of pickups) scene.remove(pk.spr);
   for (const gi of groundItems) { if(gi.spr) scene.remove(gi.spr); if(gi.glow) scene.remove(gi.glow); }
   groundItems.length = 0;

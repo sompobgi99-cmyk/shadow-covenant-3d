@@ -63,6 +63,19 @@ function updateWeaponHUD(){
     wrap.appendChild(d);
   }
 }
+let tomeSig='';
+function updateTomeHUD(){
+  const tc=player.tomeCount||{};
+  const ids=Object.keys(tc).filter(id=>tc[id]>0);
+  const sig=ids.map(id=>id+tc[id]).join(',');
+  if (sig===tomeSig) return; tomeSig=sig;
+  const wrap=document.getElementById('tomes'); if(!wrap) return; wrap.innerHTML='';
+  for (const id of ids){ const u=UPGRADES.find(x=>x.id===id); if(!u) continue;
+    const d=document.createElement('div'); d.className='tslot'; d.title=u.name+' — '+u.desc;
+    d.innerHTML='<img src="assets/sprites/'+u.icon+'.png"><span>×'+tc[id]+'</span>';
+    wrap.appendChild(d);
+  }
+}
 function updateDamageNumbers(dt){
   for (let i=dmgNums.length-1;i>=0;i--){ const d=dmgNums[i]; d.t+=dt;
     if (d.t>=d.life){ d.el.remove(); dmgNums.splice(i,1); continue; }
@@ -340,7 +353,7 @@ const UPGRADES = [
   { id:'regen',    name:'Regen',      desc:'+0.8 HP/sec',        icon:'tomeic_regen',     apply:()=>{ player.regen+=0.8; } },
   { id:'magnet',   name:'Magnetism',  desc:'+30% pickup range',  icon:'tomeic_magnet', apply:()=>{ player.magnet*=1.3; } },
   { id:'exp',      name:'Experience', desc:'+20% XP gain',       icon:'tomeic_exp',apply:()=>{ player.xpMul*=1.2; } },
-  { id:'greed',    name:'Greed',      desc:'+50% gold',          icon:'tomeic_greed',     apply:()=>{ player.goldMul*=1.5; } },
+  { id:'greed',    name:'Greed',      desc:'+30% gold',          icon:'tomeic_greed',     apply:()=>{ player.goldMul*=1.3; } },
   { id:'fortitude',name:'Fortitude',  desc:'+3 armor',           icon:'tomeic_fortitude', apply:()=>{ player.def+=3; } },
   { id:'lifesteal',name:'Lifesteal',  desc:'+1 HP per kill',     icon:'tomeic_lifesteal',  apply:()=>{ player.lifesteal+=1; } },
   { id:'duration', name:'Duration',   desc:'+25% projectile life',icon:'tomeic_duration',    apply:()=>{ player.lifeMul*=1.25; } },
@@ -348,8 +361,12 @@ const UPGRADES = [
   { id:'growth',   name:'Growth',     desc:'+20% projectile size',icon:'tomeic_growth',     apply:()=>{ player.projScale*=1.2; } },
   { id:'impact',   name:'Impact',     desc:'+30% knockback',        icon:'tomeic_impact',   apply:()=>{ player.knockbackMul=(player.knockbackMul||0)+0.3; } },
 ];
+const MAX_TOMES = 4;   // เลือก tome ได้สูงสุด 4 ชนิด (เก็บซ้อนได้ไม่จำกัด)
 function openUpgradeChoice(){
-  const pool=[...UPGRADES, ...weaponChoices()], pick=[];
+  // Once 4 distinct tomes are taken, only offer those (level them up), no new tome types.
+  const ownedTomes = Object.keys(player.tomeCount||{}).length;
+  const tomePool = ownedTomes >= MAX_TOMES ? UPGRADES.filter(u=>player.tomeCount[u.id]) : UPGRADES;
+  const pool=[...tomePool, ...weaponChoices()], pick=[];
   for(let i=0;i<3 && pool.length;i++) pick.push(pool.splice((Math.random()*pool.length)|0,1)[0]);
   currentChoices=pick;
   const c=document.getElementById('cards'); c.innerHTML='';
@@ -366,15 +383,18 @@ function currentTier(){ return mapStage>=2 ? 2 : gameTime>=240 ? 2 : gameTime>=1
 function timeScale(){ return Math.min(10, 1 + gameTime/130); }
 // ATK scales far slower than HP so late-game hits sting without one-shotting.
 function atkTimeScale(){ return Math.min(2.4, 1 + gameTime/420); }
-function stageHpMul(){ return mapStage>=3 ? 1.85 : mapStage>=2 ? 1.35 : 1; }
-function stageAtkMul(){ return mapStage>=3 ? 1.38 : mapStage>=2 ? 1.18 : 1; }
+// Map 2+ ramps hard: enemies/minibosses/bosses get much tougher each stage.
+function stageHpMul(){ return mapStage>=3 ? 3.4 : mapStage>=2 ? 2.0 : 1; }
+function stageAtkMul(){ return mapStage>=3 ? 1.9 : mapStage>=2 ? 1.45 : 1; }
 function normalHpScale(tier){ return timeScale()*1.10*[1,1.22,1.48][tier||0]*stageHpMul(); }
 function normalAtkScale(tier){ return atkTimeScale()*[1,1.12,1.27][tier||0]*stageAtkMul(); }
-function minibossHpScale(){ return timeScale()*1.35*(mapStage>=3 ? 1.85 : mapStage>=2 ? 1.45 : 1); }
-function bossHpScale(){ return timeScale()*1.45*(mapStage>=3 ? 2.15 : mapStage>=2 ? 1.5 : 1); }
+function minibossHpScale(){ return timeScale()*1.35*(mapStage>=3 ? 3.6 : mapStage>=2 ? 2.1 : 1); }
+function bossHpScale(){ return timeScale()*1.45*(mapStage>=3 ? 4.0 : mapStage>=2 ? 2.3 : 1); }
+const MAX_LEVEL = 40;
 function xpRequired(level){
   const k=Math.max(0,level-1);
-  return Math.round(20+9*k+3.2*k*k);
+  // cubic ramp: gentle early, brutal near max level
+  return Math.round(20 + 10*k + 4*k*k + 0.22*k*k*k);
 }
 function enemySpeedMul(){ return 1 + Math.min(0.35, gameTime/720); }   // monsters speed up over time
 function progressionProfile(){
@@ -1111,7 +1131,7 @@ function spawnMiniboss() {
   const ang = Math.random()*Math.PI*2, d = 26;
   const x = clamp(player.x + Math.cos(ang)*d, -MAP_BOUND, MAP_BOUND);
   const z = clamp(player.z + Math.sin(ang)*d, -MAP_BOUND, MAP_BOUND);
-  const hpSc=minibossHpScale(), atkSc=atkTimeScale()*1.15;
+  const hpSc=minibossHpScale(), atkSc=atkTimeScale()*1.15*stageAtkMul();
   const { spr, anim } = entitySprite(t.sprite, t.h);
   const sh = makeShadow(t.h*0.34);
   scene.add(spr); scene.add(sh);
