@@ -813,43 +813,179 @@ function clearStageScenery(){
   }
   stageProps.length=0;
 }
+function pixelPropTexture(key,w,h,draw){
+  if(tex[key]) return;
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  ctx.clearRect(0,0,w,h);
+  draw(ctx,w,h);
+  const t=new THREE.CanvasTexture(cv);
+  t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
+  tex[key]=t;
+}
+function ensureStagePropTextures(){
+  pixelPropTexture('map2_blood_crystal',32,44,(c)=>{
+    c.fillStyle='rgba(255,52,42,0.18)'; c.fillRect(5,3,22,34);
+    c.fillStyle='#4b0710'; c.fillRect(13,9,7,29); c.fillRect(9,18,15,20); c.fillRect(7,38,19,4);
+    c.fillStyle='#a91524'; c.fillRect(12,12,9,25); c.fillRect(10,22,12,12);
+    c.fillStyle='#ff4f3f'; c.fillRect(15,5,4,31); c.fillRect(9,18,5,17); c.fillRect(21,21,4,14);
+    c.fillStyle='#ffd0a2'; c.fillRect(16,7,2,13); c.fillRect(11,20,2,5);
+    c.fillStyle='#24050a'; c.fillRect(8,41,17,3);
+  });
+  pixelPropTexture('map2_ember_spire',28,54,(c)=>{
+    c.fillStyle='rgba(255,106,35,0.15)'; c.fillRect(4,5,20,42);
+    c.fillStyle='#2a0908'; c.fillRect(9,14,10,37); c.fillRect(6,47,17,4);
+    c.fillStyle='#5d1810'; c.fillRect(11,11,9,36);
+    c.fillStyle='#b63819'; c.fillRect(13,8,6,32); c.fillRect(9,26,12,8);
+    c.fillStyle='#ffb13b'; c.fillRect(14,3,4,23); c.fillRect(12,30,3,7);
+    c.fillStyle='#fff0a5'; c.fillRect(15,5,2,10);
+  });
+  pixelPropTexture('map2_bone_totem',30,42,(c)=>{
+    c.fillStyle='rgba(255,196,122,0.12)'; c.fillRect(5,5,20,30);
+    c.fillStyle='#31110c'; c.fillRect(13,13,4,24); c.fillRect(7,35,16,4);
+    c.fillStyle='#d7c09b'; c.fillRect(9,7,12,8); c.fillRect(7,18,16,4); c.fillRect(8,27,14,4);
+    c.fillStyle='#fff1cf'; c.fillRect(11,8,3,5); c.fillRect(17,8,3,5); c.fillRect(10,19,9,2);
+    c.fillStyle='#7d2118'; c.fillRect(12,15,7,3); c.fillRect(14,24,4,3);
+  });
+  pixelPropTexture('map2_crimson_brazier',34,34,(c)=>{
+    c.fillStyle='rgba(255,74,38,0.22)'; c.fillRect(5,2,24,20);
+    c.fillStyle='#1d0a09'; c.fillRect(8,19,18,5); c.fillRect(12,24,3,8); c.fillRect(20,24,3,8); c.fillRect(9,31,16,2);
+    c.fillStyle='#6b2014'; c.fillRect(10,17,14,4);
+    c.fillStyle='#ff6a23'; c.fillRect(13,9,4,9); c.fillRect(18,5,5,13); c.fillRect(10,12,4,7);
+    c.fillStyle='#ffe179'; c.fillRect(15,10,2,5); c.fillRect(20,7,2,6);
+  });
+  pixelPropTexture('map2_lava_crack',42,18,(c)=>{
+    c.fillStyle='rgba(255,76,26,0.16)'; c.fillRect(4,5,34,8);
+    c.fillStyle='#2b0809'; c.fillRect(5,8,9,3); c.fillRect(13,6,8,4); c.fillRect(20,9,9,3); c.fillRect(29,6,7,3);
+    c.fillStyle='#ff5b24'; c.fillRect(8,9,5,1); c.fillRect(15,8,8,1); c.fillRect(23,10,5,1); c.fillRect(30,7,4,1);
+    c.fillStyle='#ffd278'; c.fillRect(17,8,3,1); c.fillRect(31,7,2,1);
+  });
+  pixelPropTexture('map2_blood_root',34,36,(c)=>{
+    c.fillStyle='rgba(184,20,32,0.10)'; c.fillRect(5,9,24,20);
+    c.fillStyle='#2b090d'; c.fillRect(15,8,5,23); c.fillRect(7,27,22,3);
+    c.fillStyle='#6e1420'; c.fillRect(12,13,4,13); c.fillRect(20,15,4,11); c.fillRect(9,23,4,6); c.fillRect(24,23,4,5);
+    c.fillStyle='#ff584c'; c.fillRect(16,10,2,8); c.fillRect(13,16,2,5); c.fillRect(21,18,2,5);
+  });
+  pixelPropTexture('map3_void_obelisk',30,58,(c)=>{
+    c.fillStyle='rgba(116,86,255,0.18)'; c.fillRect(5,4,20,44);
+    c.fillStyle='#080716'; c.fillRect(10,14,10,38); c.fillRect(7,50,16,5);
+    c.fillStyle='#21114d'; c.fillRect(12,10,9,39);
+    c.fillStyle='#5d48ff'; c.fillRect(14,6,5,34); c.fillRect(11,25,12,5);
+    c.fillStyle='#9ff7ff'; c.fillRect(15,9,2,18); c.fillRect(13,27,8,1);
+    c.fillStyle='#05030c'; c.fillRect(8,54,17,3);
+  });
+  pixelPropTexture('map3_rift_crystal',34,46,(c)=>{
+    c.fillStyle='rgba(75,219,255,0.16)'; c.fillRect(5,4,24,34);
+    c.fillStyle='#09091d'; c.fillRect(14,12,7,28); c.fillRect(9,38,18,4);
+    c.fillStyle='#2546a8'; c.fillRect(12,17,12,21);
+    c.fillStyle='#54d8ff'; c.fillRect(16,7,4,29); c.fillRect(9,23,5,13); c.fillRect(23,20,5,15);
+    c.fillStyle='#e8feff'; c.fillRect(17,9,2,12); c.fillRect(25,22,1,5);
+  });
+  pixelPropTexture('map3_rune_shard',32,30,(c)=>{
+    c.fillStyle='rgba(178,111,255,0.18)'; c.fillRect(5,7,22,16);
+    c.fillStyle='#080712'; c.fillRect(10,12,12,12); c.fillRect(7,24,18,2);
+    c.fillStyle='#2d1b62'; c.fillRect(12,9,11,14);
+    c.fillStyle='#bc76ff'; c.fillRect(15,11,2,9); c.fillRect(12,16,9,2);
+    c.fillStyle='#7ff7ff'; c.fillRect(18,13,2,2);
+  });
+  pixelPropTexture('map3_void_torch',28,44,(c)=>{
+    c.fillStyle='rgba(104,214,255,0.16)'; c.fillRect(4,3,20,25);
+    c.fillStyle='#070711'; c.fillRect(12,16,4,24); c.fillRect(8,39,13,3); c.fillRect(9,14,11,4);
+    c.fillStyle='#3a2c92'; c.fillRect(10,13,9,4);
+    c.fillStyle='#36dcff'; c.fillRect(12,5,4,11); c.fillRect(16,8,3,8);
+    c.fillStyle='#f5feff'; c.fillRect(13,6,2,5);
+  });
+  pixelPropTexture('map3_chain_pylon',36,42,(c)=>{
+    c.fillStyle='rgba(100,80,210,0.10)'; c.fillRect(5,8,26,25);
+    c.fillStyle='#080711'; c.fillRect(8,27,6,11); c.fillRect(23,27,6,11); c.fillRect(7,37,23,3);
+    c.fillStyle='#30206a'; c.fillRect(10,13,4,14); c.fillRect(24,13,4,14);
+    c.fillStyle='#806cff'; c.fillRect(13,15,4,3); c.fillRect(17,18,4,3); c.fillRect(21,21,4,3);
+    c.fillStyle='#77eaff'; c.fillRect(11,11,2,5); c.fillRect(25,11,2,5);
+  });
+  pixelPropTexture('map3_star_rift',42,32,(c)=>{
+    c.fillStyle='rgba(64,216,255,0.15)'; c.fillRect(5,6,32,19);
+    c.fillStyle='#090817'; c.fillRect(9,15,23,5);
+    c.fillStyle='#4b38cc'; c.fillRect(12,13,16,3); c.fillRect(15,18,18,3);
+    c.fillStyle='#65e9ff'; c.fillRect(16,14,13,2); c.fillRect(11,17,8,2); c.fillRect(26,19,5,1);
+    c.fillStyle='#ffffff'; c.fillRect(21,14,2,2); c.fillRect(15,17,1,1); c.fillRect(30,19,1,1);
+  });
+}
 function buildStageScenery(stage){
   clearStageScenery();
   if(stage<2) return;
+  ensureStagePropTextures();
   const options=stage>=3 ? [
-    {key:'map3_shard', h:2.6, solid:0.65, weight:0.34},
-    {key:'map3_obelisk', h:2.9, solid:0.55, weight:0.30},
-    {key:'map3_crystal', h:1.8, solid:0.35, weight:0.36}
+    {key:'map3_shard', h:2.5, solid:0.42, weight:0.10},
+    {key:'map3_obelisk', h:2.9, solid:0.42, weight:0.09},
+    {key:'map3_crystal', h:1.75, weight:0.12},
+    {key:'map3_void_obelisk', h:3.1, solid:0.44, weight:0.10},
+    {key:'map3_rift_crystal', h:1.95, weight:0.16},
+    {key:'map3_rune_shard', h:1.15, weight:0.17},
+    {key:'map3_void_torch', h:1.8, weight:0.11},
+    {key:'map3_chain_pylon', h:1.7, weight:0.08},
+    {key:'map3_star_rift', h:0.82, weight:0.07}
   ] : [
-    {key:'map2_rock', h:2.4, solid:0.75, weight:0.36},
-    {key:'map2_pillar', h:2.8, solid:0.55, weight:0.28},
-    {key:'map2_crystal', h:1.65, solid:0.35, weight:0.36}
+    {key:'map2_rock', h:2.15, solid:0.46, weight:0.10},
+    {key:'map2_pillar', h:2.65, solid:0.38, weight:0.08},
+    {key:'map2_crystal', h:1.55, weight:0.14},
+    {key:'map2_blood_crystal', h:1.95, weight:0.15},
+    {key:'map2_ember_spire', h:2.25, weight:0.12},
+    {key:'map2_bone_totem', h:1.7, weight:0.10},
+    {key:'map2_crimson_brazier', h:1.25, weight:0.12},
+    {key:'map2_lava_crack', h:0.55, weight:0.11},
+    {key:'map2_blood_root', h:1.45, weight:0.08}
   ];
+  const pick=()=>{
+    const total=options.reduce((sum,opt)=>sum+opt.weight,0);
+    let r=Math.random()*total;
+    for(const opt of options){ r-=opt.weight; if(r<=0) return opt; }
+    return options[options.length-1];
+  };
+  const avoidRadius=stage>=3 ? 18 : 10;
+  const canPlace=(x,z,choice)=>Math.abs(x)<MAP_BOUND*0.95 && Math.abs(z)<MAP_BOUND*0.95 && Math.hypot(x,z)>avoidRadius && (!choice.solid || !blocked(x,z));
   const addProp=(x,z,choice)=>{
+    if(!canPlace(x,z,choice)) return false;
     const spr=billboard(choice.key, choice.h*(0.82+Math.random()*0.38));
     spr.position.set(x, groundHeight(x,z), z);
     scene.add(spr);
     const obstacle=choice.solid ? {x,z,r:choice.solid} : null;
     if(obstacle) obstacles.push(obstacle);
     stageProps.push({spr, obstacle});
+    return true;
   };
   let placed=0;
-  for(let i=0;i<14;i++){
-    const angle=(i/14)*Math.PI*2+Math.random()*0.2;
-    const dist=11+Math.random()*18;
-    const x=Math.cos(angle)*dist, z=Math.sin(angle)*dist;
-    const choice=options[(Math.random()*options.length)|0];
-    if(!blocked(x,z)){ addProp(x,z,choice); placed++; }
+  const clusterCount=stage>=3 ? 18 : 22;
+  const clusterSize=stage>=3 ? 5 : 6;
+  for(let i=0;i<clusterCount;i++){
+    const angle=(i/clusterCount)*Math.PI*2+Math.random()*0.35;
+    const dist=(stage>=3 ? 23 : 15)+Math.random()*(stage>=3 ? 43 : 48);
+    const cx=Math.cos(angle)*dist, cz=Math.sin(angle)*dist;
+    for(let j=0;j<clusterSize;j++){
+      const a=Math.random()*Math.PI*2, d=Math.random()*(stage>=3 ? 5.2 : 6.4);
+      if(addProp(cx+Math.cos(a)*d, cz+Math.sin(a)*d, pick())) placed++;
+    }
+  }
+  const ringCount=stage>=3 ? 38 : 42;
+  for(let i=0;i<ringCount;i++){
+    const angle=(i/ringCount)*Math.PI*2+Math.random()*0.08;
+    const dist=(stage>=3 ? 28 : 20)+(i%3)*10+Math.random()*4;
+    if(addProp(Math.cos(angle)*dist, Math.sin(angle)*dist, pick())) placed++;
+  }
+  if(stage>=3){
+    const landmarks=['map3_void_obelisk','map3_chain_pylon','map3_void_torch','map3_rift_crystal'];
+    for(let i=0;i<12;i++){
+      const a=(i/12)*Math.PI*2;
+      const key=landmarks[i%landmarks.length];
+      const choice=options.find(opt=>opt.key===key) || pick();
+      if(addProp(Math.cos(a)*38, Math.sin(a)*38, choice)) placed++;
+    }
   }
   let guard=0;
-  while(placed<46 && guard++<700){
+  const target=stage>=3 ? 155 : 190;
+  while(placed<target && guard++<1800){
     const x=(Math.random()*2-1)*MAP_BOUND*0.92, z=(Math.random()*2-1)*MAP_BOUND*0.92;
-    if(Math.hypot(x,z)<8 || blocked(x,z)) continue;
-    const r=Math.random();
-    let acc=0, choice=options[0];
-    for(const opt of options){ acc+=opt.weight; if(r<=acc){ choice=opt; break; } }
-    addProp(x,z,choice);
-    placed++;
+    const choice=pick();
+    if(addProp(x,z,choice)) placed++;
   }
 }
 
