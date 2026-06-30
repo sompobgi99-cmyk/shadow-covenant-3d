@@ -689,7 +689,7 @@ function buildScenery() {
     }
   }
   // ancient castle ruins (landmarks, sparse)
-  scatter('px_ruin_rubble', 12, 0.85, 6, 0.55);
+  scatter('px_ruin_rubble', 12, 0.85, 6);     // small rubble is visual-only to avoid invisible snagging
   scatter('px_ruin_wall',    6, 1.8, 8, 1.0);
   scatter('px_ruin_pillar',  5, 2.5, 7, 0.5);
   scatter('px_ruin_arch',    3, 3.0, 9);
