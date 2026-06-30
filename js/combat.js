@@ -169,7 +169,7 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc){
   d = Math.round(d);
   if(e.final && e.finalPhase){
     if(e.phaseInvuln>0) d = 0;
-    const floor = 1;
+    const floor = (e.finalPhase>1 || e.phaseInvuln>0) ? 1 : -Infinity;
     e.hp = Math.max(floor, e.hp - d);
   } else {
     e.hp -= d;
