@@ -834,11 +834,11 @@ function saveScore(){
 function loadLeaderboard(){
   return JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || '[]');
 }
-function renderLeaderboard(board, source){
+function renderLeaderboard(board, source, emptyMessage){
   const el = document.getElementById('leaderboard');
   if (!el) return;
   if (!board.length) {
-    el.innerHTML='<div class="rankpanel empty"><div class="rankhead"><span>Ranking</span><b>No records</b></div><p>Finish a run to carve your name into the covenant.</p></div>';
+    el.innerHTML='<div class="rankpanel empty"><div class="rankhead"><span>'+escHtml(source||'Ranking')+'</span><b>No records</b></div><p>'+escHtml(emptyMessage||'Finish a run to carve your name into the covenant.')+'</p></div>';
     return;
   }
   const best=board[0];
@@ -865,11 +865,14 @@ function showLeaderboardLegacy(){
   el.innerHTML = h;
 }
 function showLeaderboard(){
-  const board = loadLeaderboard();
-  renderLeaderboard(board, (typeof onlineLeaderboardReady==='function' && onlineLeaderboardReady()) ? 'Local Ranking' : 'Ranking');
   if(typeof loadOnlineLeaderboard==='function' && typeof onlineLeaderboardReady==='function' && onlineLeaderboardReady()){
-    loadOnlineLeaderboard().then(rows=>{ if(rows.length) renderLeaderboard(rows,'Online Ranking'); }).catch(err=>console.warn(err.message||err));
+    renderLeaderboard([], 'Online Ranking', 'Loading shared scores...');
+    loadOnlineLeaderboard()
+      .then(rows=>{ renderLeaderboard(rows,'Online Ranking','No shared scores yet. Finish a run to claim the first rank.'); })
+      .catch(err=>{ console.warn(err.message||err); renderLeaderboard(loadLeaderboard(), 'Local Ranking'); });
+    return;
   }
+  renderLeaderboard(loadLeaderboard(), 'Ranking');
 }
 function renderRunRanking(){
   let el=document.getElementById('overrank');
