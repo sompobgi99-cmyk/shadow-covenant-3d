@@ -314,14 +314,20 @@ function openGuide(kind){
       ].filter(Boolean).join(' / ');
       return guideCard('assets/sprites/char_'+key+'_portrait.png', c.name, (w.name||c.weapon)+' - '+c.passive.desc, statLine, 'character');
     }).join('');
-  } else if(kind==='skills'){
-    title='สกิล';
+  } else if(kind==='weapons'){
+    title='อาวุธ';
     note='อาวุธที่เลือกได้ตอนอัปเลเวล และร่าง evolved';
     cards=Object.keys(WEAPON_TYPES).map(key=>{
       const w=WEAPON_TYPES[key];
       const meta=(w.hidden?'Evolved':'Base')+' / DMG '+(w.dmg||'-')+(w.rate?' / Rate '+w.rate:'')+(w.count?' / Count '+w.count:'');
       return guideCard('assets/sprites/'+w.icon+'.png', w.name, w.desc, meta, w.hidden?'rare':'');
     }).join('');
+  } else if(kind==='tomes'){
+    title='Tome';
+    note='Passive upgrade เลือกได้สูงสุด 4 ชนิดต่อรัน แต่เก็บซ้ำเพื่อเพิ่มพลังได้';
+    cards=UPGRADES.map(u=>
+      guideCard('assets/sprites/'+u.icon+'.png', u.name, u.desc, 'Tome upgrade', 'uncommon')
+    ).join('');
   } else {
     title='ไอเทม';
     note='ไอเทม stack ได้ เก็บซ้ำแล้วคูณความสามารถต่อเนื่อง';
