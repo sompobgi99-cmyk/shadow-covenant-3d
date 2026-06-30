@@ -47,6 +47,8 @@ const MANIFEST = {
   map3_shard:'map3_shard.png', map3_obelisk:'map3_obelisk.png', map3_crystal:'map3_crystal.png',
   wpn_bolt:'wpn_bolt.png', wpn_spread:'wpn_spread.png', wpn_nova:'wpn_nova.png', wpn_orbit:'wpn_orbit.png',
   wpn_arrow:'wpn_arrow.png', wpn_smite:'wpn_smite.png', wpn_bladewhirl:'wpn_bladewhirl.png', wpn_soulspiral:'wpn_soulspiral.png',
+  wpn_bolt_evolved:'wpn_bolt_evolved.png', wpn_spread_evolved:'wpn_spread_evolved.png', wpn_nova_evolved:'wpn_nova_evolved.png', wpn_orbit_evolved:'wpn_orbit_evolved.png',
+  wpn_arrow_evolved:'wpn_arrow_evolved.png', wpn_smite_evolved:'wpn_smite_evolved.png', wpn_bladewhirl_evolved:'wpn_bladewhirl_evolved.png', wpn_soulspiral_evolved:'wpn_soulspiral_evolved.png',
   tomeic_might:'tomeic_might.png', tomeic_vitality:'tomeic_vitality.png', tomeic_celerity:'tomeic_celerity.png', tomeic_precision:'tomeic_precision.png', tomeic_multishot:'tomeic_multishot.png', tomeic_swiftness:'tomeic_swiftness.png', tomeic_regen:'tomeic_regen.png', tomeic_magnet:'tomeic_magnet.png', tomeic_exp:'tomeic_exp.png', tomeic_greed:'tomeic_greed.png', tomeic_fortitude:'tomeic_fortitude.png', tomeic_lifesteal:'tomeic_lifesteal.png', tomeic_duration:'tomeic_duration.png', tomeic_velocity:'tomeic_velocity.png', tomeic_growth:'tomeic_growth.png', tomeic_impact:'tomeic_impact.png',
   px_ruin_wall:'px_ruin_wall.png', px_ruin_pillar:'px_ruin_pillar.png', px_ruin_arch:'px_ruin_arch.png',
   border_wall:'border_wall.png',
