@@ -1,7 +1,7 @@
 import { getStore } from "@netlify/blobs";
 
 const STORE_NAME = "shadow-covenant-ranking";
-const SCORE_KEY = "scores";
+const SCORE_KEY = "scores-v2";
 const MAX_STORED = 100;
 
 const jsonHeaders = {

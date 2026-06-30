@@ -299,7 +299,7 @@ function tryDash(){
   player.invuln=Math.max(player.invuln, DASH_DUR+0.08);   // i-frames while dashing
 }
 function quitToTitle(){
-  started=false; userPaused=false; paused=false;
+  started=false; userPaused=false; paused=false; gameOver=false; won=false; pendingUps=0;
   for (const id of ['pause','shop','playersetup','select','over','levelup']) document.getElementById(id).style.display='none';
   document.getElementById('pausebtn').textContent='⏸';
   document.getElementById('title').style.display='flex';
@@ -431,6 +431,12 @@ function pickUpgrade(i){ if(!paused) return; const u=currentChoices[i]; if(!u) r
   checkEvolveReady();
   document.getElementById('levelup').style.display='none';
   pendingUps--; if(pendingUps>0) openUpgradeChoice(); else paused=false; }
+function skipUpgrade(){
+  if(!paused || pendingUps<=0 || document.getElementById('levelup').style.display!=='flex') return;
+  document.getElementById('levelup').style.display='none';
+  pendingUps--;
+  if(pendingUps>0) openUpgradeChoice(); else paused=false;
+}
 // Notify the player the moment a weapon meets its evolve requirement.
 function checkEvolveReady(){
   for (const w of player.weapons){
@@ -674,11 +680,14 @@ function init() {
   document.getElementById('pausebtn').onclick = togglePause;
   document.getElementById('shopreroll').onclick = rerollShop;
   document.getElementById('shopclose').onclick = closeShop;
+  document.getElementById('skipupgrade').onclick = skipUpgrade;
+  document.getElementById('homebtn').onclick = quitToTitle;
   addEventListener('wheel', (e)=>{ camDist = clamp(camDist + Math.sign(e.deltaY)*1.3, 13, 18); }, { passive:true });
   document.getElementById('quitbtn').onclick = quitToTitle;
   addEventListener('keydown', (e)=>{ if(!started){ return; } keys[e.code]=true;
     resumeAudio();
     if (paused && ['Digit1','Digit2','Digit3'].includes(e.code)){ pickUpgrade(+e.code.slice(5)-1); e.preventDefault(); return; }
+    if (paused && (e.code==='Digit0'||e.code==='Numpad0'||e.code==='Backspace')){ skipUpgrade(); e.preventDefault(); return; }
     if (['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
     if (e.code==='Space' && !e.repeat) tryDash();
     if ((e.code==='KeyP'||e.code==='Escape') && !e.repeat && !gameOver && !paused) togglePause();

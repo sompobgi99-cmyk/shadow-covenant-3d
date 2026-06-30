@@ -228,10 +228,19 @@
   #over { position: absolute; inset: 0; background: rgba(5,2,8,.75); display: none; flex-direction: column;
           align-items: center; justify-content: center; gap: 10px; pointer-events: auto; }
   #over h1 { color: #e85b5b; font-size: 40px; } #over p { color: #ddd; } #over small { color: #888; }
+  #overactions{ display:flex; gap:10px; justify-content:center; align-items:center; pointer-events:auto; }
+  #homebtn{ background:#982a42; color:#fff8e8; border:2px solid #e5b55a; border-radius:5px;
+            font-family:monospace; font-size:15px; font-weight:bold; padding:9px 22px; cursor:pointer;
+            box-shadow:3px 3px 0 #351121; }
+  #homebtn:hover{ background:#b6334d; }
 .lvlhide{display:none!important;}
   #levelup{position:absolute;inset:0;background:rgba(5,2,8,.8);display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;pointer-events:auto;}
   #levelup h2{color:#ffcc00;font-size:22px;text-shadow:0 1px 2px #000;}
   #cards{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;}
+  #levelactions{display:flex;justify-content:center;align-items:center;}
+  #skipupgrade{background:rgba(18,11,24,.82);color:#a99eb1;border:1px solid #5a4a8a;border-radius:6px;
+               font-family:monospace;font-size:14px;padding:8px 18px;cursor:pointer;min-width:116px;}
+  #skipupgrade:hover{color:#fff8e8;border-color:#d7a84b;background:rgba(40,16,24,.9);}
   .card{width:150px;background:#1c1430;border:2px solid #5a4a8a;border-radius:8px;padding:14px;text-align:center;cursor:pointer;transition:transform .1s,border-color .1s,background .1s;}
   .card:hover{border-color:#ffcc00;transform:translateY(-4px);background:#2a1f45;}
   .card img{width:48px;height:48px;image-rendering:pixelated;}
