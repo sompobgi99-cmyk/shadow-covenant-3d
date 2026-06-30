@@ -235,7 +235,7 @@ function update(dt) {
     const t=1-r.life/r.max, rad=0.5+(r.maxR-0.5)*t;
     r.mesh.scale.set(rad,rad,rad); r.mesh.material.opacity=0.85*(1-t); }
   for (let i=novaWaves.length-1;i>=0;i--){ const w=novaWaves[i];
-    w.r += 16*dt; w.mesh.scale.set(w.r,w.r,w.r);
+    w.r += (w.speed||16)*dt; w.mesh.scale.set(w.r,w.r,w.r);
     const no=Math.max(0,1-w.r/w.maxR);
     if (w.ring) w.ring.material.opacity=0.9*no;
     if (w.wash) w.wash.material.opacity=0.16*no;

@@ -395,9 +395,9 @@ function selectCharacter(key){
   started=true; restart();
 }
 const UPGRADES = [
-  { id:'might',    name:'Might',      desc:'+18% damage',        icon:'tomeic_might',     apply:()=>{ player.dmgMul*=1.18; } },
+  { id:'might',    name:'Might',      desc:'+15% damage',        icon:'tomeic_might',     apply:()=>{ player.dmgMul*=1.15; } },
   { id:'vitality', name:'Vitality',   desc:'+25 max HP, heal',   icon:'tomeic_vitality',  apply:()=>{ player.maxHp+=25; player.hp=Math.min(healCap(player), player.hp+25); } },
-  { id:'celerity', name:'Celerity',   desc:'+15% attack speed',  icon:'tomeic_celerity',  apply:()=>{ player.rateMul*=1.15; } },
+  { id:'celerity', name:'Celerity',   desc:'+10% attack speed',  icon:'tomeic_celerity',  apply:()=>{ player.rateMul*=1.10; } },
   { id:'precision',name:'Precision',  desc:'+25% range',         icon:'tomeic_precision', apply:()=>{ player.rangeMul*=1.25; } },
   { id:'multishot',name:'Multishot',  desc:'+1 projectile',      icon:'tomeic_multishot', apply:()=>{ player.countBonus+=1; } },
   { id:'swiftness',name:'Swiftness',  desc:'+6% move speed',     icon:'tomeic_swiftness', apply:()=>{ player.spd*=1.06; } },
@@ -407,7 +407,7 @@ const UPGRADES = [
   { id:'greed',    name:'Greed',      desc:'+20% gold',          icon:'tomeic_greed',     apply:()=>{ player.goldMul*=1.2; } },
   { id:'fortitude',name:'Fortitude',  desc:'+5 armor',           icon:'tomeic_fortitude', apply:()=>{ player.def+=5; } },
   { id:'lifesteal',name:'Lifesteal',  desc:'+1 HP per kill',     icon:'tomeic_lifesteal',  apply:()=>{ player.lifesteal+=1; } },
-  { id:'duration', name:'Duration',   desc:'+25% projectile life',icon:'tomeic_duration',    apply:()=>{ player.lifeMul*=1.25; } },
+  { id:'duration', name:'Persistence',desc:'+20% projectile life, +10% area duration',icon:'tomeic_duration',    apply:()=>{ player.lifeMul*=1.20; player.areaLifeMul*=1.10; } },
   { id:'velocity', name:'Velocity',   desc:'+20% projectile speed',icon:'tomeic_velocity',apply:()=>{ player.projSpeedMul*=1.2; } },
   { id:'growth',   name:'Growth',     desc:'+20% projectile size',icon:'tomeic_growth',     apply:()=>{ player.projScale*=1.2; } },
   { id:'impact',   name:'Impact',     desc:'+15% knockback',        icon:'tomeic_impact',   apply:()=>{ player.knockbackMul=(player.knockbackMul||0)+0.15; } },
@@ -453,6 +453,8 @@ function normalHpScale(tier){ return timeScale()*1.10*[1,1.22,1.48][tier||0]*sta
 function normalAtkScale(tier){ return atkTimeScale()*[1,1.12,1.27][tier||0]*stageAtkMul()*otPowerMul(); }
 function minibossHpScale(){ return timeScale()*1.35*(mapStage>=3 ? 5.0 : mapStage>=2 ? 2.9 : 1)*otPowerMul(); }
 function bossHpScale(){ return timeScale()*1.45*(mapStage>=3 ? 5.8 : mapStage>=2 ? 3.1 : 1)*otPowerMul(); }
+const MINIBOSS_SPEED_MUL = 1.18;
+const BOSS_SPEED_MUL = 1.22;
 const MAX_LEVEL = 40;
 function xpRequired(level){
   const k=Math.max(0,level-1);
@@ -672,7 +674,7 @@ function init() {
   document.getElementById('pausebtn').onclick = togglePause;
   document.getElementById('shopreroll').onclick = rerollShop;
   document.getElementById('shopclose').onclick = closeShop;
-  addEventListener('wheel', (e)=>{ camDist = clamp(camDist + Math.sign(e.deltaY)*1.3, 13, 22); }, { passive:true });
+  addEventListener('wheel', (e)=>{ camDist = clamp(camDist + Math.sign(e.deltaY)*1.3, 13, 18); }, { passive:true });
   document.getElementById('quitbtn').onclick = quitToTitle;
   addEventListener('keydown', (e)=>{ if(!started){ return; } keys[e.code]=true;
     resumeAudio();
@@ -1106,7 +1108,7 @@ function makePlayer() {
   scene.add(spr); scene.add(sh);
   const p = { x:0, z:0, hp:80, maxHp:80, def:5, spd:PLAYER_SPEED,
            level:1, xp:0, xpToNext:xpRequired(1), gold:0, alive:true, moving:false, dir:0,
-           invuln:0, flash:0, hpBarUntil:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, lifesteal:0, knockbackMul:0, lifeMul:1, projSpeedMul:1, projScale:1, tomeCount:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh, hpbar };
+           invuln:0, flash:0, hpBarUntil:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, lifesteal:0, knockbackMul:0, lifeMul:1, areaLifeMul:1, projSpeedMul:1, projScale:1, tomeCount:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh, hpbar };
   const st = C.stats || {};
   if (st.maxHp!=null){ p.maxHp=st.maxHp; p.hp=st.maxHp; }
   if (st.spd!=null)   p.spd=st.spd;
@@ -1238,7 +1240,7 @@ function spawnMiniboss() {
   const { spr, anim } = entitySprite(t.sprite, t.h);
   const sh = makeShadow(t.h*0.34);
   scene.add(spr); scene.add(sh);
-  enemies.push({ x, z, hp:t.hp*hpSc, maxHp:t.hp*hpSc, atk:Math.round(t.atk*atkSc), spd:t.spd*SPD_SCALE,
+  enemies.push({ x, z, hp:t.hp*hpSc, maxHp:t.hp*hpSc, atk:Math.round(t.atk*atkSc), spd:t.spd*SPD_SCALE*MINIBOSS_SPEED_MUL,
                  xp:t.xp, r:t.h*0.30, name:t.name, alive:true, cd:0, flash:0, isBoss:true, behavior:'chase', kx:0, kz:0, atkCd:0, chargeCd:0, charging:0, bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh });
   assignSkills(enemies[enemies.length-1], MB_SKILLS[t.sprite] || ['ring','charge']);
   { const mb=enemies[enemies.length-1]; mb.aura=makeBossAura(0xff3f66, mb.r*1.85, false); mb.tint=0xffe3e8; }

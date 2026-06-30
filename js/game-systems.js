@@ -205,7 +205,7 @@ function summonBoss(){
   const H = b.h, hp = Math.round(b.hp*bossHpScale());
   const { spr, anim } = entitySprite(spriteKey, H);
   const sh = makeShadow(H*0.34); scene.add(spr); scene.add(sh);
-  boss = { x:altar.x, z:altar.z+3, hp, maxHp:hp, atk:Math.round(b.atk*sc), spd:48*SPD_SCALE,
+  boss = { x:altar.x, z:altar.z+3, hp, maxHp:hp, atk:Math.round(b.atk*sc), spd:48*SPD_SCALE*BOSS_SPEED_MUL,
            xp:400, r:H*0.34, name:b.name, alive:true, cd:0, flash:0, isBoss:true, isStageBoss:true,
            behavior:'boss', kx:0, kz:0, atkCd:0, chargeCd:0, charging:0, patternCd:2.5, patternFlip:0, summonCd:6, final:b.final,
            bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh };
@@ -519,7 +519,7 @@ function setupFinalBoss(e){
   e.phaseInvuln=0;
   e.phaseSummonDone={};
   e.finalPulseT=1.2;
-  e.spd=42*SPD_SCALE;
+  e.spd=42*SPD_SCALE*BOSS_SPEED_MUL;
   e.atk=Math.round(e.atk*1.18);
 }
 function spawnBossAddAt(cx,cz,type,stageBoss){
@@ -530,7 +530,7 @@ function spawnBossAddAt(cx,cz,type,stageBoss){
   const atkMul=stageBoss?0.72:0.86;
   const add={ x:clamp(cx,-MAP_BOUND,MAP_BOUND), z:clamp(cz,-MAP_BOUND,MAP_BOUND),
     hp:Math.round(type.hp*bossHpScale()*hpMul), maxHp:Math.round(type.hp*bossHpScale()*hpMul),
-    atk:Math.round(type.atk*atkTimeScale()*atkMul), spd:(type.spd||62)*SPD_SCALE,
+    atk:Math.round(type.atk*atkTimeScale()*atkMul), spd:(type.spd||62)*SPD_SCALE*(stageBoss?BOSS_SPEED_MUL:MINIBOSS_SPEED_MUL),
     xp:stageBoss?180:type.xp, r:H*0.32, name:stageBoss?type.name+' Echo':type.name, alive:true, cd:0, flash:0,
     isBoss:true, isStageBoss:false, elite:!stageBoss, behavior:'chase', kx:0,kz:0, atkCd:0, chargeCd:0,
     charging:0, bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh };

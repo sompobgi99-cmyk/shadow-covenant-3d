@@ -140,6 +140,7 @@ function wstats(key, lvl){
     s.rate  = b.rate * (1 + 0.06*k) * (player.rateMul||1);
     s.range = b.range * (player.rangeMul||1);
     s.life  = b.life * (player.lifeMul||1);
+    s.areaLife = player.areaLifeMul||1;
     s.speed = b.speed * (player.projSpeedMul||1);
     if (b.radius) s.radius = b.radius * (1 + 0.055*k) * (player.rangeMul||1);
   }
@@ -234,7 +235,7 @@ function getPixelRingTexture(){
   t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter;
   t.generateMipmaps=false; pixelRingTexture=t; return t;
 }
-function spawnNovaWave(x,z,maxR,dmg,color){
+function spawnNovaWave(x,z,maxR,dmg,color,areaLife){
   const geo=new THREE.PlaneGeometry(2,2); geo.rotateX(-Math.PI/2);
   const ring=new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
     map:getPixelRingTexture(), color, transparent:true, opacity:1,
@@ -242,10 +243,10 @@ function spawnNovaWave(x,z,maxR,dmg,color){
   }));
   const m=ring;
   m.position.set(x, groundHeight(x,z)+0.12, z); m.scale.setScalar(0.5); scene.add(m);
-  novaWaves.push({ x, z, r:0.5, maxR, dmg, color, hit:new Set(), mesh:m, ring, wash:null });
+  novaWaves.push({ x, z, r:0.5, maxR, speed:16/(areaLife||1), dmg, color, hit:new Set(), mesh:m, ring, wash:null });
 }
 function fireNova(s){ sfx('shoot'); const n=s.count, R=s.radius||6;
-  for(let i=0;i<n;i++) spawnNovaWave(player.x, player.z, R*(0.6+0.4*(i+1)/n), s.dmg, s.color); }
+  for(let i=0;i<n;i++) spawnNovaWave(player.x, player.z, R*(0.6+0.4*(i+1)/n), s.dmg, s.color, s.areaLife); }
 function fireSpiral(s){ sfx('shoot'); const base=gameTime*4; for(let i=0;i<s.count;i++){ const a=base+(i/s.count)*Math.PI*2; spawnProjectile(Math.cos(a), Math.sin(a), s); } }
 const slashFx=[];
 function fireSlash(s){
@@ -272,8 +273,9 @@ function fireSmite(s){
     transparent:true, alphaTest:0.08, depthWrite:false
   }));
   bm.scale.set(1.35,5.4,1); bm.position.set(tx,3.05,tz);
-  scene.add(bm); slashFx.push({ mesh:bm, life:0.28, max:0.28, grow:0.04, baseScale:bm.scale.clone(), fade:1 });
-  spawnRing(tx,tz,s.color,R*1.8,0.45); spawnBurst(tx,tz,s.color,8,0.8);
+  const fxLife=0.28*(s.areaLife||1);
+  scene.add(bm); slashFx.push({ mesh:bm, life:fxLife, max:fxLife, grow:0.04, baseScale:bm.scale.clone(), fade:1 });
+  spawnRing(tx,tz,s.color,R*1.8,0.45*(s.areaLife||1)); spawnBurst(tx,tz,s.color,8,0.8);
 }
 const WFIRE = { aim:fireAim, spread:fireSpread, nova:fireNova, spiral:fireSpiral, slash:fireSlash, smite:fireSmite };
 function updateOrbit(w, s, dt){
