@@ -853,7 +853,7 @@ function clamp(v,a,b){ return v<a?a:v>b?b:v; }
 const LEADERBOARD_KEY = 'sc3_leaderboard';
 function saveScore(){
   const character = (CHARACTERS[player.char]||{}).name || 'Unknown';
-  const entry = { name:cleanPlayerName(playerName), character, score, kills, time: Math.floor(gameTime), won, level:player.level, stage:mapStage, damage:Math.round(damageTaken), items:player.items.length, date: new Date().toISOString() };
+  const entry = { name:cleanPlayerName(playerName), country_code:cleanCountryCode(playerCountry), character, score, kills, time: Math.floor(gameTime), won, level:player.level, stage:mapStage, damage:Math.round(damageTaken), items:player.items.length, date: new Date().toISOString() };
   let board = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || '[]');
   board.push(entry);
   board.sort((a,b) => b.score - a.score);
@@ -882,7 +882,8 @@ function renderLeaderboard(board, source, emptyMessage){
     const medal = ['I','II','III'][i] || String(i+1).padStart(2,'0');
     const result=e.won?'CLEAR':'FALL';
     const hero=e.character ? ' | '+e.character : '';
-    h += `<div class="rankrow${cls}"><div class="rankno">${medal}</div><div class="rankwho"><b>${escHtml(e.name||'Player')}</b><span>${result}${hero} | ${fmt(e.time||0)} | ${e.kills||0} kills | Lv ${e.level||1}</span></div><div class="rankscore">${(e.score||0).toLocaleString()}</div></div>`;
+    const flag=countryFlag(e.country_code||e.country||'TH');
+    h += `<div class="rankrow${cls}"><div class="rankno">${medal}</div><div class="rankwho"><b><span class="rankflag">${flag}</span><span class="rankname">${escHtml(e.name||'Player')}</span></b><span>${result}${hero} | ${fmt(e.time||0)} | ${e.kills||0} kills | Lv ${e.level||1}</span></div><div class="rankscore">${(e.score||0).toLocaleString()}</div></div>`;
   });
   h += '</div></div>';
   el.innerHTML = h;
@@ -919,7 +920,7 @@ function renderRunRanking(){
   if(!el || !lastScoreEntry){ if(el) el.innerHTML=''; return; }
   const e=lastScoreEntry;
   const verdict=e.personalBest?'NEW BEST':'RUN SCORE';
-  el.innerHTML=`<div class="runrank"><div><span>${escHtml(e.name)}</span><b>#${e.rank}</b></div><div><span>Score</span><b>${e.score.toLocaleString()}</b></div><div><span>Kills</span><b>${e.kills}</b></div><div><span>Time</span><b>${fmt(e.time)}</b></div><div><span>Damage</span><b>${e.damage}</b></div></div>`;
+  el.innerHTML=`<div class="runrank"><div><span>${countryFlag(e.country_code)} ${escHtml(e.name)}</span><b>#${e.rank}</b></div><div><span>Score</span><b>${e.score.toLocaleString()}</b></div><div><span>Kills</span><b>${e.kills}</b></div><div><span>Time</span><b>${fmt(e.time)}</b></div><div><span>Damage</span><b>${e.damage}</b></div></div>`;
 }
 function restart(){
   for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); scene.remove(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }

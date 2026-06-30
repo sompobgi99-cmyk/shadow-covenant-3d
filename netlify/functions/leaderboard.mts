@@ -27,9 +27,15 @@ function cleanInt(value, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
+function cleanCountry(value) {
+  const code = String(value || "TH").trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(code) ? code : "TH";
+}
+
 function cleanScore(input) {
   return {
     player_name: cleanText(input.player_name || input.name, "Player", 18),
+    country_code: cleanCountry(input.country_code || input.country),
     character: cleanText(input.character, "Unknown", 32),
     score: cleanInt(input.score, 0, 999999999),
     kills: cleanInt(input.kills, 0, 999999),

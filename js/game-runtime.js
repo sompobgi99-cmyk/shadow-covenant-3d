@@ -257,7 +257,9 @@ let chestsOpened = 0, shopOffers = [], currentShopMerchant = null, shopPurchases
 const groundItems = [];     // dropped item pickups {x,z,item, spr,glow}
 const CHEST_BASE=[40,100,220];
 const PLAYER_NAME_KEY='sc3_player_name';
+const PLAYER_COUNTRY_KEY='sc3_player_country';
 let playerName = localStorage.getItem(PLAYER_NAME_KEY) || 'Player';
+let playerCountry = localStorage.getItem(PLAYER_COUNTRY_KEY) || 'TH';
 function chestCost(tier){ const disc=Math.max(0.5, 1-0.08*((player&&player._wrench)||0)); return Math.round(CHEST_BASE[tier]*Math.pow(1.18, chestsOpened)*disc); }
 let paused = false, pendingUps = 0, currentChoices = [];
 let userPaused = false;
@@ -309,18 +311,31 @@ function quitToTitle(){
 function cleanPlayerName(v){
   return String(v||'').trim().replace(/\s+/g,' ').slice(0,18) || 'Player';
 }
+function cleanCountryCode(v){
+  const code=String(v||'TH').trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(code) ? code : 'TH';
+}
+function countryFlag(code){
+  const cc=cleanCountryCode(code);
+  return String.fromCodePoint(...[...cc].map(ch=>0x1f1e6 + ch.charCodeAt(0) - 65));
+}
 function openPlayerSetup(){
   closeGuide();
   document.getElementById('title').style.display='none';
   const box=document.getElementById('playersetup'), input=document.getElementById('playername');
   input.value=playerName;
+  const country=document.getElementById('playercountry');
+  if(country) country.value=playerCountry;
   box.style.display='flex';
   setTimeout(()=>{ input.focus(); input.select(); },0);
 }
 function confirmPlayerName(){
   const input=document.getElementById('playername');
   playerName=cleanPlayerName(input.value);
+  const country=document.getElementById('playercountry');
+  playerCountry=cleanCountryCode(country && country.value);
   localStorage.setItem(PLAYER_NAME_KEY, playerName);
+  localStorage.setItem(PLAYER_COUNTRY_KEY, playerCountry);
   document.getElementById('playersetup').style.display='none';
   buildSelect();
   document.getElementById('select').style.display='flex';

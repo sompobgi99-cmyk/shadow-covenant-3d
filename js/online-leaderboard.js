@@ -27,6 +27,7 @@ function onlineEndpoint(query){
 function onlineScorePayload(entry){
   return {
     player_name: entry.name,
+    country_code: entry.country_code || entry.country || 'TH',
     character: entry.character || entry.hero || 'Unknown',
     score: entry.score|0,
     kills: entry.kills|0,
@@ -67,6 +68,7 @@ async function loadOnlineLeaderboard(){
       const data = await apiRes.json();
       return (data.rows || []).map(r=>({
         name: r.player_name || 'Player',
+        country_code: r.country_code || 'TH',
         character: r.character || 'Unknown',
         score: r.score || 0,
         kills: r.kills || 0,
@@ -82,12 +84,13 @@ async function loadOnlineLeaderboard(){
     }
     if(!ONLINE_LEADERBOARD.supabaseUrl || !ONLINE_LEADERBOARD.supabaseAnonKey) return [];
   }
-  const q = '?select=player_name,character,score,kills,time,won,level,stage,damage,items,created_at&order=score.desc&limit='+ONLINE_LEADERBOARD.limit;
+  const q = '?select=player_name,country_code,character,score,kills,time,won,level,stage,damage,items,created_at&order=score.desc&limit='+ONLINE_LEADERBOARD.limit;
   const res = await fetch(onlineEndpoint(q), { headers: onlineHeaders() });
   if(!res.ok) throw new Error('Online leaderboard load failed: '+res.status);
   const rows = await res.json();
   return rows.map(r=>({
     name: r.player_name || 'Player',
+    country_code: r.country_code || 'TH',
     character: r.character || 'Unknown',
     score: r.score || 0,
     kills: r.kills || 0,
