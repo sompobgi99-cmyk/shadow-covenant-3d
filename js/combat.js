@@ -17,9 +17,9 @@ const WEAPON_TYPES = {
   arrow:  { name:"Hunter's Arrow",  icon:'wpn_arrow', desc:'Long piercing arrow',       mode:'aim',
             dmg:16, rate:1.2, range:15, count:1, pierce:3, speed:24, life:1.6, color:0x8ef06a, shape:'arrow', evolveTo:'arrowX', evolveTome:'velocity' },
   smite:  { name:'Holy Smite',      icon:'wpn_smite',  desc:'Divine strike from above',  mode:'smite',
-            dmg:22, rate:0.9, range:10, count:1, pierce:2, speed:14, life:1.4, color:0xfff2c0, radius:1.6, evolveTo:'smiteX', evolveTome:'might' },
+            dmg:22, rate:0.9, range:10, count:1, pierce:2, speed:14, life:1.4, color:0xfff2c0, radius:1.6, evolveTo:'smiteX', evolveTome:'growth' },
   bladewhirl:{ name:'Blade Wave',   icon:'wpn_bladewhirl',     desc:'Fires curved sword waves', mode:'slash',
-            dmg:12, rate:1.8, range:3.6, count:1, pierce:1, speed:8, life:0.38, color:0xff5566, arc:0.45, shape:'crescent', evolveTo:'bladewhirlX', evolveTome:'celerity' },
+            dmg:12, rate:1.8, range:3.6, count:1, pierce:1, speed:8, life:0.38, color:0xff5566, arc:0.45, shape:'crescent', evolveTo:'bladewhirlX', evolveTome:'swiftness' },
   soulspiral:{ name:'Soul Spiral',  icon:'wpn_soulspiral',  desc:'Rotating soul bolts',       mode:'spiral',
             dmg:8, rate:2.4, range:0, count:2, pierce:1, speed:13, life:1.4, color:0xb06aff, shape:'soul', evolveTo:'soulspiralX', evolveTome:'duration' },
   // evolved forms (hidden from the acquire pool)
@@ -306,11 +306,13 @@ function updateWeapon(w, dt){
 }
 function weaponChoices(){
   const out = [];
+  const tomeName = id => { const u = (typeof UPGRADES!=='undefined') ? UPGRADES.find(x=>x.id===id) : null; return u ? u.name : id; };
   for (const key in WEAPON_TYPES){
     const t = WEAPON_TYPES[key]; if (t.hidden) continue;
+    const hint = t.evolveTo ? ' · ★Evolve: '+tomeName(t.evolveTome)+' ×3 @Lv8' : '';
     const w = player.weapons.find(x=>x.key===key);
-    if (w){ if (w.lvl < 8) out.push({ id:'w_'+key, name:t.name+' Lv'+(w.lvl+1), desc:t.desc, icon:t.icon, apply:()=>{ w.lvl++; } }); }
-    else if (player.weapons.length < MAX_WEAPONS){ out.push({ id:'w_'+key, name:'NEW: '+t.name, desc:t.desc, icon:t.icon, apply:()=>{ player.weapons.push(makeWeapon(key)); } }); }
+    if (w){ if (w.lvl < 8) out.push({ id:'w_'+key, name:t.name+' Lv'+(w.lvl+1), desc:t.desc+hint, icon:t.icon, apply:()=>{ w.lvl++; } }); }
+    else if (player.weapons.length < MAX_WEAPONS){ out.push({ id:'w_'+key, name:'NEW: '+t.name, desc:t.desc+hint, icon:t.icon, apply:()=>{ player.weapons.push(makeWeapon(key)); } }); }
   }
   // weapon evolutions: maxed weapon + paired tome (x3)
   for (const w of player.weapons){

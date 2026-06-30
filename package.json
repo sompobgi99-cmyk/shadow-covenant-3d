@@ -3,11 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check js/game-data.js && node --check js/audio.js && node --check js/combat.js && node --check js/game-runtime.js && node --check js/game-loop.js && node --check js/game-systems.js",
+    "check": "node --check js/game-data.js && node --check js/audio.js && node --check js/combat.js && node --check js/game-runtime.js && node --check js/game-loop.js && node --check js/game-systems.js && node --check js/mobile-controls.js && node --check netlify/functions/leaderboard.mts",
     "pixellab:balance": "node scripts/pixellab.mjs balance",
     "pixellab:generate": "node scripts/pixellab.mjs generate"
   },
   "dependencies": {
+    "@netlify/blobs": "^9.1.2",
     "@pixellab-code/pixellab": "^1.0.2"
   }
 }

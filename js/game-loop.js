@@ -25,6 +25,7 @@ function update(dt) {
   if (keys['KeyS']||keys['ArrowDown']) mz+=1;
   if (keys['KeyA']||keys['ArrowLeft']) mx-=1;
   if (keys['KeyD']||keys['ArrowRight']) mx+=1;
+  if (window.touchMove && window.touchMove.active){ mx=window.touchMove.x; mz=window.touchMove.z; }   // mobile joystick
   player.moving = !!(mx||mz);
   if (player.moving){
     const l = Math.hypot(mx, mz); mx/=l; mz/=l;  // normalize (diagonals not faster)

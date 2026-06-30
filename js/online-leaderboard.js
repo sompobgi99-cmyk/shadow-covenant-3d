@@ -1,4 +1,5 @@
 const ONLINE_LEADERBOARD = {
+  apiEndpoint: '/api/leaderboard',
   supabaseUrl: '',
   supabaseAnonKey: '',
   table: 'leaderboard',
@@ -6,7 +7,7 @@ const ONLINE_LEADERBOARD = {
 };
 
 function onlineLeaderboardReady(){
-  return !!(ONLINE_LEADERBOARD.supabaseUrl && ONLINE_LEADERBOARD.supabaseAnonKey);
+  return !!ONLINE_LEADERBOARD.apiEndpoint || !!(ONLINE_LEADERBOARD.supabaseUrl && ONLINE_LEADERBOARD.supabaseAnonKey);
 }
 
 function onlineHeaders(){
@@ -40,6 +41,15 @@ function onlineScorePayload(entry){
 
 async function saveOnlineScore(entry){
   if(!onlineLeaderboardReady()) return { skipped:true };
+  if(ONLINE_LEADERBOARD.apiEndpoint){
+    const apiRes = await fetch(ONLINE_LEADERBOARD.apiEndpoint, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(onlineScorePayload(entry)),
+    });
+    if(apiRes.ok) return { ok:true };
+    if(!ONLINE_LEADERBOARD.supabaseUrl || !ONLINE_LEADERBOARD.supabaseAnonKey) throw new Error('Online leaderboard save failed: '+apiRes.status);
+  }
   const res = await fetch(onlineEndpoint(), {
     method:'POST',
     headers: onlineHeaders(),
@@ -51,6 +61,27 @@ async function saveOnlineScore(entry){
 
 async function loadOnlineLeaderboard(){
   if(!onlineLeaderboardReady()) return [];
+  if(ONLINE_LEADERBOARD.apiEndpoint){
+    const apiRes = await fetch(ONLINE_LEADERBOARD.apiEndpoint+'?limit='+encodeURIComponent(ONLINE_LEADERBOARD.limit));
+    if(apiRes.ok){
+      const data = await apiRes.json();
+      return (data.rows || []).map(r=>({
+        name: r.player_name || 'Player',
+        character: r.character || 'Unknown',
+        score: r.score || 0,
+        kills: r.kills || 0,
+        time: r.time || 0,
+        won: !!r.won,
+        level: r.level || 1,
+        stage: r.stage || 1,
+        damage: r.damage || 0,
+        items: r.items || 0,
+        date: r.created_at,
+        online: true,
+      }));
+    }
+    if(!ONLINE_LEADERBOARD.supabaseUrl || !ONLINE_LEADERBOARD.supabaseAnonKey) return [];
+  }
   const q = '?select=player_name,character,score,kills,time,won,level,stage,damage,items,created_at&order=score.desc&limit='+ONLINE_LEADERBOARD.limit;
   const res = await fetch(onlineEndpoint(q), { headers: onlineHeaders() });
   if(!res.ok) throw new Error('Online leaderboard load failed: '+res.status);

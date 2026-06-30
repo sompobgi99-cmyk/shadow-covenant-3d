@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="data:,">
 <title>Shadow Covenant 3D — Prototype</title>
-<link rel="stylesheet" href="css/game.css?v=20260630-evolvedicons">
+<link rel="stylesheet" href="css/game.css?v=20260630-ranking">
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -32,6 +32,7 @@
   <div id="toast">LEVEL UP!</div>
   <div id="bossbar"><i id="bossfill"></i><span id="bossname"></span></div>
   <div id="altar"></div>
+  <div id="objective"></div>
   <div id="over"><h1 id="overtitle">YOU DIED</h1><p id="overstats"></p><small>Press R to restart · C to choose character</small></div>
   <div id="levelup"><h2>LEVEL UP — choose an upgrade</h2><div id="cards"></div></div>
   <div id="playersetup"><h2>ชื่อผู้เล่น</h2><div class="sub">ชื่อนี้จะใช้ใน Ranking</div><input id="playername" maxlength="18" autocomplete="off" placeholder="Player"><button id="nameconfirm">ต่อไป</button></div>
@@ -67,12 +68,13 @@
 <script src="lib/RenderPass.js"></script>
 <script src="lib/ShaderPass.js"></script>
 <script src="lib/UnrealBloomPass.js"></script>
-<script src="js/game-data.js?v=20260630-evolvedicons"></script>
-<script src="js/online-leaderboard.js?v=20260630-evolvedicons"></script>
-<script src="js/audio.js?v=20260630-evolvedicons"></script>
-<script src="js/combat.js?v=20260630-evolvedicons"></script>
-<script src="js/game-runtime.js?v=20260630-evolvedicons"></script>
-<script src="js/game-loop.js?v=20260630-evolvedicons"></script>
-<script src="js/game-systems.js?v=20260630-evolvedicons"></script>
+<script src="js/game-data.js?v=20260630-ranking"></script>
+<script src="js/online-leaderboard.js?v=20260630-ranking"></script>
+<script src="js/audio.js?v=20260630-ranking"></script>
+<script src="js/combat.js?v=20260630-ranking"></script>
+<script src="js/game-runtime.js?v=20260630-ranking"></script>
+<script src="js/game-loop.js?v=20260630-ranking"></script>
+<script src="js/game-systems.js?v=20260630-ranking"></script>
+<script src="js/mobile-controls.js?v=20260630-ranking"></script>
 </body>
 </html>

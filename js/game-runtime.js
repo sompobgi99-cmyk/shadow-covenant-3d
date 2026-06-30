@@ -52,29 +52,58 @@ function spawnDmg(x,z,amount,color){
   document.getElementById('dmg').appendChild(el);
   dmgNums.push({ el, x, z, t:0, life:0.65, ox:(Math.random()-0.5)*0.7 });
 }
-let weaponSig='';
+let weaponSig=null;
 function updateWeaponHUD(){
   const sig = player.weapons.map(w=>w.key+w.lvl).join(',');
   if (sig===weaponSig) return; weaponSig=sig;
   const wrap=document.getElementById('weapons'); wrap.innerHTML='';
-  for (const w of player.weapons){ const t=WEAPON_TYPES[w.key]; if(!t) continue;
-    const d=document.createElement('div'); d.className='wslot'+(w.evolved?' evo':''); d.title=t.name;
-    d.innerHTML='<img src="assets/sprites/'+t.icon+'.png"><span>Lv'+w.lvl+'</span>';
+  for (let i=0;i<MAX_WEAPONS;i++){
+    const w=player.weapons[i];
+    const d=document.createElement('div');
+    if (w){ const t=WEAPON_TYPES[w.key]||{}; d.className='wslot'+(w.evolved?' evo':''); d.title=t.name||w.key;
+      d.innerHTML='<img src="assets/sprites/'+t.icon+'.png"><span>Lv'+w.lvl+'</span>'; }
+    else { d.className='wslot empty'; d.title='ช่องอาวุธว่าง'; d.textContent='+'; }
     wrap.appendChild(d);
   }
 }
-let tomeSig='';
+let tomeSig=null;
 function updateTomeHUD(){
   const tc=player.tomeCount||{};
   const ids=Object.keys(tc).filter(id=>tc[id]>0);
   const sig=ids.map(id=>id+tc[id]).join(',');
   if (sig===tomeSig) return; tomeSig=sig;
   const wrap=document.getElementById('tomes'); if(!wrap) return; wrap.innerHTML='';
-  for (const id of ids){ const u=UPGRADES.find(x=>x.id===id); if(!u) continue;
-    const d=document.createElement('div'); d.className='tslot'; d.title=u.name+' — '+u.desc;
-    d.innerHTML='<img src="assets/sprites/'+u.icon+'.png"><span>×'+tc[id]+'</span>';
+  for (let i=0;i<MAX_TOMES;i++){
+    const id=ids[i];
+    const d=document.createElement('div');
+    if (id){ const u=UPGRADES.find(x=>x.id===id)||{}; d.className='tslot'; d.title=(u.name||id)+' — '+(u.desc||'');
+      d.innerHTML='<img src="assets/sprites/'+u.icon+'.png"><span>×'+tc[id]+'</span>'; }
+    else { d.className='tslot empty'; d.title='ช่อง tome ว่าง'; d.textContent='+'; }
     wrap.appendChild(d);
   }
+}
+let objSig='';
+function updateObjective(){
+  const el=document.getElementById('objective'); if(!el) return;
+  if(!started || gameOver || won){ el.style.display='none'; objSig=''; return; }
+  el.style.display='block';
+  // 3 steps map directly to altar.state: idle -> boss -> portal
+  let cur=1; if(altar){ if(altar.state==='boss') cur=2; else if(altar.state==='portal') cur=3; }
+  const bossName = boss ? boss.name : 'บอส';
+  const finalStage = mapStage>=3;
+  const steps=[
+    'ไปแท่นบูชา · กด F เรียกบอส',
+    'กำจัด '+bossName,
+    finalStage ? 'เข้าวาป — ชนะ!' : 'เข้าวาปไปด่านต่อไป'
+  ];
+  const sig=mapStage+'|'+cur+'|'+bossName;
+  if(sig===objSig) return; objSig=sig;
+  let html='<div class="qhead">🎯 ด่าน '+mapStage+'/3</div>';
+  steps.forEach((s,idx)=>{ const n=idx+1, cls=n<cur?'done':(n===cur?'active':'');
+    const mark=n<cur?'✓':(n===cur?'▶':'○');
+    html+='<div class="qstep '+cls+'">'+mark+' '+s+'</div>';
+  });
+  el.innerHTML=html;
 }
 function updateDamageNumbers(dt){
   for (let i=dmgNums.length-1;i>=0;i--){ const d=dmgNums[i]; d.t+=dt;
@@ -206,6 +235,8 @@ function moveEnemyAroundObstacles(e,mvx,mvz,dt){
 }
 const keys = {};
 let gameTime = 0, kills = 0, gameOver = false, score = 0, damageTaken = 0, scoreFinalized = false, lastScoreEntry = null;
+let stageStartTime = 0;                       // gameTime when the current stage began
+function stageTime(){ return gameTime - stageStartTime; }   // per-stage clock (resets each map)
 let waveTimer = 0, waveInterval = 3.2, enemiesPerWave = 2, maxEnemies = 18;
 let nextHordeAt = 240, hordeRemaining = 0, hordeSpawnTimer = 0, hordeNumber = 0, hordeSpawned = 0, hordeWarned = false;
 let relocationCursor = 0;
@@ -218,7 +249,7 @@ let won = false, altar = null, boss = null;
 let started = false;   // false until a character is chosen
 let composer = null;   // bloom post-processing
 const interactables = [];   // chests / shrines / merchant {type,tier,x,z,used,spr}
-let chestsOpened = 0, shopOffers = [], currentShopMerchant = null;
+let chestsOpened = 0, shopOffers = [], currentShopMerchant = null, shopPurchases = 0;
 const groundItems = [];     // dropped item pickups {x,z,item, spr,glow}
 const CHEST_BASE=[40,100,220];
 const PLAYER_NAME_KEY='sc3_player_name';
@@ -252,6 +283,16 @@ function togglePause(){
   if (userPaused) buildPauseInfo();
   document.getElementById('pause').style.display = userPaused ? 'flex' : 'none';
   document.getElementById('pausebtn').textContent = userPaused ? '▶' : '⏸';
+}
+// Dash trigger shared by keyboard (Space) and the mobile Dash button.
+function tryDash(){
+  if (!started || paused || gameOver || won || player.dashCd>0 || player.dashTime>0) return;
+  let dx=player.ldx, dz=player.ldz;
+  if (!dx && !dz){ dx=player.face||1; dz=0; }
+  const l=Math.hypot(dx,dz)||1; player.dashX=dx/l; player.dashZ=dz/l;
+  player.dashTime=DASH_DUR; player.dashCd=DASH_CD;
+  sfx('dash');
+  player.invuln=Math.max(player.invuln, DASH_DUR+0.08);   // i-frames while dashing
 }
 function quitToTitle(){
   started=false; userPaused=false; paused=false;
@@ -352,20 +393,20 @@ function selectCharacter(key){
 const UPGRADES = [
   { id:'might',    name:'Might',      desc:'+18% damage',        icon:'tomeic_might',     apply:()=>{ player.dmgMul*=1.18; } },
   { id:'vitality', name:'Vitality',   desc:'+25 max HP, heal',   icon:'tomeic_vitality',  apply:()=>{ player.maxHp+=25; player.hp=Math.min(player.maxHp, player.hp+25); } },
-  { id:'celerity', name:'Celerity',   desc:'+20% attack speed',  icon:'tomeic_celerity',  apply:()=>{ player.rateMul*=1.2; } },
+  { id:'celerity', name:'Celerity',   desc:'+15% attack speed',  icon:'tomeic_celerity',  apply:()=>{ player.rateMul*=1.15; } },
   { id:'precision',name:'Precision',  desc:'+25% range',         icon:'tomeic_precision', apply:()=>{ player.rangeMul*=1.25; } },
   { id:'multishot',name:'Multishot',  desc:'+1 projectile',      icon:'tomeic_multishot', apply:()=>{ player.countBonus+=1; } },
   { id:'swiftness',name:'Swiftness',  desc:'+6% move speed',     icon:'tomeic_swiftness', apply:()=>{ player.spd*=1.06; } },
   { id:'regen',    name:'Regen',      desc:'+0.8 HP/sec',        icon:'tomeic_regen',     apply:()=>{ player.regen+=0.8; } },
   { id:'magnet',   name:'Magnetism',  desc:'+30% pickup range',  icon:'tomeic_magnet', apply:()=>{ player.magnet*=1.3; } },
-  { id:'exp',      name:'Experience', desc:'+20% XP gain',       icon:'tomeic_exp',apply:()=>{ player.xpMul*=1.2; } },
-  { id:'greed',    name:'Greed',      desc:'+30% gold',          icon:'tomeic_greed',     apply:()=>{ player.goldMul*=1.3; } },
-  { id:'fortitude',name:'Fortitude',  desc:'+3 armor',           icon:'tomeic_fortitude', apply:()=>{ player.def+=3; } },
+  { id:'exp',      name:'Experience', desc:'+15% XP gain',       icon:'tomeic_exp',apply:()=>{ player.xpMul*=1.15; } },
+  { id:'greed',    name:'Greed',      desc:'+20% gold',          icon:'tomeic_greed',     apply:()=>{ player.goldMul*=1.2; } },
+  { id:'fortitude',name:'Fortitude',  desc:'+5 armor',           icon:'tomeic_fortitude', apply:()=>{ player.def+=5; } },
   { id:'lifesteal',name:'Lifesteal',  desc:'+1 HP per kill',     icon:'tomeic_lifesteal',  apply:()=>{ player.lifesteal+=1; } },
   { id:'duration', name:'Duration',   desc:'+25% projectile life',icon:'tomeic_duration',    apply:()=>{ player.lifeMul*=1.25; } },
   { id:'velocity', name:'Velocity',   desc:'+20% projectile speed',icon:'tomeic_velocity',apply:()=>{ player.projSpeedMul*=1.2; } },
   { id:'growth',   name:'Growth',     desc:'+20% projectile size',icon:'tomeic_growth',     apply:()=>{ player.projScale*=1.2; } },
-  { id:'impact',   name:'Impact',     desc:'+30% knockback',        icon:'tomeic_impact',   apply:()=>{ player.knockbackMul=(player.knockbackMul||0)+0.3; } },
+  { id:'impact',   name:'Impact',     desc:'+15% knockback',        icon:'tomeic_impact',   apply:()=>{ player.knockbackMul=(player.knockbackMul||0)+0.15; } },
 ];
 const MAX_TOMES = 4;   // เลือก tome ได้สูงสุด 4 ชนิด (เก็บซ้อนได้ไม่จำกัด)
 function openUpgradeChoice(){
@@ -383,8 +424,20 @@ function openUpgradeChoice(){
 }
 function pickUpgrade(i){ if(!paused) return; const u=currentChoices[i]; if(!u) return; u.apply();
   if (u.id && !u.id.startsWith('w_') && !u.id.startsWith('evo_')) player.tomeCount[u.id]=(player.tomeCount[u.id]||0)+1;
+  checkEvolveReady();
   document.getElementById('levelup').style.display='none';
   pendingUps--; if(pendingUps>0) openUpgradeChoice(); else paused=false; }
+// Notify the player the moment a weapon meets its evolve requirement.
+function checkEvolveReady(){
+  for (const w of player.weapons){
+    const t = WEAPON_TYPES[w.key];
+    if (t && t.evolveTo && !w.evolved && !w.evoAnnounced && w.lvl>=8 && (player.tomeCount[t.evolveTome]||0)>=3){
+      w.evoAnnounced = true;
+      showToast('⚡ '+t.name+' พร้อม Evolve — เลือกการ์ด ★ ตอนอัพเลเวล!', 3.5);
+      sfx('levelup');
+    }
+  }
+}
 function currentTier(){ return mapStage>=2 ? 2 : gameTime>=240 ? 2 : gameTime>=120 ? 1 : 0; }
 function timeScale(){ return Math.min(10, 1 + gameTime/130); }
 // ATK scales far slower than HP so late-game hits sting without one-shotting.
@@ -402,19 +455,20 @@ function xpRequired(level){
   // cubic ramp: gentle early, brutal near max level
   return Math.round(20 + 10*k + 4*k*k + 0.22*k*k*k);
 }
-function enemySpeedMul(){ return 1 + Math.min(0.35, gameTime/720); }   // monsters speed up over time
+function enemySpeedMul(){ return 1 + Math.min(0.35, stageTime()/720); }   // monsters speed up over the stage
 function progressionProfile(){
+  const st=stageTime();   // spawn density ramps fresh each stage
   const points=[
     [0,18,3.4,2],[60,28,3.0,3],[120,40,2.6,4],[240,60,2.1,5],
     [360,80,1.7,6],[480,105,1.35,8],[600,130,1.1,10]
   ];
-  if(gameTime>=600){
-    const overtime=(gameTime-600)/60;
+  if(st>=600){
+    const overtime=(st-600)/60;
     return {cap:Math.min(320,130+Math.round(overtime*45)),interval:Math.max(0.7,1.1-overtime*0.08),batch:Math.min(16,10+Math.floor(overtime*1.5))};
   }
   let a=points[0], b=points[1];
-  for(let i=1;i<points.length;i++) if(gameTime>=points[i][0]){ a=points[i]; b=points[Math.min(i+1,points.length-1)]; }
-  const f=(gameTime-a[0])/Math.max(1,b[0]-a[0]);
+  for(let i=1;i<points.length;i++) if(st>=points[i][0]){ a=points[i]; b=points[Math.min(i+1,points.length-1)]; }
+  const f=(st-a[0])/Math.max(1,b[0]-a[0]);
   return {
     cap:Math.round(a[1]+(b[1]-a[1])*f),
     interval:a[2]+(b[2]-a[2])*f,
@@ -603,14 +657,7 @@ function init() {
     resumeAudio();
     if (paused && ['Digit1','Digit2','Digit3'].includes(e.code)){ pickUpgrade(+e.code.slice(5)-1); e.preventDefault(); return; }
     if (['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
-    if (e.code==='Space' && !e.repeat && !paused && !gameOver && player.dashCd<=0 && player.dashTime<=0){
-      let dx=player.ldx, dz=player.ldz;
-      if (!dx && !dz){ dx=player.face||1; dz=0; }
-      const l=Math.hypot(dx,dz)||1; player.dashX=dx/l; player.dashZ=dz/l;
-      player.dashTime=DASH_DUR; player.dashCd=DASH_CD;
-      sfx('dash');
-      player.invuln=Math.max(player.invuln, DASH_DUR+0.08);   // i-frames while dashing
-    }
+    if (e.code==='Space' && !e.repeat) tryDash();
     if ((e.code==='KeyP'||e.code==='Escape') && !e.repeat && !gameOver && !paused) togglePause();
     if (e.code==='KeyF' && !e.repeat){ if (document.getElementById('shop').style.display==='flex') closeShop(); else activateNearby(); }
     if (e.code==='KeyR' && (gameOver||won)) restart();
@@ -1100,8 +1147,8 @@ function minibossPool(){
   return MINIBOSS_TYPES.filter(e=>names.has(e.name));
 }
 function bossPool(){
+  // THE OVERLORD (final boss) only on the final stage — overtime no longer forces it on early stages.
   if(mapStage>=3) return [BOSS_TYPES[BOSS_TYPES.length-1]];
-  if(gameTime >= RUN_TARGET) return [BOSS_TYPES[BOSS_TYPES.length-1]];
   if(mapStage>=2) return BOSS_TYPES.filter(b=>['Soul Reaper','Void Wyrm','Abyssal Behemoth'].includes(b.name));
   return BOSS_TYPES.filter(b=>!b.final && ['Lich King','Abyssal Behemoth'].includes(b.name));
 }

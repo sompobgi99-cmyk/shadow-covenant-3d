@@ -219,7 +219,7 @@ function summonBoss(){
 function altarToPortal(kind,nextStage){ if(!altar) return; altar.state='portal'; altar.portalKind=kind||'victory'; altar.nextStage=nextStage||null;
   if (altar.sprIcon && tex['obj_portal']){ altar.sprIcon.material.map=tex['obj_portal']; altar.sprIcon.material.needsUpdate=true; }
   setAltarColor(altar.portalKind==='nextStage'?0xff5638:0x57e0ff); }
-function rewardMul(){ return Math.min(3, 1 + Math.max(0, gameTime-RUN_TARGET)/150); }
+function rewardMul(){ return Math.min(3, 1 + Math.max(0, stageTime()-RUN_TARGET)/150); }
 const HUD_ARROWS=['\u2191','\u2197','\u2192','\u2198','\u2193','\u2199','\u2190','\u2196'];
 function arrowTo(dx,dz){ const a=Math.atan2(dx,-dz); return HUD_ARROWS[(((Math.round(a/(Math.PI/4))%8)+8)%8)]; }
 function spawnObject(type, tier){
@@ -291,7 +291,7 @@ function clearCombatActors(){
   for (const d of dmgNums) d.el.remove();
   enemies.length=0; projectiles.length=0; enemyShots.length=0; particles.length=0; rings.length=0;
   trails.length=0; pickups.length=0; groundItems.length=0; afterimages.length=0; novaWaves.length=0; slashFx.length=0; dmgNums.length=0;
-  boss=null; weaponSig=''; enemyGrid.clear();
+  boss=null; weaponSig=null; enemyGrid.clear();
 }
 function transitionToStage(stage){
   if(stage<=mapStage) return;
@@ -299,6 +299,7 @@ function transitionToStage(stage){
   clearWorldObjects();
   removeAltar();
   mapStage=stage;
+  stageStartTime=gameTime;   // reset the per-stage clock (timer/OT/spawn density restart)
   clearWorldScenery();
   applyMapTheme();
   buildStageScenery(stage);
@@ -376,13 +377,15 @@ function activateShrine(o){
 function shopRerollCost(o){
   return Math.round(40*Math.pow(1.6,(o&&o.shopRerolls)||0));   // each reroll ramps steeply
 }
+function shopBuyMul(){ return Math.pow(1.18, shopPurchases); }   // every purchase this run raises all shop prices
 function rollShopStock(o){
   o.shopOffers=[];
   const rerollMul = Math.pow(1.3, (o&&o.shopRerolls)||0);   // rerolled stock costs more each time
   for (let i = 0; i < 3; i++) {
     const shopItem = rollItemDrop();
-    const base = 40+(shopItem&&shopItem.rarity==='legendary'?200:shopItem&&shopItem.rarity==='rare'?120:shopItem&&shopItem.rarity==='uncommon'?80:40);
-    if (shopItem) o.shopOffers.push({ name:shopItem.name, desc:shopItem.desc, icon:shopItem.icon, rarity:shopItem.rarity, isItem:true, item:shopItem, apply:()=>{ shopItem.apply(player); player.items.push(shopItem); }, price:Math.round(base*rerollMul) });
+    const base = 60+(shopItem&&shopItem.rarity==='legendary'?460:shopItem&&shopItem.rarity==='rare'?280:shopItem&&shopItem.rarity==='uncommon'?160:60);
+    const stableBase = Math.round(base*rerollMul);
+    if (shopItem) o.shopOffers.push({ name:shopItem.name, desc:shopItem.desc, icon:shopItem.icon, rarity:shopItem.rarity, isItem:true, item:shopItem, apply:()=>{ shopItem.apply(player); player.items.push(shopItem); }, base:stableBase, price:Math.round(stableBase*shopBuyMul()) });
   }
 }
 function openShop(o){
@@ -393,7 +396,7 @@ function openShop(o){
 }
 function buildShop(){
   const wrap=document.getElementById('shopcards'); wrap.innerHTML='';
-  shopOffers.forEach((o,i)=>{ const aff=player.gold>=o.price && !o.sold;
+  shopOffers.forEach((o,i)=>{ if(o.base!=null && !o.sold) o.price=Math.round(o.base*shopBuyMul()); const aff=player.gold>=o.price && !o.sold;
     const d=document.createElement('div'); d.className='card'; d.style.opacity=o.sold?0.4:1;
     const rc = o.rarity ? {common:'#7ecf5a',uncommon:'#5a9ecf',rare:'#cf5acf',legendary:'#cfc05a'}[o.rarity] : null;
     if (rc) d.style.borderColor = rc;
@@ -428,6 +431,7 @@ function buyOffer(i){
   o.apply();
   if(o.isItem) player.itemCounts[o.item.name]=(player.itemCounts[o.item.name]||0)+1;
   o.sold=true;
+  shopPurchases++;          // each buy raises prices on remaining/future stock
   buildShop();
 }
 function closeShop(){ document.getElementById('shop').style.display='none'; currentShopMerchant=null; paused=false; }
@@ -756,8 +760,9 @@ function updateHUD(dt){
   }
   $('gold').textContent = `⬤ ${player.gold}`;
   { const rdy=player.dashCd<=0; $('dash').textContent = rdy ? '⚡ DASH [Space]' : `⚡ ${player.dashCd.toFixed(1)}s`; $('dash').style.color = rdy ? '#7CE7FF' : '#5a5a66'; }
-  if (gameTime < RUN_TARGET){ $('time').textContent = fmt(gameTime); $('time').style.color='#ffcc00'; }
-  else { $('time').textContent = '⚠ OT '+fmt(gameTime-RUN_TARGET); $('time').style.color='#ff6a6a'; }
+  { const st=stageTime();
+    if (st < RUN_TARGET){ $('time').textContent = fmt(st); $('time').style.color='#ffcc00'; }
+    else { $('time').textContent = '⚠ OT '+fmt(st-RUN_TARGET); $('time').style.color='#ff6a6a'; } }
   const trackedBoss=(boss&&boss.alive)?boss:enemies.find(e=>e.alive&&e.isBoss);
   if (trackedBoss){
     $('bossbar').style.display='block';
@@ -795,6 +800,7 @@ function updateHUD(dt){
   $('toast').style.display = toastTimer>0 ? 'block' : 'none';
   updateWeaponHUD();
   updateTomeHUD();
+  updateObjective();
   if (gameOver || won){ $('over').style.display='flex';
     $('overtitle').textContent = won ? 'VICTORY' : 'YOU DIED';
     $('overtitle').style.color = won ? '#7CE7FF' : '#e85b5b';
@@ -888,7 +894,7 @@ function restart(){
   for (const w of novaWaves) scene.remove(w.mesh); novaWaves.length=0;
   for (const f of slashFx) scene.remove(f.mesh); slashFx.length=0;
   for (const tr of trails) scene.remove(tr.mesh); trails.length=0;
-  for (const d of dmgNums) d.el.remove(); dmgNums.length=0; weaponSig=''; tomeSig='';
+  for (const d of dmgNums) d.el.remove(); dmgNums.length=0; weaponSig=null; tomeSig=null; objSig='';
   { const tw=document.getElementById('tomes'); if(tw) tw.innerHTML=''; }
   for (const pk of pickups) scene.remove(pk.spr);
   for (const gi of groundItems) { if(gi.spr) scene.remove(gi.spr); if(gi.glow) scene.remove(gi.glow); }
@@ -897,11 +903,12 @@ function restart(){
   if(player.weapons) for(const w of player.weapons) if(w.orbs) w.orbs.forEach(o=>scene.remove(o.mesh));
   scene.remove(player.spr); scene.remove(player.sh);
   player = makePlayer();
-  gameTime=0; kills=0; gameOver=false; won=false; boss=null; mapStage=1; score=0; damageTaken=0; scoreFinalized=false; lastScoreEntry=null; applyMapTheme(); clearStageScenery();
+  gameTime=0; stageStartTime=0; kills=0; gameOver=false; won=false; boss=null; mapStage=1; score=0; damageTaken=0; scoreFinalized=false; lastScoreEntry=null; applyMapTheme(); clearStageScenery();
   if(!worldScenery.length){ spawnTrees(40); buildScenery(); }
   waveTimer=0; waveInterval=3.2; enemiesPerWave=2; maxEnemies=18;
   nextHordeAt=240; hordeRemaining=0; hordeSpawnTimer=0; hordeNumber=0; hordeSpawned=0; hordeWarned=false; relocationCursor=0;
   mbTimer=0; nextMinibossAt=180; paused=false; pendingUps=0; userPaused=false;
+  chestsOpened=0; shopPurchases=0;
   removeAltar(); makeAltar();
   clearWorldObjects(); makeWorldObjects();
   document.getElementById('pause').style.display='none'; document.getElementById('pausebtn').textContent='⏸';
