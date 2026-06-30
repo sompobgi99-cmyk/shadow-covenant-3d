@@ -13,6 +13,7 @@ function frame() {
 function update(dt) {
   gameTime += dt; player.runTime = gameTime;
   updateAltar(dt);
+  if (globalPickupMagnet>0) globalPickupMagnet=Math.max(0, globalPickupMagnet-dt);
 
   if (player.dashCd > 0) player.dashCd -= dt;
 
@@ -56,11 +57,11 @@ function update(dt) {
   }
   if (player.invuln>0) player.invuln-=dt;
   if (player.flash>0) player.flash-=dt;
-  if (player.regen) player.hp = Math.min(player.maxHp, player.hp + player.regen*dt);
+  if (player.regen) player.hp = Math.min(healCap(player), player.hp + player.regen*dt);
 
   // standing-still item effects (Idle Juice tracked via stillT, Campfire heal)
   if (player.moving) player.stillT = 0; else player.stillT = (player.stillT||0) + dt;
-  if (player._campfire && !player.moving) player.hp = Math.min(player.maxHp, player.hp + 2*player._campfire*dt);
+  if (player._campfire && !player.moving) player.hp = Math.min(healCap(player), player.hp + 2*player._campfire*dt);
   // Energy Core: pulsing damage aura
   if (player._energyCore){
     player._energyTick = (player._energyTick||0) - dt;
@@ -187,8 +188,9 @@ function update(dt) {
     const dx=player.x-pk.x, dz=player.z-pk.z, rawDistance=Math.hypot(dx,dz);
     if (rawDistance < PICKUP_COLLECT){ collect(pk); continue; }
     const d=rawDistance||1;
-    if (pk.homing || d < player.magnet){ pk.homing=true;
-      const sp = 8 + (1-Math.min(1,d/player.magnet))*10;
+    const forcedMagnet = pk.globalMagnet || (globalPickupMagnet>0 && (pk.type==='xp' || pk.type==='gold'));
+    if (forcedMagnet || pk.homing || d < player.magnet){ pk.homing=true;
+      const sp = forcedMagnet ? 34 : 8 + (1-Math.min(1,d/player.magnet))*10;
       pk.x += (dx/d)*sp*dt; pk.z += (dz/d)*sp*dt;
     } else { pk.x += pk.vx*dt; pk.z += pk.vz*dt; pk.vx*=0.9; pk.vz*=0.9; }
   }
@@ -219,17 +221,17 @@ function update(dt) {
     if (sh.life<=0 || blocked(sh.x,sh.z)){ sh.alive=false; continue; }
     if ((sh.x-player.x)*(sh.x-player.x)+(sh.z-player.z)*(sh.z-player.z) < 0.55*0.55){ hurtPlayer(sh.dmg,sh.dx,sh.dz,6.5); sh.alive=false; spawnBurst(sh.x,sh.z,0xff5066,4,0.6); } }
   for (let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.life-=dt;
-    if (p.life<=0){ scene.remove(p.mesh); particles.splice(i,1); continue; }
+    if (p.life<=0){ scene.remove(p.mesh); freeObj(p.mesh); particles.splice(i,1); continue; }
     p.vy-=12*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.z+=p.vz*dt; if(p.y<0.1){ p.y=0.1; p.vy*=-0.3; }
     p.mesh.position.set(p.x, groundHeight(p.x,p.z)+p.y, p.z); p.mesh.material.opacity=p.life/p.max; }
   for (let i=trails.length-1;i>=0;i--){ const tr=trails[i]; tr.life-=dt;
-    if (tr.life<=0){ scene.remove(tr.mesh); trails.splice(i,1); continue; }
+    if (tr.life<=0){ scene.remove(tr.mesh); freeObj(tr.mesh); trails.splice(i,1); continue; }
     const o=tr.life/tr.max;
     if (tr.core) tr.core.material.opacity=0.52*o;
     if (tr.glow) tr.glow.material.opacity=0.16*o;
     tr.mesh.scale.multiplyScalar(1+dt*1.8); }
   for (let i=rings.length-1;i>=0;i--){ const r=rings[i]; r.life-=dt;
-    if (r.life<=0){ scene.remove(r.mesh); rings.splice(i,1); continue; }
+    if (r.life<=0){ scene.remove(r.mesh); freeObj(r.mesh); rings.splice(i,1); continue; }
     const t=1-r.life/r.max, rad=0.5+(r.maxR-0.5)*t;
     r.mesh.scale.set(rad,rad,rad); r.mesh.material.opacity=0.85*(1-t); }
   for (let i=novaWaves.length-1;i>=0;i--){ const w=novaWaves[i];
@@ -240,9 +242,9 @@ function update(dt) {
     forEachNearbyEnemy(w.x,w.z,w.r+1,e=>{ if(!e.alive||w.hit.has(e)) return;
       const dd=Math.hypot(e.x-w.x, e.z-w.z);
       if (Math.abs(dd-w.r) < e.r+0.6){ w.hit.add(e); dealEnemyDamage(e, w.dmg, w.color, e.x-w.x, e.z-w.z, 4); } });
-    if (w.r>=w.maxR){ scene.remove(w.mesh); novaWaves.splice(i,1); } }
+    if (w.r>=w.maxR){ scene.remove(w.mesh); freeObj(w.mesh); novaWaves.splice(i,1); } }
   for (let i=slashFx.length-1;i>=0;i--){ const f=slashFx[i]; f.life-=dt;
-    if (f.life<=0){ scene.remove(f.mesh); slashFx.splice(i,1); continue; }
+    if (f.life<=0){ scene.remove(f.mesh); freeObj(f.mesh); slashFx.splice(i,1); continue; }
     if (f.sweep) f.mesh.rotation.y += f.sweep*dt;
     if (f.spin && f.mesh.material) f.mesh.material.rotation += f.spin*dt;
     if (f.grow && f.baseScale) {
@@ -253,7 +255,7 @@ function update(dt) {
     else if (f.mesh.children) for (const ch of f.mesh.children) if(ch.material) ch.material.opacity=(f.fade||0.72)*(f.life/f.max); }
   cull(enemies); cull(projectiles); cull(pickups); cull(enemyShots);
   for (let i=afterimages.length-1;i>=0;i--){ const a=afterimages[i]; a.life-=dt;
-    if (a.life<=0){ scene.remove(a.spr); afterimages.splice(i,1); }
+    if (a.life<=0){ scene.remove(a.spr); freeObj(a.spr); afterimages.splice(i,1); }
     else a.spr.material.opacity = 0.55*(a.life/a.max); }
 
   const profile=progressionProfile();

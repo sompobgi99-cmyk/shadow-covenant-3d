@@ -96,7 +96,7 @@ function spawnProjectile(dx,dz,s){
 function killEnemy(e){
   e.alive=false; kills++;
   sfx('kill');
-  if (player.lifesteal) player.hp=Math.min(player.maxHp, player.hp+player.lifesteal);
+  if (player.lifesteal) player.hp=Math.min(healCap(player), player.hp+player.lifesteal);
   // per-kill item effects
   if (player._demonSoul) player.killDmgBonus = Math.min(1, (player.killDmgBonus||0) + 0.001*player._demonSoul);
   if (player._demonBlood && (player._demonBloodGained||0) < 200){
@@ -201,7 +201,7 @@ function summonBoss(){
   let spriteKey = b.sprite;                               // use dedicated boss art if loaded...
   if (!(DIR_SHEETS[spriteKey] && tex[DIR_SHEETS[spriteKey].key]))
     spriteKey = MINIBOSS_TYPES[(Math.random()*MINIBOSS_TYPES.length)|0].sprite;   // ...else recycle miniboss art
-  const sc = atkTimeScale()*1.3*stageAtkMul();
+  const sc = atkTimeScale()*1.3*stageAtkMul()*otPowerMul();
   const H = b.h, hp = Math.round(b.hp*bossHpScale());
   const { spr, anim } = entitySprite(spriteKey, H);
   const sh = makeShadow(H*0.34); scene.add(spr); scene.add(sh);
@@ -227,11 +227,12 @@ function spawnObject(type, tier){
   let key,h;
   if (type==='chest'){ key=['chest_common','chest_rare','chest_epic'][tier]; h=1.1; }
   else if (type==='shrine'){ key=['obj_shrine_elite','obj_shrine_blood','obj_shrine_speed','obj_shrine_curse','obj_shrine_gamble'][tier]; h=2.2; }
+  else if (type==='magnet_pillar'){ ensureMagnetPillarTexture(); key='obj_magnet_pillar'; h=2.5; }
   else { key='obj_merchant'; h=2.3; }
   const spr=billboard(key,h); spr.position.set(x, groundHeight(x,z), z); scene.add(spr);
-  const gcol = type==='chest' ? [0xffcc66,0x66aaff,0xcc66ff][tier] : type==='shrine' ? [0x6ef0e0,0xff6060,0xffcc00,0x9966ff,0xff8844][tier] : 0xffd86a;
-  const glow = makeObjectGlow(gcol, type==='chest'?0.9:1.2, type); glow.position.set(x, groundHeight(x,z), z);
-  const beacon=type==='chest'?makeLootBeacon(gcol,tier):null;
+  const gcol = type==='chest' ? [0xffcc66,0x66aaff,0xcc66ff][tier] : type==='shrine' ? [0x6ef0e0,0xff6060,0xffcc00,0x9966ff,0xff8844][tier] : type==='magnet_pillar' ? 0x52e7d1 : 0xffd86a;
+  const glow = makeObjectGlow(gcol, type==='chest'?0.9:type==='magnet_pillar'?1.55:1.2, type); glow.position.set(x, groundHeight(x,z), z);
+  const beacon=(type==='chest'||type==='magnet_pillar')?makeLootBeacon(gcol,type==='magnet_pillar'?2:tier):null;
   if(beacon) beacon.position.set(x,groundHeight(x,z)+0.1,z);
   interactables.push({ type, tier, x, z, used:false, spr, glow, beacon, baseW:spr.scale.x, baseH:spr.scale.y });
 }
@@ -239,6 +240,8 @@ function makeWorldObjects(){
   for (const tier of [0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2]) spawnObject('chest', tier);
   for (let i=0;i<3;i++) spawnObject('shrine',Math.floor(Math.random()*5));
   spawnObject('merchant',0);
+  const pillars = mapStage===2 ? 1 + (Math.random()<0.5 ? 1 : 0) : 1;
+  for (let i=0;i<pillars;i++) spawnObject('magnet_pillar',0);
 }
 function clearWorldObjects(){ for(const o of interactables){ scene.remove(o.spr); if(o.glow) scene.remove(o.glow); if(o.beacon) scene.remove(o.beacon); } interactables.length=0; }
 function spawnAddAt(x,z){
@@ -275,19 +278,20 @@ function activateNearby(){
   if (best.type==='chest') openChest(best);
   else if (best.type==='shrine') activateShrine(best);
   else if (best.type==='merchant') openShop(best);
+  else if (best.type==='magnet_pillar') activateMagnetPillar(best);
 }
 function clearCombatActors(){
-  for (const e of enemies){ scene.remove(e.spr); scene.remove(e.sh); if(e.aura) scene.remove(e.aura); }
-  for (const p of projectiles) scene.remove(p.mesh);
-  for (const sh of enemyShots) scene.remove(sh.mesh);
-  for (const p of particles) scene.remove(p.mesh);
-  for (const r of rings) scene.remove(r.mesh);
-  for (const tr of trails) scene.remove(tr.mesh);
-  for (const pk of pickups) scene.remove(pk.spr);
-  for (const gi of groundItems) { if(gi.spr) scene.remove(gi.spr); if(gi.glow) scene.remove(gi.glow); }
-  for (const a of afterimages) scene.remove(a.spr);
-  for (const w of novaWaves) scene.remove(w.mesh);
-  for (const f of slashFx) scene.remove(f.mesh);
+  for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); scene.remove(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
+  for (const p of projectiles){ scene.remove(p.mesh); freeObj(p.mesh); }
+  for (const sh of enemyShots){ scene.remove(sh.mesh); freeObj(sh.mesh); }
+  for (const p of particles){ scene.remove(p.mesh); freeObj(p.mesh); }
+  for (const r of rings){ scene.remove(r.mesh); freeObj(r.mesh); }
+  for (const tr of trails){ scene.remove(tr.mesh); freeObj(tr.mesh); }
+  for (const pk of pickups){ scene.remove(pk.spr); freeObj(pk.spr); }
+  for (const gi of groundItems) { if(gi.spr){ scene.remove(gi.spr); freeObj(gi.spr); } if(gi.glow){ scene.remove(gi.glow); freeObj(gi.glow); } }
+  for (const a of afterimages){ scene.remove(a.spr); freeObj(a.spr); }
+  for (const w of novaWaves){ scene.remove(w.mesh); freeObj(w.mesh); }
+  for (const f of slashFx){ scene.remove(f.mesh); freeObj(f.mesh); }
   for (const d of dmgNums) d.el.remove();
   enemies.length=0; projectiles.length=0; enemyShots.length=0; particles.length=0; rings.length=0;
   trails.length=0; pickups.length=0; groundItems.length=0; afterimages.length=0; novaWaves.length=0; slashFx.length=0; dmgNums.length=0;
@@ -300,11 +304,12 @@ function transitionToStage(stage){
   removeAltar();
   mapStage=stage;
   stageStartTime=gameTime;   // reset the per-stage clock (timer/OT/spawn density restart)
+  globalPickupMagnet=0;
   clearWorldScenery();
   applyMapTheme();
   buildStageScenery(stage);
   player.x=0; player.z=0; player.kx=0; player.kz=0; player.knockX=0; player.knockZ=0;
-  player.hp=Math.min(player.maxHp, player.hp+Math.round(player.maxHp*0.35));
+  player.hp=Math.min(healCap(player), player.hp+Math.round(player.maxHp*0.35));
   waveTimer=0; waveInterval=stage>=3?1.9:2.4; enemiesPerWave=stage>=3?6:4; maxEnemies=stage>=3?66:44;
   hordeRemaining=0; hordeSpawnTimer=0; hordeWarned=false; nextHordeAt=Math.max(nextHordeAt, gameTime+(stage>=3?75:90));
   nextMinibossAt=gameTime+(stage>=3?35:45); mbTimer=0; relocationCursor=0;
@@ -373,6 +378,22 @@ function activateShrine(o){
         break;
     }
   },1000);
+}
+function activateMagnetPillar(o){
+  o.used=true;
+  scene.remove(o.spr); if(o.glow) scene.remove(o.glow); if(o.beacon) scene.remove(o.beacon);
+  let pulled=0;
+  for (const pk of pickups){
+    if (!pk.alive || (pk.type!=='xp' && pk.type!=='gold')) continue;
+    pk.homing=true; pk.globalMagnet=true; pk.vx=0; pk.vz=0; pulled++;
+  }
+  globalPickupMagnet=8;
+  score += Math.min(120, pulled);
+  sfx('shrine');
+  showToast('Magnet Pillar: '+pulled+' orbs pulled', 2.2);
+  spawnObjectPulse(o.x,o.z,0x52e7d1,7.5,0.7);
+  spawnBurst(o.x,o.z,0x52e7d1,24,1.1);
+  shake(0.22,0.18);
 }
 function shopRerollCost(o){
   return Math.round(40*Math.pow(1.6,(o&&o.shopRerolls)||0));   // each reroll ramps steeply
@@ -611,13 +632,13 @@ function dropPickup(x,z,type,value){
   scene.add(spr);
   pickups.push({ x:x+Math.cos(a)*0.3, z:z+Math.sin(a)*0.3, vx:Math.cos(a)*pop, vz:Math.sin(a)*pop, type, value, alive:true, homing:false, spr });
 }
-function collect(pk){ pk.alive=false; if(pk.type==='gold') player.gold+=Math.round(pk.value*player.goldMul); else if(pk.type==='hp') player.hp=Math.min(player.maxHp, player.hp+pk.value); else { let v=pk.value; if(player.echoChance && Math.random()<player.echoChance) v*=2; addXP(v); } }
+function collect(pk){ pk.alive=false; if(pk.type==='gold') player.gold+=Math.round(pk.value*player.goldMul); else if(pk.type==='hp') player.hp=Math.min(healCap(player), player.hp+pk.value); else { let v=pk.value; if(player.echoChance && Math.random()<player.echoChance) v*=2; addXP(v); } }
 function addXP(v){ player.xp += Math.round(v*player.xpMul); while(player.xp>=player.xpToNext){ levelUp(); } }
 function levelUp(){
   if (player.level>=MAX_LEVEL){ player.xp=0; player.xpToNext=Infinity; return; }   // hard cap
   player.xp-=player.xpToNext; player.level++;
   player.xpToNext = player.level>=MAX_LEVEL ? Infinity : xpRequired(player.level);
-  player.hp=Math.min(player.maxHp, player.hp+8);
+  player.hp=Math.min(healCap(player), player.hp+8);
   sfx('levelup');
   if (player.passive && player.passive.apply) player.passive.apply(player);   // character passive grows per level
   pendingUps++; if(!paused) openUpgradeChoice(); }
@@ -629,6 +650,7 @@ function hurtPlayer(amt,dx,dz,force,src){
   // armor = percentage mitigation (stays useful as def scales), never below 1
   const r=Math.max(1, Math.round(amt*100/(100+player.def*5)));
   player.hp-=r; player.flash=0.12; player.invuln=0.4;
+  player.hpBarUntil=gameTime+3;
   // Mirror (reflect) + Spiky Shield (thorns) strike the attacker back
   if(src && src.alive && (player.thorns||player.reflect)){
     const back=(player.thorns||0)+(player.reflect?Math.round(r*player.reflect):0);
@@ -642,7 +664,7 @@ function hurtPlayer(amt,dx,dz,force,src){
   if(player.hp<=0){ player.hp=0; player.alive=false; }
 }
 
-function cull(arr){ for(let i=arr.length-1;i>=0;i--){ const o=arr[i]; if(!o.alive){ if(o.spr) scene.remove(o.spr); if(o.sh) scene.remove(o.sh); if(o.mesh) scene.remove(o.mesh); if(o.aura) scene.remove(o.aura); arr.splice(i,1); } } }
+function cull(arr){ for(let i=arr.length-1;i>=0;i--){ const o=arr[i]; if(!o.alive){ if(o.spr){ scene.remove(o.spr); freeObj(o.spr); } if(o.sh) scene.remove(o.sh); if(o.mesh){ scene.remove(o.mesh); freeObj(o.mesh); } if(o.aura){ scene.remove(o.aura); freeObj(o.aura); } arr.splice(i,1); } } }
 
 // ---------- view sync ----------
 // Give billboards life: spawn pop-in, idle breathe/bob, facing flip, hit punch
@@ -678,6 +700,17 @@ function syncMeshes() {
   animSprite(player, player.x, py, player.z, player.flash, 0xff7777, player.moving);
   player.spr.material.opacity = (player.invuln>0 && (now*0.02|0)%2===0) ? 0.5 : 1;
   player.sh.position.set(player.x, py+0.02, player.z);
+  if(player.hpbar){
+    const pct=Math.max(0,Math.min(1,player.hp/player.maxHp));
+    const show=pct<0.98 || gameTime<player.hpBarUntil || pct<0.35;
+    player.hpbar.visible=show;
+    if(show){
+      player.hpbar.position.set(player.x, py+player.bh+0.26, player.z);
+      const fill=player.hpbar.userData.fill;
+      fill.scale.x=1.18*pct;
+      fill.material.color.setHex(pct<0.32?0xff4f5f:pct<0.62?0xffd35a:0x58e070);
+    }
+  }
   if(playerLight) playerLight.position.set(player.x,py+2.4,player.z+1.2);
   for (const e of enemies){ const y=groundHeight(e.x,e.z);
     animSprite(e, e.x, y, e.z, e.flash, 0xffee66, true);
@@ -749,7 +782,7 @@ function updateHUD(dt){
   hudAccum+=dt;
   if(hudAccum<0.1 && !gameOver && !won) return;
   hudAccum=0;
-  $('hpfill').style.transform = `scaleX(${Math.max(0,player.hp/player.maxHp)})`;
+  $('hpfill').style.transform = `scaleX(${Math.min(1,Math.max(0,player.hp/player.maxHp))})`;
   $('hptext').textContent = `${Math.ceil(player.hp)} / ${player.maxHp}`;
   if (player.level>=MAX_LEVEL || !isFinite(player.xpToNext)){
     $('xpfill').style.transform = 'scaleX(1)';
@@ -789,6 +822,7 @@ function updateHUD(dt){
       for (const o of interactables){ if(o.used) continue; const d=Math.hypot(player.x-o.x, player.z-o.z); if(d<bd){ bd=d; best=o; } }
       if (best){ if(best.type==='chest') ip='[F] เปิดหีบ ('+chestCost(best.tier)+')';
         else if(best.type==='shrine'){ const sn=['Elite','Blood','Speed','Curse','Gamble']; ip='[F] '+sn[best.tier||0]+' Shrine'; }
+        else if(best.type==='magnet_pillar') ip='[F] Magnet Pillar';
         else ip='[F] ร้านค้า'; }
     }
   }
@@ -888,25 +922,25 @@ function renderRunRanking(){
   el.innerHTML=`<div class="runrank"><div><span>${escHtml(e.name)}</span><b>#${e.rank}</b></div><div><span>Score</span><b>${e.score.toLocaleString()}</b></div><div><span>Kills</span><b>${e.kills}</b></div><div><span>Time</span><b>${fmt(e.time)}</b></div><div><span>Damage</span><b>${e.damage}</b></div></div>`;
 }
 function restart(){
-  for (const e of enemies){ scene.remove(e.spr); scene.remove(e.sh); if(e.aura) scene.remove(e.aura); }
-  for (const p of projectiles) scene.remove(p.mesh);
-  for (const a of afterimages) scene.remove(a.spr); afterimages.length=0;
-  for (const sh of enemyShots) scene.remove(sh.mesh); enemyShots.length=0;
-  for (const p of particles) scene.remove(p.mesh); particles.length=0;
-  for (const r of rings) scene.remove(r.mesh); rings.length=0;
-  for (const w of novaWaves) scene.remove(w.mesh); novaWaves.length=0;
-  for (const f of slashFx) scene.remove(f.mesh); slashFx.length=0;
-  for (const tr of trails) scene.remove(tr.mesh); trails.length=0;
+  for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); scene.remove(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
+  for (const p of projectiles){ scene.remove(p.mesh); freeObj(p.mesh); }
+  for (const a of afterimages){ scene.remove(a.spr); freeObj(a.spr); } afterimages.length=0;
+  for (const sh of enemyShots){ scene.remove(sh.mesh); freeObj(sh.mesh); } enemyShots.length=0;
+  for (const p of particles){ scene.remove(p.mesh); freeObj(p.mesh); } particles.length=0;
+  for (const r of rings){ scene.remove(r.mesh); freeObj(r.mesh); } rings.length=0;
+  for (const w of novaWaves){ scene.remove(w.mesh); freeObj(w.mesh); } novaWaves.length=0;
+  for (const f of slashFx){ scene.remove(f.mesh); freeObj(f.mesh); } slashFx.length=0;
+  for (const tr of trails){ scene.remove(tr.mesh); freeObj(tr.mesh); } trails.length=0;
   for (const d of dmgNums) d.el.remove(); dmgNums.length=0; weaponSig=null; tomeSig=null; objSig='';
   { const tw=document.getElementById('tomes'); if(tw) tw.innerHTML=''; }
-  for (const pk of pickups) scene.remove(pk.spr);
-  for (const gi of groundItems) { if(gi.spr) scene.remove(gi.spr); if(gi.glow) scene.remove(gi.glow); }
+  for (const pk of pickups){ scene.remove(pk.spr); freeObj(pk.spr); }
+  for (const gi of groundItems) { if(gi.spr){ scene.remove(gi.spr); freeObj(gi.spr); } if(gi.glow){ scene.remove(gi.glow); freeObj(gi.glow); } }
   groundItems.length = 0;
   enemies.length=0; projectiles.length=0; pickups.length=0;
-  if(player.weapons) for(const w of player.weapons) if(w.orbs) w.orbs.forEach(o=>scene.remove(o.mesh));
-  scene.remove(player.spr); scene.remove(player.sh);
+  if(player.weapons) for(const w of player.weapons) if(w.orbs) w.orbs.forEach(o=>{ scene.remove(o.mesh); freeObj(o.mesh); });
+  scene.remove(player.spr); freeObj(player.spr); scene.remove(player.sh); if(player.hpbar){ scene.remove(player.hpbar); freeObj(player.hpbar); }
   player = makePlayer();
-  gameTime=0; stageStartTime=0; kills=0; gameOver=false; won=false; boss=null; mapStage=1; score=0; damageTaken=0; scoreFinalized=false; lastScoreEntry=null; applyMapTheme(); clearStageScenery();
+  gameTime=0; stageStartTime=0; globalPickupMagnet=0; kills=0; gameOver=false; won=false; boss=null; mapStage=1; score=0; damageTaken=0; scoreFinalized=false; lastScoreEntry=null; applyMapTheme(); clearStageScenery();
   if(!worldScenery.length){ spawnTrees(40); buildScenery(); }
   waveTimer=0; waveInterval=3.2; enemiesPerWave=2; maxEnemies=18;
   nextHordeAt=240; hordeRemaining=0; hordeSpawnTimer=0; hordeNumber=0; hordeSpawned=0; hordeWarned=false; relocationCursor=0;

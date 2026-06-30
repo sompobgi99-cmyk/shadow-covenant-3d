@@ -237,6 +237,10 @@ const keys = {};
 let gameTime = 0, kills = 0, gameOver = false, score = 0, damageTaken = 0, scoreFinalized = false, lastScoreEntry = null;
 let stageStartTime = 0;                       // gameTime when the current stage began
 function stageTime(){ return gameTime - stageStartTime; }   // per-stage clock (resets each map)
+function healCap(p){ return Math.round(p.maxHp*(1+(p.overheal||0))); }   // Chonkplate lets HP exceed max
+// Overtime escalation: enemies get +45% HP & ATK for every 3 minutes spent in OT (unbounded).
+function otPowerMul(){ const ot=stageTime()-RUN_TARGET; return ot<=0 ? 1 : 1 + 0.45*Math.floor(ot/180); }
+let globalPickupMagnet = 0;
 let waveTimer = 0, waveInterval = 3.2, enemiesPerWave = 2, maxEnemies = 18;
 let nextHordeAt = 240, hordeRemaining = 0, hordeSpawnTimer = 0, hordeNumber = 0, hordeSpawned = 0, hordeWarned = false;
 let relocationCursor = 0;
@@ -392,7 +396,7 @@ function selectCharacter(key){
 }
 const UPGRADES = [
   { id:'might',    name:'Might',      desc:'+18% damage',        icon:'tomeic_might',     apply:()=>{ player.dmgMul*=1.18; } },
-  { id:'vitality', name:'Vitality',   desc:'+25 max HP, heal',   icon:'tomeic_vitality',  apply:()=>{ player.maxHp+=25; player.hp=Math.min(player.maxHp, player.hp+25); } },
+  { id:'vitality', name:'Vitality',   desc:'+25 max HP, heal',   icon:'tomeic_vitality',  apply:()=>{ player.maxHp+=25; player.hp=Math.min(healCap(player), player.hp+25); } },
   { id:'celerity', name:'Celerity',   desc:'+15% attack speed',  icon:'tomeic_celerity',  apply:()=>{ player.rateMul*=1.15; } },
   { id:'precision',name:'Precision',  desc:'+25% range',         icon:'tomeic_precision', apply:()=>{ player.rangeMul*=1.25; } },
   { id:'multishot',name:'Multishot',  desc:'+1 projectile',      icon:'tomeic_multishot', apply:()=>{ player.countBonus+=1; } },
@@ -443,19 +447,23 @@ function timeScale(){ return Math.min(10, 1 + gameTime/130); }
 // ATK scales far slower than HP so late-game hits sting without one-shotting.
 function atkTimeScale(){ return Math.min(2.4, 1 + gameTime/420); }
 // Map 2+ ramps hard: enemies/minibosses/bosses get much tougher each stage.
-function stageHpMul(){ return mapStage>=3 ? 3.4 : mapStage>=2 ? 2.0 : 1; }
-function stageAtkMul(){ return mapStage>=3 ? 1.9 : mapStage>=2 ? 1.45 : 1; }
-function normalHpScale(tier){ return timeScale()*1.10*[1,1.22,1.48][tier||0]*stageHpMul(); }
-function normalAtkScale(tier){ return atkTimeScale()*[1,1.12,1.27][tier||0]*stageAtkMul(); }
-function minibossHpScale(){ return timeScale()*1.35*(mapStage>=3 ? 3.6 : mapStage>=2 ? 2.1 : 1); }
-function bossHpScale(){ return timeScale()*1.45*(mapStage>=3 ? 4.0 : mapStage>=2 ? 2.3 : 1); }
+function stageHpMul(){ return mapStage>=3 ? 4.8 : mapStage>=2 ? 2.7 : 1; }
+function stageAtkMul(){ return mapStage>=3 ? 2.4 : mapStage>=2 ? 1.75 : 1; }
+function normalHpScale(tier){ return timeScale()*1.10*[1,1.22,1.48][tier||0]*stageHpMul()*otPowerMul(); }
+function normalAtkScale(tier){ return atkTimeScale()*[1,1.12,1.27][tier||0]*stageAtkMul()*otPowerMul(); }
+function minibossHpScale(){ return timeScale()*1.35*(mapStage>=3 ? 5.0 : mapStage>=2 ? 2.9 : 1)*otPowerMul(); }
+function bossHpScale(){ return timeScale()*1.45*(mapStage>=3 ? 5.8 : mapStage>=2 ? 3.1 : 1)*otPowerMul(); }
 const MAX_LEVEL = 40;
 function xpRequired(level){
   const k=Math.max(0,level-1);
   // cubic ramp: gentle early, brutal near max level
   return Math.round(20 + 10*k + 4*k*k + 0.22*k*k*k);
 }
-function enemySpeedMul(){ return 1 + Math.min(0.35, stageTime()/720); }   // monsters speed up over the stage
+function enemySpeedMul(){
+  const ot = stageTime()-RUN_TARGET;
+  const otSpd = ot>0 ? Math.min(0.75, 0.06*Math.floor(ot/180)) : 0;   // +6% speed per 3 min of OT (cap +75%)
+  return 1 + Math.min(0.35, stageTime()/720) + otSpd;
+}
 function progressionProfile(){
   const st=stageTime();   // spawn density ramps fresh each stage
   const points=[
@@ -488,6 +496,19 @@ function showToast(message,duration){
 let fpsAccum = 0, fpsFrames = 0;
 const SHADOW_GEO = new THREE.CircleGeometry(0.5, 16);
 const SHADOW_MAT = new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.32, depthWrite:false });
+// ---- GPU memory: free per-instance geometry/material/texture when objects are removed ----
+// Shared resources are flagged so freeObj() skips them. Cloned textures are freed only by the
+// material that owns them (_ownsMap). Without this, long sessions leak GPU memory -> white screen.
+SHADOW_GEO._shared = SHADOW_MAT._shared = PARTICLE_GEO._shared = TRAIL_GEO._shared = true;
+function freeObj(obj){
+  if(!obj || !obj.traverse) return;
+  obj.traverse(n=>{
+    if(n.geometry && !n.isSprite && !n.geometry._shared) n.geometry.dispose();
+    const mat=n.material; if(!mat) return;
+    const mats=Array.isArray(mat)?mat:[mat];
+    for(const m of mats){ if(!m || m._shared) continue; if(m._ownsMap && m.map) m.map.dispose(); m.dispose(); }
+  });
+}
 
 function groundHeight(x, z) { return 0; }   // flat map (no hills)
 // vertical gradient sky used as scene background
@@ -829,8 +850,34 @@ function billboard(key, height) {
   s.scale.set(height*ar, height, 1);
   return s;
 }
+function ensureMagnetPillarTexture(){
+  if (tex.obj_magnet_pillar) return;
+  const cv=document.createElement('canvas'); cv.width=32; cv.height=48;
+  const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  ctx.clearRect(0,0,32,48);
+  ctx.fillStyle='rgba(18,10,28,0.95)'; ctx.fillRect(9,12,14,31);
+  ctx.fillStyle='#2d2144'; ctx.fillRect(7,40,18,5); ctx.fillRect(10,9,12,5);
+  ctx.fillStyle='#5f4f86'; ctx.fillRect(12,14,8,25);
+  ctx.fillStyle='#b8fff2'; ctx.fillRect(14,4,4,18); ctx.fillRect(8,12,16,3);
+  ctx.fillStyle='#52e7d1'; ctx.fillRect(15,5,2,16); ctx.fillRect(9,13,14,1);
+  ctx.fillStyle='rgba(82,231,209,0.42)'; ctx.fillRect(5,8,22,2); ctx.fillRect(3,19,26,2); ctx.fillRect(6,30,20,2);
+  ctx.fillStyle='#fffbd0'; ctx.fillRect(15,7,2,5);
+  ctx.fillStyle='rgba(120,255,230,0.28)'; ctx.fillRect(2,6,28,28);
+  const t=new THREE.CanvasTexture(cv);
+  t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
+  tex.obj_magnet_pillar=t;
+}
 
 function makeShadow(r){ const m=new THREE.Mesh(SHADOW_GEO, SHADOW_MAT); m.rotation.x=-Math.PI/2; m.scale.set(r,r,r); return m; }
+function makePlayerHealthBar(){
+  const g=new THREE.Group();
+  const bg=new THREE.Sprite(new THREE.SpriteMaterial({ color:0x0b0610, transparent:true, opacity:0.78, depthTest:false, depthWrite:false }));
+  bg.scale.set(1.34,0.16,1); bg.renderOrder=20; g.add(bg);
+  const fill=new THREE.Sprite(new THREE.SpriteMaterial({ color:0x58e070, transparent:true, opacity:0.95, depthTest:false, depthWrite:false }));
+  fill.center.set(0,0.5); fill.position.x=-0.59; fill.scale.set(1.18,0.08,1); fill.renderOrder=21; g.add(fill);
+  g.visible=false; g.userData={ fill };
+  scene.add(g); return g;
+}
 const entityAuraTextures=new Map();
 function getEntityAuraTexture(kind){
   if(entityAuraTextures.has(kind)) return entityAuraTextures.get(kind);
@@ -995,7 +1042,7 @@ const CHARACTERS = {
   slayer:      { name:'Slayer',      sheet:'slayer',      weapon:'bladewhirl',
                  stats:{ maxHp:75 }, passive:{ desc:'+2.5% damage / lv', apply:p=>{ p.dmgMul *= 1.025; } } },
   priestess:   { name:'Priestess',   sheet:'priestess',   weapon:'smite',
-                 stats:{ maxHp:95, regen:0.4 }, passive:{ desc:'+0.3 regen & heal / lv', apply:p=>{ p.regen += 0.3; p.hp=Math.min(p.maxHp,p.hp+10); } } },
+                 stats:{ maxHp:95, regen:0.4 }, passive:{ desc:'+0.3 regen & heal / lv', apply:p=>{ p.regen += 0.3; p.hp=Math.min(healCap(p),p.hp+10); } } },
 };
 let currentChar = 'paladin';
 const MAX_WEAPONS = 3;   // signature + 2
@@ -1007,6 +1054,7 @@ function animBillboard(sheetKey, height, frames) {
   t.wrapS = THREE.RepeatWrapping;
   t.repeat.x = 1 / frames; t.offset.x = 0;
   const mat = new THREE.SpriteMaterial({ map: t, transparent: true, alphaTest: 0.4, depthWrite: true });
+  mat._ownsMap = true;   // cloned strip texture -> free on removal
   const s = new THREE.Sprite(mat);
   const ar = (base.image.width / frames) / base.image.height;  // single-frame aspect
   s.center.set(0.5, 0);
@@ -1020,6 +1068,7 @@ function entitySprite(baseKey, height) {
   if (D && tex[D.key]) {
     const st = makeGridState(D);
     const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: st.map, transparent:true, alphaTest:0.4, depthWrite:true }));
+    spr.material._ownsMap = true;   // each enemy clones its own 8-dir texture -> free on death
     const base = tex[D.key];
     const ar = (base.image.width/D.cols) / (base.image.height/D.rows);
     spr.center.set(0.5, 0); spr.scale.set(height*ar, height, 1);
@@ -1053,10 +1102,11 @@ function makePlayer() {
     spr = billboard('player', 1.7);
   }
   const sh = makeShadow(0.72);
+  const hpbar = makePlayerHealthBar();
   scene.add(spr); scene.add(sh);
   const p = { x:0, z:0, hp:80, maxHp:80, def:5, spd:PLAYER_SPEED,
            level:1, xp:0, xpToNext:xpRequired(1), gold:0, alive:true, moving:false, dir:0,
-           invuln:0, flash:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, lifesteal:0, knockbackMul:0, lifeMul:1, projSpeedMul:1, projScale:1, tomeCount:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh };
+           invuln:0, flash:0, hpBarUntil:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, lifesteal:0, knockbackMul:0, lifeMul:1, projSpeedMul:1, projScale:1, tomeCount:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh, hpbar };
   const st = C.stats || {};
   if (st.maxHp!=null){ p.maxHp=st.maxHp; p.hp=st.maxHp; }
   if (st.spd!=null)   p.spd=st.spd;
@@ -1184,7 +1234,7 @@ function spawnMiniboss() {
   const ang = Math.random()*Math.PI*2, d = 26;
   const x = clamp(player.x + Math.cos(ang)*d, -MAP_BOUND, MAP_BOUND);
   const z = clamp(player.z + Math.sin(ang)*d, -MAP_BOUND, MAP_BOUND);
-  const hpSc=minibossHpScale(), atkSc=atkTimeScale()*1.15*stageAtkMul();
+  const hpSc=minibossHpScale(), atkSc=atkTimeScale()*1.15*stageAtkMul()*otPowerMul();
   const { spr, anim } = entitySprite(t.sprite, t.h);
   const sh = makeShadow(t.h*0.34);
   scene.add(spr); scene.add(sh);
