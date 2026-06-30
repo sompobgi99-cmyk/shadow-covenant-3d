@@ -32,7 +32,7 @@
   document.body.appendChild(dash);
   document.body.appendChild(fbtn);
 
-  const R = 50;
+  const R = 42;
   let joyId = null, cx = 0, cy = 0;
   function setMove(active,x,z){ window.touchMove.active=active; window.touchMove.x=x; window.touchMove.z=z; }
   function findTouch(list){ for (let i=0;i<list.length;i++) if (list[i].identifier===joyId) return list[i]; return null; }
