@@ -1,5 +1,5 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
-const APP_VERSION = '20260701-merchant-betrayal';
+const APP_VERSION = '20260701-enemy-shot-scale';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
@@ -185,10 +185,19 @@ function spawnEnemyShot(x, z, dx, dz, dmg, opts){
   opts=opts||{};
   const m=new THREE.Group();
   const color=opts.color||0xff5066, coreColor=opts.coreColor||0xffb0bc;
-  const glow=new THREE.Mesh(new THREE.SphereGeometry(opts.glowSize||0.34,10,10), new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.22, blending:THREE.AdditiveBlending, depthWrite:false }));
-  const core=new THREE.Mesh(new THREE.SphereGeometry(opts.coreSize||0.16,8,8), new THREE.MeshBasicMaterial({ color:coreColor, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending, depthWrite:false }));
-  m.add(glow); m.add(core);
-  scene.add(m); enemyShots.push({ x, z, dx, dz, speed:opts.speed||9, dmg, life:opts.life||3, alive:true, mesh:m });
+  if(opts.shape==='arrow'){
+    const shaft=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.05,0.09), new THREE.MeshBasicMaterial({ color:coreColor, transparent:true, opacity:0.98, blending:THREE.AdditiveBlending, depthWrite:false }));
+    const head=new THREE.Mesh(new THREE.ConeGeometry(0.13,0.30,4), new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending, depthWrite:false }));
+    head.rotation.z=-Math.PI/2; head.position.x=0.48;
+    const glow=new THREE.Mesh(new THREE.BoxGeometry(0.98,0.04,0.20), new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.16, blending:THREE.AdditiveBlending, depthWrite:false }));
+    m.add(glow); m.add(shaft); m.add(head);
+    m.rotation.y=-Math.atan2(dz,dx);
+  } else {
+    const glow=new THREE.Mesh(new THREE.SphereGeometry(opts.glowSize||0.26,10,10), new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.20, blending:THREE.AdditiveBlending, depthWrite:false }));
+    const core=new THREE.Mesh(new THREE.SphereGeometry(opts.coreSize||0.12,8,8), new THREE.MeshBasicMaterial({ color:coreColor, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending, depthWrite:false }));
+    m.add(glow); m.add(core);
+  }
+  scene.add(m); enemyShots.push({ x, z, dx, dz, speed:opts.speed||9, dmg, life:opts.life||3, alive:true, mesh:m, color, hitRadius:opts.hitRadius||0.46, trailScale:opts.trailScale||0.48 });
 }
 const SHOOTERS  = new Set(['Swamp Witch','Shadow Weaver','Dark Apostle','Toxic Spore','Abyssal Horror','Grave Arbalist','Mire Hexer','Rift Needler','Doom Cantor']);
 const CHARGERS  = new Set(['Wraith','Dire Bat','Chaos Wisp','Willow Wisp','Rift Phantom','Nether Drake']);
@@ -219,17 +228,17 @@ function isDeathWarded(e){
 function enemyShoot(e,nx,nz){
   const base=Math.atan2(nz,nx);
   if(e.name==='Grave Arbalist'){
-    spawnEnemyShot(e.x,e.z,nx,nz,Math.round(e.atk*1.05),{ speed:13.5, life:2.2, color:0xd8c08a, coreColor:0xffedb0, glowSize:0.24, coreSize:0.11 });
+    spawnEnemyShot(e.x,e.z,nx,nz,Math.round(e.atk*1.05),{ speed:13.5, life:2.2, color:0xd8c08a, coreColor:0xffedb0, shape:'arrow', hitRadius:0.34, trailScale:0.36 });
     e.atkCd=1.05+Math.random()*0.25;
   } else if(e.name==='Mire Hexer'){
-    for(let k=-1;k<=1;k++){ const a=base+k*0.22; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.86),{ speed:7.2, life:3.5, color:0x45d66a, coreColor:0xa8ffc0 }); }
+    for(let k=-1;k<=1;k++){ const a=base+k*0.22; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.86),{ speed:7.2, life:3.5, color:0x45d66a, coreColor:0xa8ffc0, hitRadius:0.42, trailScale:0.44 }); }
     e.atkCd=2.0+Math.random()*0.45;
   } else if(e.name==='Rift Needler'){
-    for(let k=-2;k<=2;k++){ const a=base+k*0.10; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.72),{ speed:12.5, life:2.4, color:0x7c8dff, coreColor:0xd8e4ff, glowSize:0.22, coreSize:0.10 }); }
+    for(let k=-2;k<=2;k++){ const a=base+k*0.10; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.72),{ speed:12.5, life:2.4, color:0x7c8dff, coreColor:0xd8e4ff, glowSize:0.20, coreSize:0.09, hitRadius:0.34, trailScale:0.34 }); }
     e.atkCd=1.55+Math.random()*0.3;
   } else if(e.name==='Doom Cantor'){
     const n=12, off=gameTime*0.8;
-    for(let i=0;i<n;i++){ const a=off+(i/n)*Math.PI*2; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.7),{ speed:5.8, life:4.2, color:0x9a55ff, coreColor:0xff75b7, glowSize:0.28, coreSize:0.13 }); }
+    for(let i=0;i<n;i++){ const a=off+(i/n)*Math.PI*2; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.7),{ speed:5.8, life:4.2, color:0x9a55ff, coreColor:0xff75b7, glowSize:0.24, coreSize:0.11, hitRadius:0.44, trailScale:0.44 }); }
     e.atkCd=3.6+Math.random()*0.7;
   } else {
     spawnEnemyShot(e.x, e.z, nx, nz, e.atk);

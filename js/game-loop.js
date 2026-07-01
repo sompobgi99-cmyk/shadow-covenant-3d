@@ -227,9 +227,10 @@ function update(dt) {
   // cull dead
   for (const sh of enemyShots){ if(!sh.alive) continue;
     sh.x+=sh.dx*sh.speed*dt; sh.z+=sh.dz*sh.speed*dt; sh.life-=dt;
-    if (frameN%6===0) spawnTrail(sh.x, sh.z, 0xff5066, 0.7);
+    if (frameN%6===0) spawnTrail(sh.x, sh.z, sh.color||0xff5066, sh.trailScale||0.48);
     if (sh.life<=0 || blocked(sh.x,sh.z)){ sh.alive=false; continue; }
-    if ((sh.x-player.x)*(sh.x-player.x)+(sh.z-player.z)*(sh.z-player.z) < 0.55*0.55){ hurtPlayer(sh.dmg,sh.dx,sh.dz,6.5); sh.alive=false; spawnBurst(sh.x,sh.z,0xff5066,4,0.6); } }
+    const hitR=sh.hitRadius||0.46;
+    if ((sh.x-player.x)*(sh.x-player.x)+(sh.z-player.z)*(sh.z-player.z) < hitR*hitR){ hurtPlayer(sh.dmg,sh.dx,sh.dz,6.5); sh.alive=false; spawnBurst(sh.x,sh.z,sh.color||0xff5066,4,0.5); } }
   for (let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.life-=dt;
     if (p.life<=0){ scene.remove(p.mesh); freeObj(p.mesh); particles.splice(i,1); continue; }
     p.vy-=12*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.z+=p.vz*dt; if(p.y<0.1){ p.y=0.1; p.vy*=-0.3; }
