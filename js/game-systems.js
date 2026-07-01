@@ -75,6 +75,11 @@ function getPixelProjectileTexture(shape,color){
     px(3,7,6,2,dark); px(7,5,8,6,dark); px(13,3,8,10,dark); px(20,5,7,6,dark); px(27,7,3,2,dark);
     px(8,7,7,3,mid); px(14,5,8,6,mid); px(21,7,5,3,mid);
     px(15,6,5,3,light); px(18,5,3,2,'#ffffff');
+  } else if(shape==='dagger'){
+    px(2,7,5,2,dark); px(5,6,4,4,dark);
+    px(8,5,15,6,dark); px(22,6,5,4,dark); px(27,7,3,2,dark);
+    px(7,7,3,2,mid); px(10,6,12,4,mid); px(22,7,4,2,light);
+    px(12,6,8,1,'#ffffff'); px(4,5,2,1,light); px(4,10,2,1,light);
   } else if(shape==='arrow'){
     px(2,7,20,2,dark); px(5,6,15,1,mid); px(5,9,15,1,mid);
     px(20,4,4,8,dark); px(23,3,7,10,dark); px(22,5,5,6,mid); px(25,6,4,4,light);
@@ -125,13 +130,14 @@ function spawnProjectile(dx,dz,s){
       map:getPixelProjectileTexture(shape,s.color), color:0xffffff,
       transparent:true, opacity:1, alphaTest:0.1, depthWrite:false
     });
-    if(shape==='arrow'||shape==='shard') mat.rotation=-Math.atan2(dz,dx);
+    if(shape==='arrow'||shape==='shard'||shape==='dagger') mat.rotation=-Math.atan2(dz,dx);
     m=new THREE.Sprite(mat);
     if(shape==='arrow') m.scale.set(1.15*sc,0.52*sc,1);
     else if(shape==='shard') m.scale.set(1.15*sc,0.58*sc,1);
+    else if(shape==='dagger') m.scale.set(0.82*sc,0.34*sc,1);
     else if(shape==='doom') m.scale.set(1.05*sc,0.62*sc,1);
     else m.scale.set(0.82*sc,0.52*sc,1);
-    hitRadius=shape==='arrow'?0.36:0.42;
+    hitRadius=shape==='dagger'?0.28:shape==='arrow'?0.36:0.42;
     spin=shape==='soul'?7:shape==='orb'||shape==='doom'?3:0;
   }
   scene.add(m);
@@ -689,10 +695,12 @@ function levelUp(){
 function hurtPlayer(amt,dx,dz,force,src){
   if(player.invuln>0) return;
   if(player.evade && Math.random()<Math.min(0.75,player.evade)) return;   // Slippery Ring dodge
+  const guard=typeof trySkullGuard==='function' ? trySkullGuard(amt,src) : { blocked:false, amount:amt };
+  amt=guard.amount;
   sfx('hurt');
-  damageTaken += amt;
   // armor = percentage mitigation (stays useful as def scales), never below 1
   const r=Math.max(1, Math.round(amt*100/(100+player.def*5)));
+  damageTaken += r;
   player.hp-=r; player.flash=0.12; player.invuln=0.4;
   player.hpBarUntil=gameTime+3;
   // Mirror (reflect) + Spiky Shield (thorns) strike the attacker back

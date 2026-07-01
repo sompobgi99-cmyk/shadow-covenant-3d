@@ -74,7 +74,7 @@
   .ccard{ width:124px; background:#1c1430; border:2px solid #5a4a8a; border-radius:8px; padding:10px 8px;
           text-align:center; cursor:pointer; transition:transform .1s,border-color .1s,background .1s; }
   .ccard:hover{ border-color:#ffcc00; transform:translateY(-4px); background:#2a1f45; }
-  .ccard img{ height:84px; image-rendering:pixelated; display:block; margin:0 auto 6px; }
+  .ccard img{ width:64px; height:84px; object-fit:contain; image-rendering:pixelated; display:block; margin:0 auto 6px; }
   .ccard .cn{ color:#fff; font-size:14px; font-weight:bold; }
   .ccard .cw{ color:#8fd0ff; font-size:11px; margin-top:3px; }
   .ccard .cp{ color:#bda8e0; font-size:11px; margin-top:2px; line-height:1.25; }
@@ -141,7 +141,7 @@
               background:rgba(28,20,48,.64); border:1px solid rgba(90,74,138,.66); border-radius:6px;
               padding:9px; box-shadow:0 0 14px rgba(0,0,0,.16); }
   .guidecard img{ width:42px; height:42px; object-fit:contain; image-rendering:pixelated; }
-  .guidecard.character img{ width:42px; height:66px; align-self:end; }
+  .guidecard.character img{ width:42px; height:66px; object-fit:contain; align-self:end; }
   .guidecard b{ display:block; color:#fff8e8; font-size:13px; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .guidecard p{ color:#bda8e0; font-size:11px; line-height:1.28; margin-top:3px; }
   .guidecard small{ display:block; color:#8fd0ff; font-size:10px; margin-top:4px; }
@@ -294,7 +294,7 @@
     #select h2,#shop h2{ font-size:19px; margin-top:1px; }
     #selcards{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; width:100%; max-width:400px; padding-bottom:6px; }
     .ccard{ width:auto; min-height:138px; padding:7px 5px; border-radius:7px; }
-    .ccard img{ height:62px; margin-bottom:4px; }
+    .ccard img{ width:48px; height:62px; object-fit:contain; margin-bottom:4px; }
     .ccard .cn{ font-size:12px; }
     .ccard .cw,.ccard .cp{ font-size:9px; }
     #shop{ justify-content:flex-start; }
@@ -336,6 +336,6 @@
     #selcards{ max-width:760px; }
     #shopcards,#cards{ max-width:720px; }
     .ccard{ width:104px; min-height:122px; padding:6px 5px; }
-    .ccard img{ height:52px; }
+    .ccard img{ width:40px; height:52px; object-fit:contain; }
     .card{ min-height:114px; padding:7px 6px; }
   }

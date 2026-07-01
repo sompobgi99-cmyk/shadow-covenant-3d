@@ -12,8 +12,8 @@ const WEAPON_TYPES = {
             dmg:9, rate:1.3, range:9, count:2, pierce:0, speed:15, life:0.9, color:0x66ccff, arc:0.38, shape:'shard', evolveTo:'spreadX', evolveTome:'multishot' },
   nova:   { name:'Nova Burst',     icon:'wpn_nova',  desc:'Ring blast around you',    mode:'nova',
             dmg:14, rate:0.85, range:0, count:1, pierce:99, speed:12, life:0.6, color:0xffaa44, radius:2.8, evolveTo:'novaX', evolveTome:'celerity' },
-  orbit:  { name:'Orbiting Skull', icon:'wpn_orbit', desc:'Orbs circle and bonk',     mode:'orbit',
-            dmg:5, count:2, color:0xff6688, orbitR:1.8, orbitSpd:3.0, tick:0.45, evolveTo:'orbitX', evolveTome:'precision' },
+  orbit:  { name:'Orbiting Skull', icon:'wpn_orbit', desc:'Skulls orbit, bonk, and guard hits',     mode:'orbit',
+            dmg:6, count:2, color:0xff6688, orbitR:2.0, orbitSpd:3.2, tick:0.40, guardBlock:0.50, guardRecover:5.0, evolveTo:'orbitX', evolveTome:'precision' },
   arrow:  { name:"Hunter's Arrow",  icon:'wpn_arrow', desc:'Long piercing arrow',       mode:'aim',
             dmg:16, rate:1.2, range:15, count:1, pierce:3, speed:24, life:1.6, color:0x8ef06a, shape:'arrow', evolveTo:'arrowX', evolveTome:'velocity' },
   smite:  { name:'Holy Smite',      icon:'wpn_smite',  desc:'Divine strike from above',  mode:'smite',
@@ -21,7 +21,7 @@ const WEAPON_TYPES = {
   lightning:{ name:'Lightning Strike', icon:'wpn_lightning', desc:'Calls lightning onto single targets', mode:'smite',
             dmg:20, rate:1.15, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25, shape:'lightning' },
   dagger: { name:'Throwing Knives', icon:'wpn_dagger', desc:'Fast thrown daggers at nearby foes', mode:'aim',
-            dmg:11, rate:2.4, range:10, count:2, pierce:1, speed:26, life:0.9, color:0xdde7ff, shape:'shard' },
+            dmg:11, rate:2.4, range:10, count:2, pierce:1, speed:26, life:0.9, color:0xdde7ff, shape:'dagger' },
   bladewhirl:{ name:'Blade Wave',   icon:'wpn_bladewhirl',     desc:'Fires curved sword waves', mode:'slash',
             dmg:12, rate:1.8, range:3.6, count:1, pierce:1, speed:8, life:0.38, color:0xff5566, arc:0.45, shape:'crescent', evolveTo:'bladewhirlX', evolveTome:'swiftness' },
   soulspiral:{ name:'Soul Spiral',  icon:'wpn_soulspiral',  desc:'Rotating soul bolts',       mode:'spiral',
@@ -33,8 +33,8 @@ const WEAPON_TYPES = {
             dmg:16, rate:1.6, range:11, count:5, pierce:2, speed:18, life:1.1, color:0x99eeff, arc:0.78, shape:'shard' },
   novaX:  { name:'Supernova',      icon:'wpn_nova_evolved',  desc:'Evolved: massive blast',    mode:'nova', hidden:true,
             dmg:24, rate:1.15, range:0, count:2, pierce:99, speed:15, life:0.8, color:0xffd24a, radius:4.5 },
-  orbitX: { name:'Death Orbit',    icon:'wpn_orbit_evolved', desc:'Evolved: lethal orbs',      mode:'orbit', hidden:true,
-            dmg:13, count:4, color:0xff3366, orbitR:2.5, orbitSpd:3.8, tick:0.30 },
+  orbitX: { name:'Death Orbit',    icon:'wpn_orbit_evolved', desc:'Evolved: dual orbit and stronger guard',      mode:'orbit', hidden:true,
+            dmg:13, count:4, color:0xff3366, orbitR:2.8, orbitSpd:4.2, tick:0.24, guardBlock:0.70, guardRecover:3.5 },
   arrowX: { name:'Tempest Volley', icon:'wpn_arrow_evolved', desc:'Evolved: storm of arrows',  mode:'aim', hidden:true,
             dmg:30, rate:1.7, range:18, count:3, pierce:6, speed:30, life:1.9, color:0xc8ff7a, shape:'arrow' },
   smiteX: { name:'Divine Judgment', icon:'wpn_smite_evolved', desc:'Evolved: heaven’s wrath', mode:'smite', hidden:true,
@@ -135,9 +135,9 @@ function wstats(key, lvl){
   s.dmg = Math.round(b.dmg * (1 + 0.15*k) * (player.dmgMul||1));
   const bonus=player.countBonus||0;
   if (b.mode === 'orbit'){
-    s.count = b.count + Math.floor(k/3) + bonus;
-    s.orbitR = b.orbitR * (1 + 0.035*k) * (player.rangeMul||1);
-    s.tick = b.tick * Math.pow(0.93, k) / (player.rateMul||1);   // orbs hit faster per level + attack speed
+    s.count = b.count + Math.floor(k/2) + bonus;
+    s.orbitR = b.orbitR * (1 + 0.055*k) * (player.rangeMul||1);
+    s.tick = b.tick * Math.pow(0.90, k) / (player.rateMul||1);   // orbs hit faster per level + attack speed
   } else {
     const step=b.mode==='nova'||b.mode==='slash' ? 4 : 3;
     s.count = b.count + Math.floor(k/step) + bonus;
@@ -151,6 +151,42 @@ function wstats(key, lvl){
   return s;
 }
 function makeWeapon(key){ return { key, lvl:1, cd:0, orbs:[] }; }
+
+function syncOrbitGuard(w, s){
+  const max=Math.max(0, s.count|0);
+  if(w.guardActive==null){ w.guardActive=max; w.guardMax=max; w.guardCd=0; }
+  if(w.guardMax!==max){
+    const diff=max-(w.guardMax||0);
+    w.guardActive=Math.max(0, Math.min(max, (w.guardActive||0)+Math.max(0,diff)));
+    w.guardMax=max;
+    if(w.guardActive>=max) w.guardCd=0;
+  }
+}
+
+function trySkullGuard(amt, src){
+  if((player.skullGuardHitCd||0)>0) return { blocked:false, amount:amt };
+  let best=null, bestStats=null;
+  for(const w of player.weapons||[]){
+    const b=WEAPON_TYPES[w.key];
+    if(!b || b.mode!=='orbit') continue;
+    const s=wstats(w.key,w.lvl);
+    syncOrbitGuard(w,s);
+    if((w.guardActive||0)>0){ best=w; bestStats=s; break; }
+  }
+  if(!best) return { blocked:false, amount:amt };
+  const b=WEAPON_TYPES[best.key]||{};
+  const block=Math.max(0, Math.min(0.9, b.guardBlock||0.5));
+  best.guardActive=Math.max(0,(best.guardActive||0)-1);
+  best.guardCd=b.guardRecover||5;
+  player.skullGuardHitCd=0.25;
+  const color=best.key==='orbitX'?0xff335f:0xff7aa0;
+  spawnRing(player.x, player.z, color, 2.4, 0.25);
+  spawnBurst(player.x, player.z, color, best.key==='orbitX'?14:9, 0.85);
+  if(src && src.alive && best.key==='orbitX'){
+    dealEnemyDamage(src, Math.max(1, Math.round(bestStats.dmg*1.4)), color, src.x-player.x, src.z-player.z, 2.2, true);
+  }
+  return { blocked:true, amount:Math.max(1, Math.round(amt*(1-block))) };
+}
 
 // ---- Centralized damage: every weapon/proc routes through here ----
 // Applies per-target item multipliers, shield, crits, knockback, on-hit procs.
@@ -303,6 +339,16 @@ function fireSmite(s){
 const WFIRE = { aim:fireAim, spread:fireSpread, nova:fireNova, spiral:fireSpiral, slash:fireSlash, smite:fireSmite };
 function updateOrbit(w, s, dt){
   const b = WEAPON_TYPES[w.key] || WEAPON_TYPES.orbit;
+  syncOrbitGuard(w,s);
+  if((player.skullGuardHitCd||0)>0) player.skullGuardHitCd=Math.max(0,player.skullGuardHitCd-dt);
+  if((w.guardActive||0)<(w.guardMax||s.count)){
+    w.guardCd=(w.guardCd||b.guardRecover||5)-dt;
+    if(w.guardCd<=0){
+      w.guardActive=Math.min(w.guardMax||s.count,(w.guardActive||0)+1);
+      w.guardCd=(w.guardActive<(w.guardMax||s.count))?(b.guardRecover||5):0;
+      spawnBurst(player.x, player.z, b.color, 6, 0.45);
+    }
+  }
   while (w.orbs.length < s.count){
     const m = new THREE.Sprite(new THREE.SpriteMaterial({
       map:tex.wpn_orbit, color:b.color, transparent:true, alphaTest:0.2, depthWrite:false
@@ -313,8 +359,16 @@ function updateOrbit(w, s, dt){
   const n = w.orbs.length;
   for (let i=0;i<n;i++){
     const o = w.orbs[i];
-    const ang = gameTime*b.orbitSpd + (i/n)*Math.PI*2;
-    const ox = player.x + Math.cos(ang)*s.orbitR, oz = player.z + Math.sin(ang)*s.orbitR;
+    const active=i<(w.guardActive||0);
+    o.mesh.visible=active;
+    if(!active) continue;
+    const evolved=w.key==='orbitX';
+    const ring=evolved && (i%2===0) ? 0.62 : 1;
+    const dir=evolved && (i%2===0) ? -1 : 1;
+    const orbitCount=evolved ? Math.ceil(n/2) : n;
+    const slot=evolved ? Math.floor(i/2) : i;
+    const ang = gameTime*b.orbitSpd*dir + (slot/orbitCount)*Math.PI*2;
+    const ox = player.x + Math.cos(ang)*s.orbitR*ring, oz = player.z + Math.sin(ang)*s.orbitR*ring;
     o.mesh.position.set(ox, groundHeight(ox,oz)+0.9, oz);
     forEachNearbyEnemy(ox,oz,1.6,e=>{ if(!e.alive) return;
       if (Math.hypot(ox-e.x, oz-e.z) < e.r+0.5 && (o.hit.get(e)||0) <= gameTime){
