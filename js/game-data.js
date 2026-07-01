@@ -24,7 +24,7 @@ const MANIFEST = {
   char_assassin_walk:'char_assassin_walk.png',
   char_assassin_idle:'char_assassin_idle.png',
   char_assassin_portrait:'char_assassin_portrait.png',
-  char_it_support_walk:'char_it_support_walk.png',
+  char_it_support_walk:'char_it_support_walk.png?v=20260701-it-walkfix',
   char_it_support_idle:'char_it_support_idle.png',
   char_it_support_portrait:'char_it_support_portrait.png',
   // Tier 0 — Bleakfield

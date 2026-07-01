@@ -1,5 +1,5 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
-const APP_VERSION = '20260701-it-size-passive';
+const APP_VERSION = '20260701-it-walkfix';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
