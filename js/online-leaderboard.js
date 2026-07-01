@@ -24,8 +24,8 @@ function onlineEndpoint(query){
   return base + (query || '');
 }
 
-function onlineScorePayload(entry){
-  return {
+function onlineScorePayload(entry, includeBuild){
+  const payload = {
     player_name: entry.name,
     country_code: entry.country_code || entry.country || 'TH',
     character: entry.character || entry.hero || 'Unknown',
@@ -38,6 +38,8 @@ function onlineScorePayload(entry){
     damage: entry.damage|0,
     items: entry.items|0,
   };
+  if(includeBuild) payload.build = entry.build || window.SHADOW_BUILD_VERSION || '';
+  return payload;
 }
 
 async function saveOnlineScore(entry){
@@ -46,15 +48,16 @@ async function saveOnlineScore(entry){
     const apiRes = await fetch(ONLINE_LEADERBOARD.apiEndpoint, {
       method:'POST',
       headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify(onlineScorePayload(entry)),
+      body: JSON.stringify(onlineScorePayload(entry, true)),
     });
     if(apiRes.ok) return { ok:true };
+    if(apiRes.status===426 && typeof showToast==='function') showToast('New version available - reload to rank', 3);
     if(!ONLINE_LEADERBOARD.supabaseUrl || !ONLINE_LEADERBOARD.supabaseAnonKey) throw new Error('Online leaderboard save failed: '+apiRes.status);
   }
   const res = await fetch(onlineEndpoint(), {
     method:'POST',
     headers: onlineHeaders(),
-    body: JSON.stringify(onlineScorePayload(entry)),
+    body: JSON.stringify(onlineScorePayload(entry, false)),
   });
   if(!res.ok) throw new Error('Online leaderboard save failed: '+res.status);
   return { ok:true };

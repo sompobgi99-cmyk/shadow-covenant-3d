@@ -1232,7 +1232,11 @@ function clamp(v,a,b){ return v<a?a:v>b?b:v; }
 const LEADERBOARD_KEY = 'sc3_leaderboard';
 function saveScore(){
   const character = (CHARACTERS[player.char]||{}).name || 'Unknown';
-  const entry = { name:cleanPlayerName(playerName), country_code:cleanCountryCode(playerCountry), character, score, kills, time: Math.floor(gameTime), won, level:player.level, stage:mapStage, damage:Math.round(damageTaken), items:player.items.length, date: new Date().toISOString() };
+  const entry = { name:cleanPlayerName(playerName), country_code:cleanCountryCode(playerCountry), character, build:window.SHADOW_BUILD_VERSION||'', score, kills, time: Math.floor(gameTime), won, level:player.level, stage:mapStage, damage:Math.round(damageTaken), items:player.items.length, date: new Date().toISOString() };
+  if(typeof saveRunTelemetry==='function'){
+    const telemetry = saveRunTelemetry(entry);
+    if(telemetry && telemetry.id) entry.run_id = telemetry.id;
+  }
   let board = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || '[]');
   board.push(entry);
   board.sort((a,b) => b.score - a.score);

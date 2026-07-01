@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check js/game-data.js && node --check js/audio.js && node --check js/combat.js && node --check js/game-runtime.js && node --check js/game-loop.js && node --check js/game-systems.js && node --check js/mobile-controls.js && node --check netlify/functions/leaderboard.mts",
+    "check": "node --check js/game-data.js && node --check js/online-leaderboard.js && node --check js/run-telemetry.js && node --check js/audio.js && node --check js/combat.js && node --check js/game-runtime.js && node --check js/game-loop.js && node --check js/game-systems.js && node --check js/mobile-controls.js && node --check netlify/functions/leaderboard.mts",
+    "audit": "node scripts/audit.mjs",
+    "verify": "npm run check && npm run audit",
     "pixellab:balance": "node scripts/pixellab.mjs balance",
     "pixellab:generate": "node scripts/pixellab.mjs generate"
   },
