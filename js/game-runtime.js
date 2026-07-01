@@ -1,5 +1,5 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
-const APP_VERSION = '20260701-miniboss-otx4';
+const APP_VERSION = '20260701-warder-spawn-limit';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
@@ -1517,6 +1517,23 @@ function enemyPool(){
   const tier=currentTier();
   return ENEMY_TYPES.filter(e=>e.tier<=tier);
 }
+function warderLimit(){ return mapStage>=3 ? 2 : mapStage>=2 ? 1 : 0; }
+function activeWarderCount(){ return enemies.reduce((n,e)=>n+(e.alive && WARDERS.has(e.name) ? 1 : 0),0); }
+function pickEnemyType(opts){
+  opts=opts||{};
+  let pool=enemyPool();
+  if(!opts.allowWarder || activeWarderCount()>=warderLimit()) pool=pool.filter(e=>!WARDERS.has(e.name));
+  if(!pool.length) pool=enemyPool().filter(e=>!WARDERS.has(e.name));
+  return pool[(Math.random()*pool.length)|0];
+}
+function maybeSpawnWarder(cx,cz){
+  if(warderLimit()<=0 || activeWarderCount()>=warderLimit()) return;
+  if(Math.random()>(overtimeLevel()?0.20:0.12)) return;
+  const t=ENEMY_TYPES.find(e=>WARDERS.has(e.name));
+  if(!t) return;
+  const a=Math.random()*Math.PI*2, r=3.6+Math.random()*2.6;
+  spawnEnemy(t,cx+Math.cos(a)*r,cz+Math.sin(a)*r);
+}
 function minibossPool(){
   if(mapStage>=3){
     const sprites=new Set(['miniboss_horror','miniboss_skeleton_lord','miniboss_warden']);
@@ -1537,7 +1554,7 @@ function bossPool(){
 }
 function spawnEnemy(t, px, pz) {
   if (enemies.length >= maxEnemies) return;
-  if (!t){ const pool=enemyPool(); t=pool[(Math.random()*pool.length)|0]; }
+  if (!t) t=pickEnemyType({ allowWarder:true });
   let x, z;
   if (px!==undefined){ x=clamp(px,-MAP_BOUND,MAP_BOUND); z=clamp(pz,-MAP_BOUND,MAP_BOUND); }
   else { const ang=Math.random()*Math.PI*2, d=24+Math.random()*6; x=clamp(player.x+Math.cos(ang)*d,-MAP_BOUND,MAP_BOUND); z=clamp(player.z+Math.sin(ang)*d,-MAP_BOUND,MAP_BOUND); }
@@ -1550,7 +1567,7 @@ function spawnEnemy(t, px, pz) {
                  xp:t.xp, r:t.h*0.32, name:t.name, alive:true, cd:0, flash:0, isBoss:false, behavior:behaviorFor(t.name), airborne:AIRBORNE.has(t.name), kx:0, kz:0, atkCd:1+Math.random(), chargeCd:1.5+Math.random()*2, charging:0, bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh });
 }
 function spawnCluster(count){
-  const pool=enemyPool(); const t=pool[(Math.random()*pool.length)|0];
+  const t=pickEnemyType({ allowWarder:false });
   const center=pointAroundPlayer(22,28,false);
   if(!center) return;
   const cx=center.x, cz=center.z;
@@ -1559,6 +1576,7 @@ function spawnCluster(count){
     const r=1.2+Math.sqrt(i)*0.9;
     spawnEnemy(t, cx+Math.cos(a)*r, cz+Math.sin(a)*r);
   }
+  maybeSpawnWarder(cx,cz);
 }
 
 function spawnMiniboss() {

@@ -297,7 +297,7 @@ function makeWorldObjects(){
 }
 function clearWorldObjects(){ for(const o of interactables){ scene.remove(o.spr); if(o.glow) scene.remove(o.glow); if(o.beacon) scene.remove(o.beacon); } interactables.length=0; }
 function spawnAddAt(x,z){
-  const pool=enemyPool(); const t=pool[(Math.random()*pool.length)|0];
+  const t=pickEnemyType({ allowWarder:false });
   const hpSc=normalHpScale(t.tier), atkSc=normalAtkScale(t.tier); const H=t.h; const { spr, anim } = entitySprite(t.sprite, H);
   const sh=makeShadow(H*0.32); scene.add(spr); scene.add(sh);
   enemies.push({ x:clamp(x,-MAP_BOUND,MAP_BOUND), z:clamp(z,-MAP_BOUND,MAP_BOUND), hp:t.hp*hpSc, maxHp:t.hp*hpSc, atk:Math.round(t.atk*atkSc), spd:t.spd*SPD_SCALE,
@@ -306,7 +306,7 @@ function spawnAddAt(x,z){
     bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh });
 }
 function spawnElite(cx,cz){
-  const pool=enemyPool(); const t=pool[(Math.random()*pool.length)|0];
+  const t=pickEnemyType({ allowWarder:false });
   const hpSc=normalHpScale(t.tier), atkSc=normalAtkScale(t.tier); const a=Math.random()*Math.PI*2, d=2+Math.random()*3;
   const x=clamp(cx+Math.cos(a)*d,-MAP_BOUND,MAP_BOUND), z=clamp(cz+Math.sin(a)*d,-MAP_BOUND,MAP_BOUND);
   const H=t.h*1.3; const { spr, anim } = entitySprite(t.sprite, H);
