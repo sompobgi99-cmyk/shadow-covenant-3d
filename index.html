@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
 <link rel="icon" href="data:,">
 <title>Shadow Covenant 3D — Prototype</title>
-<link rel="stylesheet" href="css/game.css?v=20260701-warder-buff-cap">
+<link rel="stylesheet" href="css/game.css?v=20260701-boss-relics">
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -36,6 +36,7 @@
   <div id="objective"></div>
   <div id="over"><h1 id="overtitle">YOU DIED</h1><p id="overstats"></p><div id="overactions"><button id="homebtn">หน้าแรก</button></div><small>Press R to restart · C to choose character</small></div>
   <div id="levelup"><h2>LEVEL UP — choose an upgrade</h2><div id="cards"></div><div id="levelactions"><button id="skipupgrade">Skip [0]</button></div></div>
+  <div id="relicup"><h2>BOSS RELIC — choose one</h2><div id="reliccards"></div></div>
   <div id="playersetup"><h2>ชื่อผู้เล่น</h2><div class="sub">ชื่อนี้จะใช้ใน Ranking</div><input id="playername" maxlength="18" autocomplete="off" placeholder="Player"><select id="playercountry" aria-label="Country"><option value="TH">🇹🇭 Thailand</option><option value="US">🇺🇸 United States</option><option value="JP">🇯🇵 Japan</option><option value="KR">🇰🇷 Korea</option><option value="CN">🇨🇳 China</option><option value="SG">🇸🇬 Singapore</option><option value="MY">🇲🇾 Malaysia</option><option value="ID">🇮🇩 Indonesia</option><option value="PH">🇵🇭 Philippines</option><option value="VN">🇻🇳 Vietnam</option><option value="GB">🇬🇧 United Kingdom</option><option value="FR">🇫🇷 France</option><option value="DE">🇩🇪 Germany</option><option value="BR">🇧🇷 Brazil</option><option value="AU">🇦🇺 Australia</option></select><button id="nameconfirm">ต่อไป</button></div>
   <div id="select"><h2>เลือกตัวละคร</h2><div class="sub">Choose your hero</div><div id="selcards"></div></div>
   <div id="prompt"></div>
@@ -69,13 +70,13 @@
 <script src="lib/RenderPass.js"></script>
 <script src="lib/ShaderPass.js"></script>
 <script src="lib/UnrealBloomPass.js"></script>
-<script src="js/game-data.js?v=20260701-warder-buff-cap"></script>
-<script src="js/online-leaderboard.js?v=20260701-warder-buff-cap"></script>
-<script src="js/audio.js?v=20260701-warder-buff-cap"></script>
-<script src="js/combat.js?v=20260701-warder-buff-cap"></script>
-<script src="js/game-runtime.js?v=20260701-warder-buff-cap"></script>
-<script src="js/game-loop.js?v=20260701-warder-buff-cap"></script>
-<script src="js/game-systems.js?v=20260701-warder-buff-cap"></script>
-<script src="js/mobile-controls.js?v=20260701-warder-buff-cap"></script>
+<script src="js/game-data.js?v=20260701-boss-relics"></script>
+<script src="js/online-leaderboard.js?v=20260701-boss-relics"></script>
+<script src="js/audio.js?v=20260701-boss-relics"></script>
+<script src="js/combat.js?v=20260701-boss-relics"></script>
+<script src="js/game-runtime.js?v=20260701-boss-relics"></script>
+<script src="js/game-loop.js?v=20260701-boss-relics"></script>
+<script src="js/game-systems.js?v=20260701-boss-relics"></script>
+<script src="js/mobile-controls.js?v=20260701-boss-relics"></script>
 </body>
 </html>

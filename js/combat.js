@@ -195,6 +195,7 @@ function trySkullGuard(amt, src){
 function hitMul(e){
   let m = 1;
   if ((e.isBoss||e.elite) && player._bossBuster) m *= 1 + 0.15*player._bossBuster;
+  if ((e.isBoss||e.elite) && player._executionSeal) m *= 1.25;
   if (player._beefy)   m *= 1 + 0.20*player._beefy*Math.floor(player.maxHp/100);
   if (player._goggles) m *= 1 + 0.60*player._goggles*(1-player.hp/player.maxHp);
   if (player._brass){ const dx=e.x-player.x, dz=e.z-player.z; if (dx*dx+dz*dz < 9) m *= 1 + 0.20*player._brass; }
@@ -397,7 +398,8 @@ function weaponChoices(){
   const tomeName = id => { const u = (typeof UPGRADES!=='undefined') ? UPGRADES.find(x=>x.id===id) : null; return u ? u.name : id; };
   for (const key in WEAPON_TYPES){
     const t = WEAPON_TYPES[key]; if (t.hidden) continue;
-    const hint = t.evolveTo ? ' · ★Evolve: '+tomeName(t.evolveTome)+' ×3 @Lv8' : '';
+    const need = t.evolveTo ? evolveTomeNeed(player.weapons.find(x=>x.key===key)) : 3;
+    const hint = t.evolveTo ? ' · ★Evolve: '+tomeName(t.evolveTome)+' ×'+need+' @Lv8' : '';
     const w = player.weapons.find(x=>x.key===key);
     if (w){ if (w.lvl < 8) out.push({ id:'w_'+key, name:t.name+' Lv'+(w.lvl+1), desc:t.desc+hint, icon:t.icon, apply:()=>{ w.lvl++; } }); }
     else if (player.weapons.length < MAX_WEAPONS){ out.push({ id:'w_'+key, name:'NEW: '+t.name, desc:t.desc+hint, icon:t.icon, apply:()=>{ player.weapons.push(makeWeapon(key)); } }); }
@@ -405,9 +407,9 @@ function weaponChoices(){
   // weapon evolutions: maxed weapon + paired tome (x3)
   for (const w of player.weapons){
     const t = WEAPON_TYPES[w.key];
-    if (t && t.evolveTo && w.lvl>=8 && !w.evolved && (player.tomeCount[t.evolveTome]||0) >= 3){
+    if (t && t.evolveTo && w.lvl>=8 && !w.evolved && (player.tomeCount[t.evolveTome]||0) >= evolveTomeNeed(w)){
       const ev = WEAPON_TYPES[t.evolveTo];
-      out.push({ id:'evo_'+w.key, name:'\u2605 EVOLVE: '+ev.name, desc:ev.desc, icon:ev.icon, apply:()=>{ w.key=t.evolveTo; w.evolved=true; } });
+      out.push({ id:'evo_'+w.key, name:'\u2605 EVOLVE: '+ev.name, desc:ev.desc, icon:ev.icon, apply:()=>{ if(player._ancientAnvil && !player._anvilUsed) player._anvilUsed=1; w.key=t.evolveTo; w.evolved=true; } });
     }
   }
   return out;

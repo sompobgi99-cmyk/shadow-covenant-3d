@@ -1,5 +1,5 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
-const APP_VERSION = '20260701-warder-buff-cap';
+const APP_VERSION = '20260701-boss-relics';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
@@ -353,7 +353,7 @@ const PLAYER_COUNTRY_KEY='sc3_player_country';
 let playerName = localStorage.getItem(PLAYER_NAME_KEY) || 'Player';
 let playerCountry = localStorage.getItem(PLAYER_COUNTRY_KEY) || 'TH';
 function chestCost(tier){ const disc=Math.max(0.5, 1-0.08*((player&&player._wrench)||0)); return Math.round(CHEST_BASE[tier]*Math.pow(1.18, chestsOpened)*disc); }
-let paused = false, pendingUps = 0, currentChoices = [];
+let paused = false, pendingUps = 0, currentChoices = [], currentRelicChoices = [], pendingRelicPortal = null;
 let userPaused = false;
 function buildPauseInfo(){
   const el=document.getElementById('pauseinfo'); if(!el) return;
@@ -372,6 +372,10 @@ function buildPauseInfo(){
       const rc={common:'Common',uncommon:'Uncommon',rare:'Rare',legendary:'Legendary'};
       h+='<div style="color:#cdbff0;font-size:11px">'+it.name+(n>1?' x'+n:'')+' - '+it.desc+'</div>';
     }
+  }
+  if (player.relics && player.relics.length) {
+    h+='<div style="margin-top:8px;color:#ffd86a;font-size:12px">Relics</div>';
+    for(const r of player.relics) h+='<div style="color:#d7c18a;font-size:11px">'+r.name+' - '+r.desc+'</div>';
   }
   el.innerHTML=h;
 }
@@ -394,7 +398,8 @@ function tryDash(){
 }
 function quitToTitle(){
   started=false; userPaused=false; paused=false; gameOver=false; won=false; pendingUps=0;
-  for (const id of ['pause','shop','playersetup','select','over','levelup']) document.getElementById(id).style.display='none';
+  pendingRelicPortal=null; currentRelicChoices=[];
+  for (const id of ['pause','shop','playersetup','select','over','levelup','relicup']) document.getElementById(id).style.display='none';
   document.getElementById('pausebtn').textContent='⏸';
   document.getElementById('title').style.display='flex';
   showLeaderboard();
@@ -524,6 +529,48 @@ const UPGRADES = [
   { id:'focus',    name:'Focus',      desc:'+6% crit chance',       icon:'tomeic_focus',    apply:()=>{ player.critChance+=0.06; } },
   { id:'execution',name:'Execution',  desc:'+18% crit damage',      icon:'tomeic_execution',apply:()=>{ player.critDmg+=0.18; } },
 ];
+const RELICS = [
+  { id:'phoenix_sigil', name:'Phoenix Sigil', desc:'Revive once at 50% HP', icon:'tomeic_vitality',
+    apply:p=>{ p._phoenix=1; } },
+  { id:'blood_crown', name:'Blood Crown', desc:'+35% damage, -20% max HP', icon:'tomeic_might',
+    apply:p=>{ p.dmgMul*=1.35; p.maxHp=Math.max(1,Math.round(p.maxHp*0.8)); p.hp=Math.min(p.hp,p.maxHp); } },
+  { id:'golden_pact', name:'Golden Pact', desc:'Shop prices -30%, betrayal chance 25%', icon:'tomeic_greed',
+    apply:p=>{ p._goldenPact=1; } },
+  { id:'execution_seal', name:'Execution Seal', desc:'+25% damage to bosses and minibosses', icon:'tomeic_execution',
+    apply:p=>{ p._executionSeal=1; } },
+  { id:'soul_lantern', name:'Soul Lantern', desc:'Miniboss XP and gold +50%', icon:'tomeic_exp',
+    apply:p=>{ p._soulLantern=1; } },
+  { id:'ancient_anvil', name:'Ancient Anvil', desc:'First weapon evolve needs 2 Tome stacks instead of 3', icon:'tomeic_fortitude',
+    apply:p=>{ p._ancientAnvil=1; p._anvilUsed=0; } },
+];
+function evolveTomeNeed(w){
+  return player && player._ancientAnvil && !player._anvilUsed && w && !w.evolved ? 2 : 3;
+}
+function relicCard(r,i){
+  return '<img src="assets/sprites/'+r.icon+'.png"><div class="nm">'+r.name+'</div><div class="ds">'+r.desc+'</div><div class="key">[ '+(i+1)+' ]</div>';
+}
+function openRelicChoice(nextStage){
+  const pool=RELICS.filter(r=>!(player.relics||[]).some(x=>x.id===r.id));
+  currentRelicChoices=[];
+  for(let i=0;i<3 && pool.length;i++) currentRelicChoices.push(pool.splice((Math.random()*pool.length)|0,1)[0]);
+  pendingRelicPortal={ nextStage };
+  const wrap=document.getElementById('reliccards'); wrap.innerHTML='';
+  currentRelicChoices.forEach((r,i)=>{ const d=document.createElement('div'); d.className='card'; d.innerHTML=relicCard(r,i); d.onclick=()=>pickRelic(i); wrap.appendChild(d); });
+  paused=true;
+  document.getElementById('relicup').style.display='flex';
+}
+function pickRelic(i){
+  if(!paused || document.getElementById('relicup').style.display!=='flex') return;
+  const r=currentRelicChoices[i]; if(!r) return;
+  r.apply(player);
+  player.relics.push({ id:r.id, name:r.name, desc:r.desc });
+  document.getElementById('relicup').style.display='none';
+  const nextStage=pendingRelicPortal&&pendingRelicPortal.nextStage;
+  pendingRelicPortal=null;
+  paused=false;
+  if(nextStage) altarToPortal('nextStage', nextStage);
+  showToast('Relic gained: '+r.name,2.4);
+}
 const MAX_TOMES = 4;   // เลือก tome ได้สูงสุด 4 ชนิด (เก็บซ้อนได้ไม่จำกัด)
 function isBannedChoice(u){
   return !!(u && player.bannedChoices && player.bannedChoices[u.id]);
@@ -578,7 +625,7 @@ function skipUpgrade(){
 function checkEvolveReady(){
   for (const w of player.weapons){
     const t = WEAPON_TYPES[w.key];
-    if (t && t.evolveTo && !w.evolved && !w.evoAnnounced && w.lvl>=8 && (player.tomeCount[t.evolveTome]||0)>=3){
+    if (t && t.evolveTo && !w.evolved && !w.evoAnnounced && w.lvl>=8 && (player.tomeCount[t.evolveTome]||0)>=evolveTomeNeed(w)){
       w.evoAnnounced = true;
       showToast('⚡ '+t.name+' พร้อม Evolve — เลือกการ์ด ★ ตอนอัพเลเวล!', 3.5);
       sfx('levelup');
@@ -822,7 +869,11 @@ function init() {
   document.getElementById('quitbtn').onclick = quitToTitle;
   addEventListener('keydown', (e)=>{ if(!started){ return; } keys[e.code]=true;
     resumeAudio();
-    if (paused && ['Digit1','Digit2','Digit3'].includes(e.code)){ pickUpgrade(+e.code.slice(5)-1); e.preventDefault(); return; }
+    if (paused && ['Digit1','Digit2','Digit3'].includes(e.code)){
+      if(document.getElementById('relicup').style.display==='flex') pickRelic(+e.code.slice(5)-1);
+      else pickUpgrade(+e.code.slice(5)-1);
+      e.preventDefault(); return;
+    }
     if (paused && (e.code==='Digit0'||e.code==='Numpad0'||e.code==='Backspace')){ skipUpgrade(); e.preventDefault(); return; }
     if (['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
     if (e.code==='Space' && !e.repeat) tryDash();
@@ -1444,7 +1495,7 @@ function makePlayer() {
   scene.add(spr); scene.add(sh);
   const p = { x:0, z:0, hp:80, maxHp:80, def:5, spd:PLAYER_SPEED,
            level:1, xp:0, xpToNext:xpRequired(1), gold:0, alive:true, moving:false, dir:0,
-           invuln:0, flash:0, hpBarUntil:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, lifesteal:0, knockbackMul:0, lifeMul:1, areaLifeMul:1, projSpeedMul:1, projScale:1, critChance:0.05, critDmg:1.5, tomeCount:{}, bansRemaining:3, bannedChoices:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh, hpbar };
+           invuln:0, flash:0, hpBarUntil:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, lifesteal:0, knockbackMul:0, lifeMul:1, areaLifeMul:1, projSpeedMul:1, projScale:1, critChance:0.05, critDmg:1.5, tomeCount:{}, bansRemaining:3, bannedChoices:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, relics:[], char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh, hpbar };
   const st = C.stats || {};
   if (st.maxHp!=null){ p.maxHp=st.maxHp; p.hp=st.maxHp; }
   if (st.spd!=null)   p.spd=st.spd;

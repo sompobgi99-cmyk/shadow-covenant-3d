@@ -178,11 +178,18 @@ function killEnemy(e){
     const nextStage=mapStage+1;
     const finalStage=mapStage>=3;
     spawnObjectPulse(e.x,e.z,finalStage?0x7ce7ff:mapStage>=2?0x9a55ff:0x57e0ff,10,0.7); shake(0.5,0.4);
-    altarToPortal(finalStage?'victory':'nextStage', finalStage?null:nextStage); boss=null;
-    showToast(finalStage?'Final portal opened!':nextStage===3?'Portal to Void Citadel opened!':'Portal to Crimson Wastes opened!', 4);
+    boss=null;
+    if(finalStage){
+      altarToPortal('victory', null);
+      showToast('Final portal opened!', 4);
+    } else {
+      openRelicChoice(nextStage);
+      showToast('Choose a boss relic', 2.6);
+    }
   } else if (e.isBoss){
-    for (let i=0;i<6;i++) dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm));
-    for (let i=0;i<10;i++) dropPickup(e.x, e.z, 'gold', Math.round(3*rm));
+    const soulMul = player._soulLantern && !e.isStageBoss && !e.elite && !e.final ? 1.5 : 1;
+    for (let i=0;i<6;i++) dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm*soulMul));
+    for (let i=0;i<10;i++) dropPickup(e.x, e.z, 'gold', Math.round(3*rm*soulMul));
   } else {
     dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm));
     dropPickup(e.x, e.z, 'gold', Math.max(1, Math.round(e.xp*0.3*rm)));
@@ -450,11 +457,13 @@ function activateMagnetPillar(o){
   shake(0.22,0.18);
 }
 function shopRerollCost(o){
-  return Math.round(40*Math.pow(1.6,(o&&o.shopRerolls)||0));   // each reroll ramps steeply
+  return Math.round(40*Math.pow(1.6,(o&&o.shopRerolls)||0)*shopDiscountMul());   // each reroll ramps steeply
 }
 const SHOP_BETRAY_AFTER = 3;
 const SHOP_BETRAY_CHANCE = 0.15;
-function shopBuyMul(){ return Math.pow(1.18, shopPurchases); }   // every purchase this run raises all shop prices
+function shopDiscountMul(){ return player && player._goldenPact ? 0.70 : 1; }
+function shopBetrayChance(){ return player && player._goldenPact ? 0.25 : SHOP_BETRAY_CHANCE; }
+function shopBuyMul(){ return Math.pow(1.18, shopPurchases)*shopDiscountMul(); }   // every purchase this run raises all shop prices
 function rollShopStock(o){
   o.shopOffers=[];
   const rerollMul = Math.pow(1.3, (o&&o.shopRerolls)||0);   // rerolled stock costs more each time
@@ -516,7 +525,7 @@ function buyOffer(i){
 function closeShop(){ document.getElementById('shop').style.display='none'; currentShopMerchant=null; paused=false; }
 function tryMerchantBetrayal(m){
   if(!m || m.used || m.betrayed || shopPurchases < SHOP_BETRAY_AFTER) return false;
-  if(Math.random() >= SHOP_BETRAY_CHANCE) return false;
+  if(Math.random() >= shopBetrayChance()) return false;
   m.betrayed=true;
   m.used=true;
   document.getElementById('shop').style.display='none';
@@ -801,6 +810,17 @@ function hurtPlayer(amt,dx,dz,force,src){
     player.knockX+=dx/d*f; player.knockZ+=dz/d*f;
   }
   shake(0.18,0.15);
+  if(player.hp<=0 && player._phoenix){
+    player._phoenix=0;
+    player.hp=Math.max(1,Math.round(player.maxHp*0.5));
+    player.invuln=2.2;
+    player.hpBarUntil=gameTime+4;
+    spawnObjectPulse(player.x,player.z,0xffd86a,6.5,0.7);
+    spawnBurst(player.x,player.z,0xffd86a,30,1.2);
+    showToast('Phoenix Sigil revived you!',2.4);
+    sfx('levelup');
+    return;
+  }
   if(player.hp<=0){ player.hp=0; player.alive=false; }
 }
 
@@ -942,7 +962,7 @@ function updateHUD(dt){
     const phase=trackedBoss.finalPhase||1;
     const phaseHp=trackedBoss.phaseHp||trackedBoss.maxHp;
     const phaseBase=trackedBoss.finalPhase ? phaseHp*(phase-1) : 0;
-    const phasePct=trackedBoss.finalPhase ? Math.max(0,Math.min(1,(trackedBoss.hp-phaseBase)/phaseHp)) : Math.max(0,trackedBoss.hp/trackedBoss.maxHp);
+    const phasePct=trackedBoss.finalPhase ? Math.max(0,Math.min(1,(trackedBoss.hp-phaseBase)/phaseHp)) : Math.max(0,Math.min(1,trackedBoss.hp/Math.max(1,trackedBoss.maxHp||1)));
     $('bossfill').style.transform=`scaleX(${phasePct})`;
     $('bossname').textContent=(trackedBoss.isStageBoss?'BOSS · ':'MINIBOSS · ')+trackedBoss.name+(trackedBoss.finalPhase?' · BAR '+trackedBoss.finalPhase+'/3'+(trackedBoss.phaseInvuln>0?' · IMMUNE':''):'');
   } else $('bossbar').style.display='none';
@@ -1087,11 +1107,12 @@ function restart(){
   if(!worldScenery.length){ spawnTrees(40); buildScenery(); }
   waveTimer=0; waveInterval=3.2; enemiesPerWave=2; maxEnemies=18;
   nextHordeAt=240; hordeRemaining=0; hordeSpawnTimer=0; hordeNumber=0; hordeSpawned=0; hordeWarned=false; relocationCursor=0;
-  mbTimer=0; nextMinibossAt=180; paused=false; pendingUps=0; userPaused=false;
+  mbTimer=0; nextMinibossAt=180; paused=false; pendingUps=0; pendingRelicPortal=null; currentRelicChoices=[]; userPaused=false;
   chestsOpened=0; shopPurchases=0;
   removeAltar(); makeAltar();
   clearWorldObjects(); makeWorldObjects();
   document.getElementById('pause').style.display='none'; document.getElementById('pausebtn').textContent='⏸';
   document.getElementById('levelup').style.display='none';
+  document.getElementById('relicup').style.display='none';
   for (let i=0;i<4;i++) spawnEnemy();
 }
