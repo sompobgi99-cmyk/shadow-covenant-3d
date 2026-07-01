@@ -615,6 +615,12 @@ const SK = {
   lob:     { cd:2.8, fn:(e,nx,nz)=>{ spawnEnemyShot(e.x,e.z,nx,nz,Math.round(e.atk*1.4)); e.flash=0.12; } },
   heal:    { cd:6.0, fn:(e)=>{ e.hp=Math.min(e.maxHp, e.hp+e.maxHp*0.06); spawnBurst(e.x,e.z,0x6affa0,8,0.8); } },
   shield:  { cd:7.0, fn:(e)=>{ e.shieldT=3; spawnBurst(e.x,e.z,0x8fd0ff,8,0.9); } },
+  ancientQuake:{ cd:4.8, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<4;i++){ const d=2.0+i*1.55; bossAoe(e,e.x+Math.cos(a)*d,e.z+Math.sin(a)*d,2.1+i*0.24,0.58+i*0.10,0.92,0xc9a36a,15,'fire'); spawnRing(e.x+Math.cos(a)*d,e.z+Math.sin(a)*d,0xc9a36a,2.3+i*0.3,0.42); } bossRing(e,12,gameTime*0.45,0.62); spawnBurst(e.x,e.z,0xc9a36a,18,1.2); shake(0.32,0.22); e.flash=0.2; } },
+  rustedGallows:{ cd:3.7, fn:(e)=>{ const a=bossPlayerAngle(e); e.charging=0.42; e.cdx=Math.cos(a); e.cdz=Math.sin(a); for(let k=-2;k<=2;k++){ const q=a+k*0.12; spawnEnemyShot(e.x,e.z,Math.cos(q),Math.sin(q),Math.round(e.atk*0.88),{ shape:'arrow', speed:12, life:1.7, color:0xb78956, coreColor:0xffddb0, hitRadius:0.36, trailScale:0.34 }); } spawnObjectPulse(e.x,e.z,0xb78956,e.r*2.4,0.42); e.flash=0.18; } },
+  graveSpikes:{ cd:4.2, fn:(e)=>{ const a=bossPlayerAngle(e); bossAoe(e,player.x,player.z,2.5,0.62,1.05,0x9a6cff,14,'void'); for(let i=-2;i<=2;i++){ const q=a+i*0.55, x=player.x+Math.cos(q)*2.8, z=player.z+Math.sin(q)*2.8; bossAoe(e,x,z,1.65,0.76+Math.abs(i)*0.05,0.86,0x6f5a91,12,'void'); } bossRing(e,10,gameTime*0.6,0.58); spawnBurst(e.x,e.z,0x9a6cff,16,1.0); e.flash=0.18; } },
+  cryptCall:{ cd:6.4, fn:(e)=>{ for(let i=0;i<3;i++){ const a=(i/3)*6.2832+gameTime; spawnAddAt(e.x+Math.cos(a)*3.6,e.z+Math.sin(a)*3.6); } bossFan(e,bossPlayerAngle(e),5,0.13,0.8); spawnObjectPulse(e.x,e.z,0xd6c08a,e.r*2.7,0.55); spawnBurst(e.x,e.z,0xd6c08a,18,1.0); e.flash=0.18; } },
+  mossRegrowth:{ cd:5.8, fn:(e,nx,nz)=>{ e.hp=Math.min(e.maxHp,e.hp+e.maxHp*0.085); for(let k=-1;k<=1;k++){ const a=Math.atan2(nz,nx)+k*0.24; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*(k?0.85:1.25)),{ speed:k?7.0:6.0, life:2.8, color:0x78b65d, coreColor:0xd5ff9a, glowSize:0.30, coreSize:0.13, hitRadius:k?0.42:0.50, trailScale:0.46 }); } spawnBurst(e.x,e.z,0x78b65d,14,1.1); spawnRing(e.x,e.z,0x78b65d,e.r*2.2,0.45); e.flash=0.14; } },
+  ruinedBulwark:{ cd:6.8, fn:(e)=>{ e.shieldT=3.6; bossRing(e,18,gameTime*0.7,0.72); bossAoe(e,e.x,e.z,3.8,0.68,0.95,0x8fd0ff,16,'arcane'); spawnObjectPulse(e.x,e.z,0x8fd0ff,e.r*3.1,0.6); spawnBurst(e.x,e.z,0x8fd0ff,20,1.1); e.flash=0.22; } },
   lichCross: { cd:3.2, fn:(e)=>{ const a=bossPlayerAngle(e); bossCross(e,a,1.05); bossRing(e,8,a+Math.PI/8,0.75); spawnBurst(e.x,e.z,0x8bd7ff,12,1.0); e.flash=0.16; } },
   lichPrison:{ cd:5.6, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<6;i++){ const side=i%2?-1:1, dist=1.8+(i*0.45); bossFan(e,a+side*0.95,3,0.07,0.9); bossShot(e,a+side*0.55,0.95,Math.cos(a+side*1.57)*dist,Math.sin(a+side*1.57)*dist); } bossAoe(e,player.x,player.z,3.2,0.95,1.05,0x8bd7ff,12,'arcane'); spawnObjectPulse(player.x,player.z,0x8bd7ff,3.2,0.55); e.flash=0.14; } },
   behemothSlam:{ cd:4.4, fn:(e)=>{ bossAoe(e,e.x,e.z,5.7,0.8,1.45,0xffaa44,19,'fire'); spawnRing(e.x,e.z,0xffaa44,6.2,0.55); spawnBurst(e.x,e.z,0xffaa44,18,1.3); bossRing(e,18,0,0.85); shake(0.32,0.24); e.flash=0.2; } },
@@ -634,12 +640,12 @@ const BOSS_SKILLS = {
   boss_overlord: ['overlordStar','overlordJudgment','summon3'],
 };
 const MB_SKILLS = {
-  miniboss_colossus:      ['shock','charge'],
-  miniboss_executioner:   ['charge','fan'],
-  miniboss_horror:        ['scatter','ring'],
-  miniboss_skeleton_lord: ['summon','fan'],
-  miniboss_troll:         ['lob','heal'],
-  miniboss_warden:        ['shield','ring'],
+  miniboss_colossus:      ['ancientQuake','charge'],
+  miniboss_executioner:   ['rustedGallows','fan'],
+  miniboss_horror:        ['graveSpikes','scatter'],
+  miniboss_skeleton_lord: ['cryptCall','fan'],
+  miniboss_troll:         ['mossRegrowth','shock'],
+  miniboss_warden:        ['ruinedBulwark','ring'],
 };
 function setupFinalBoss(e){
   e.maxHp=Math.round(e.maxHp*3.0);

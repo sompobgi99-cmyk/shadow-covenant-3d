@@ -1,5 +1,5 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
-const APP_VERSION = '20260701-enemy-shot-scale';
+const APP_VERSION = '20260701-miniboss-otx4';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
@@ -320,9 +320,9 @@ let gameTime = 0, kills = 0, gameOver = false, score = 0, damageTaken = 0, score
 let stageStartTime = 0;                       // gameTime when the current stage began
 function stageTime(){ return gameTime - stageStartTime; }   // per-stage clock (resets each map)
 function healCap(p){ return Math.round(p.maxHp*(1+(p.overheal||0))); }   // Chonkplate lets HP exceed max
-// Overtime escalation: entering OT starts at x2, then doubles again every 30 seconds.
+// Overtime escalation: entering OT starts at x4, then quadruples again every 30 seconds.
 function overtimeLevel(){ const ot=stageTime()-RUN_TARGET; return ot<=0 ? 0 : Math.floor(ot/30)+1; }
-function otPowerMul(){ return Math.pow(2, overtimeLevel()); }
+function otPowerMul(){ return Math.pow(4, overtimeLevel()); }
 function overtimeEnemyCap(){ return overtimeLevel() ? Math.min(520, 320 + (overtimeLevel()-1)*50) : 320; }
 let globalPickupMagnet = 0;
 let waveTimer = 0, waveInterval = 3.2, enemiesPerWave = 2, maxEnemies = 18;
@@ -1519,15 +1519,15 @@ function enemyPool(){
 }
 function minibossPool(){
   if(mapStage>=3){
-    const names=new Set(['Horror','Skeleton Lord','Warden']);
-    return MINIBOSS_TYPES.filter(e=>names.has(e.name));
+    const sprites=new Set(['miniboss_horror','miniboss_skeleton_lord','miniboss_warden']);
+    return MINIBOSS_TYPES.filter(e=>sprites.has(e.sprite));
   }
   if(mapStage>=2){
-    const names=new Set(['Executioner','Horror','Skeleton Lord','Warden']);
-    return MINIBOSS_TYPES.filter(e=>names.has(e.name));
+    const sprites=new Set(['miniboss_executioner','miniboss_horror','miniboss_skeleton_lord','miniboss_warden']);
+    return MINIBOSS_TYPES.filter(e=>sprites.has(e.sprite));
   }
-  const names=new Set(['Colossus','Troll','Executioner']);
-  return MINIBOSS_TYPES.filter(e=>names.has(e.name));
+  const sprites=new Set(['miniboss_colossus','miniboss_troll','miniboss_executioner']);
+  return MINIBOSS_TYPES.filter(e=>sprites.has(e.sprite));
 }
 function bossPool(){
   // THE OVERLORD (final boss) only on the final stage — overtime no longer forces it on early stages.

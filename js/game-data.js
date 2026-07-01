@@ -249,12 +249,12 @@ const ENEMY_TYPES = [
 ];
 
 const MINIBOSS_TYPES = [
-  { name:'Colossus',hp:450,atk:26,spd:40,xp:80,h:3.6,sprite:'miniboss_colossus' },
-  { name:'Executioner',hp:320,atk:32,spd:72,xp:70,h:3.3,sprite:'miniboss_executioner' },
-  { name:'Horror',hp:380,atk:24,spd:60,xp:75,h:3.5,sprite:'miniboss_horror' },
-  { name:'Skeleton Lord',hp:360,atk:27,spd:66,xp:75,h:3.4,sprite:'miniboss_skeleton_lord' },
-  { name:'Troll',hp:440,atk:26,spd:50,xp:80,h:3.6,sprite:'miniboss_troll' },
-  { name:'Warden',hp:340,atk:28,spd:76,xp:70,h:3.3,sprite:'miniboss_warden' },
+  { name:'Ancient Colossus',hp:470,atk:27,spd:38,xp:85,h:3.7,sprite:'miniboss_colossus' },
+  { name:'Oathbound Executioner',hp:335,atk:34,spd:74,xp:76,h:3.35,sprite:'miniboss_executioner' },
+  { name:'Buried Horror',hp:400,atk:25,spd:62,xp:80,h:3.55,sprite:'miniboss_horror' },
+  { name:'Crypt Lord',hp:380,atk:28,spd:66,xp:82,h:3.45,sprite:'miniboss_skeleton_lord' },
+  { name:'Moss-Eaten Troll',hp:470,atk:27,spd:48,xp:86,h:3.65,sprite:'miniboss_troll' },
+  { name:'Ruined Warden',hp:360,atk:29,spd:76,xp:78,h:3.35,sprite:'miniboss_warden' },
 ];
 const BOSS_TYPES = [
   { name:'Lich King',        sprite:'boss_lich',     hp:1600, atk:38, h:3.8 },
