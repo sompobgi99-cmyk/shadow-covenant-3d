@@ -222,6 +222,11 @@
              background:rgba(20,14,30,.82); color:#cdbff0; border:1px solid #5a4a8a; border-radius:6px;
              font-family:monospace; font-size:16px; line-height:1; padding:5px 11px; }
   #pausebtn:hover{ border-color:#ffcc00; color:#fff; }
+  #updatebtn{ display:none; position:absolute; top:12px; right:14px; z-index:7; pointer-events:auto; cursor:pointer;
+              background:#982a42; color:#fff8e8; border:2px solid #e5b55a; border-radius:5px;
+              font-family:monospace; font-size:12px; font-weight:bold; padding:7px 12px;
+              box-shadow:3px 3px 0 #351121,0 0 14px rgba(181,42,67,.28); }
+  #updatebtn:hover{ background:#b6334d; color:#fff; }
   #pause{ position:absolute; inset:0; background:rgba(5,2,8,.7); display:none; flex-direction:column;
           align-items:center; justify-content:center; gap:10px; pointer-events:auto; z-index:6; }
   #pause h2{ color:#cdbff0; font-size:32px; text-shadow:0 1px 2px #000; } #pause small{ color:#9a8fc0; }
@@ -280,6 +285,7 @@
     #topright .t{ font-size:15px; }
     #charname,#fps{ display:none; }
     #pausebtn{ top:calc(7px + env(safe-area-inset-top)); padding:6px 10px; min-width:38px; min-height:32px; font-size:13px; border-radius:7px; }
+    #updatebtn{ top:calc(7px + env(safe-area-inset-top)); right:max(8px,env(safe-area-inset-right)); max-width:118px; min-height:32px; padding:5px 8px; font-size:10px; }
     #bossbar{ top:calc(38px + env(safe-area-inset-top)); width:68%; height:13px; }
     #bossbar span{ font-size:8px; line-height:11px; }
     #toast{ top:calc(56px + env(safe-area-inset-top)); max-width:82vw; text-align:center; font-size:12px; padding:6px 10px; }

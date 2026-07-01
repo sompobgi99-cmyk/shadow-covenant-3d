@@ -1,4 +1,5 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
+const APP_VERSION = '20260701-live-update-check';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
@@ -86,6 +87,23 @@ function updateTomeHUD(){
     else { d.className='tslot empty'; d.title='ช่อง tome ว่าง'; d.textContent='+'; }
     wrap.appendChild(d);
   }
+}
+async function checkForGameUpdate(){
+  try{
+    const res=await fetch('version.json?ts='+Date.now(),{ cache:'no-store' });
+    if(!res.ok) return;
+    const data=await res.json();
+    const latest=String(data.version||'').trim();
+    const btn=document.getElementById('updatebtn');
+    if(btn && latest && latest!==APP_VERSION) btn.style.display='block';
+  } catch(e){}
+}
+function startVersionCheck(){
+  const btn=document.getElementById('updatebtn');
+  if(btn) btn.onclick=()=>{ location.href=location.pathname+'?reload='+Date.now(); };
+  checkForGameUpdate();
+  if(versionCheckTimer) clearInterval(versionCheckTimer);
+  versionCheckTimer=setInterval(checkForGameUpdate,45000);
 }
 let objSig='';
 function updateObjective(){
@@ -288,6 +306,7 @@ let mapStage = 1;
 let won = false, altar = null, boss = null;
 let started = false;   // false until a character is chosen
 let composer = null;   // bloom post-processing
+let versionCheckTimer = null;
 const interactables = [];   // chests / shrines / merchant {type,tier,x,z,used,spr}
 let chestsOpened = 0, shopOffers = [], currentShopMerchant = null, shopPurchases = 0;
 const groundItems = [];     // dropped item pickups {x,z,item, spr,glow}
@@ -757,6 +776,7 @@ function init() {
 
   addEventListener('resize', onResize);
   document.getElementById('pausebtn').onclick = togglePause;
+  startVersionCheck();
   document.getElementById('shopreroll').onclick = rerollShop;
   document.getElementById('shopclose').onclick = closeShop;
   document.getElementById('skipupgrade').onclick = skipUpgrade;
