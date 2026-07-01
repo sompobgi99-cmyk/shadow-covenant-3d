@@ -224,6 +224,11 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc){
     e.hp = Math.max(floor, e.hp - d);
   } else {
     e.hp -= d;
+    if(e.hp<=0 && isDeathWarded(e)){
+      e.hp=1;
+      spawnDmg(e.x,e.z,1,0x9a55ff,false,'guard');
+      spawnBurst(e.x,e.z,0x9a55ff,5,0.55);
+    }
   }
   e.flash = 0.08;
   spawnDmg(e.x, e.z, d, color, crit.crit && d > 0);

@@ -1,5 +1,5 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
-const APP_VERSION = '20260701-live-update-check';
+const APP_VERSION = '20260701-covenant-warder';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
@@ -193,8 +193,29 @@ function spawnEnemyShot(x, z, dx, dz, dmg, opts){
 const SHOOTERS  = new Set(['Swamp Witch','Shadow Weaver','Dark Apostle','Toxic Spore','Abyssal Horror','Grave Arbalist','Mire Hexer','Rift Needler','Doom Cantor']);
 const CHARGERS  = new Set(['Wraith','Dire Bat','Chaos Wisp','Willow Wisp','Rift Phantom','Nether Drake']);
 const EXPLODERS = new Set(['Muck Slime','Oblivion Orb','Plague Rat','Bog Elemental']);
+const WARDERS   = new Set(['Covenant Warder']);
 const AIRBORNE  = new Set(['Wraith','Dire Bat','Willow Wisp','Chaos Wisp','Rift Phantom','Nether Drake','Oblivion Orb']);   // Eagle Claw targets
-function behaviorFor(name){ if(SHOOTERS.has(name))return'shooter'; if(CHARGERS.has(name))return'charger'; if(EXPLODERS.has(name))return'exploder'; return'chase'; }
+function behaviorFor(name){ if(WARDERS.has(name))return'warder'; if(SHOOTERS.has(name))return'shooter'; if(CHARGERS.has(name))return'charger'; if(EXPLODERS.has(name))return'exploder'; return'chase'; }
+function updateWarderAura(e,dt){
+  e.wardPulse=(e.wardPulse||0)-dt;
+  const radius=6.2;
+  let linked=0;
+  forEachNearbyEnemy(e.x,e.z,radius+1,t=>{
+    if(!t.alive || t===e || t.isBoss || t.elite) return;
+    const dx=t.x-e.x,dz=t.z-e.z;
+    if(dx*dx+dz*dz>(radius+t.r)*(radius+t.r)) return;
+    t.wardedBy=e; t.wardT=0.35; linked++;
+    if(t.spr && t.spr.material) t.spr.material.color.setHex(0xd8a2ff);
+  });
+  if(e.wardPulse<=0){
+    e.wardPulse=1.0;
+    spawnObjectPulse(e.x,e.z,0x9a55ff,radius,0.55);
+    spawnBurst(e.x,e.z,0x9a55ff,Math.min(14,4+linked),0.7);
+  }
+}
+function isDeathWarded(e){
+  return !!(e && e.wardedBy && e.wardedBy.alive && (e.wardT||0)>0);
+}
 function enemyShoot(e,nx,nz){
   const base=Math.atan2(nz,nx);
   if(e.name==='Grave Arbalist'){

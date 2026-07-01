@@ -245,6 +245,7 @@ const ENEMY_TYPES = [
   { name:'Dark Apostle',hp:55,atk:24,spd:50,xp:22,h:2.1,sprite:'enemy_dark_apostle',tier:2 },
   { name:'Rift Needler',hp:34,atk:20,spd:98,xp:18,h:1.6,sprite:'enemy_rift_needler',tier:2 },
   { name:'Doom Cantor',hp:58,atk:24,spd:54,xp:24,h:2.0,sprite:'enemy_doom_cantor',tier:2 },
+  { name:'Covenant Warder',hp:45,atk:8,spd:48,xp:20,h:1.9,sprite:'enemy_covenant_warder',tier:2 },
 ];
 
 const MINIBOSS_TYPES = [

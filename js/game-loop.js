@@ -90,9 +90,16 @@ function update(dt) {
       const floor=(e.final&&e.finalPhase&&(e.finalPhase>1||e.phaseInvuln>0))?1:-Infinity;
       e.hp=Math.max(floor,e.hp-burnDamage);
       e.flash=Math.max(e.flash,0.04);
+      if(e.hp<=0 && isDeathWarded(e)){
+        e.hp=1;
+        spawnDmg(e.x,e.z,1,0x9a55ff,false,'guard');
+        spawnBurst(e.x,e.z,0x9a55ff,4,0.45);
+      }
       if(e.hp<=0){ killEnemy(e); continue; }
     }
     if (e.slowT>0) e.slowT-=dt;
+    if (e.wardT>0) e.wardT-=dt;
+    if (e.behavior==='warder') updateWarderAura(e,dt);
     const dx=player.x-e.x, dz=player.z-e.z, d=Math.hypot(dx,dz)||1;
     const nx=dx/d, nz=dz/d;
     let spd = e.spd;
@@ -105,6 +112,9 @@ function update(dt) {
       if (d < 10) spd = -e.spd*0.6;        // kite away when too close
       else if (d < 15) spd = e.spd*0.1;    // hold range
       if (e.atkCd<=0 && d<16) enemyShoot(e,nx,nz);
+    } else if (e.behavior==='warder'){
+      if (d < 7) spd = -e.spd*0.35;
+      else if (d < 13) spd = e.spd*0.18;
     }
     if (e.behavior!=='charger' && e.charging>0){ e.charging-=dt; spd=e.spd*2.4; }
     if (e.shieldT>0) e.shieldT-=dt;
