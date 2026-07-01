@@ -104,7 +104,7 @@ function update(dt) {
       e.atkCd -= dt;
       if (d < 10) spd = -e.spd*0.6;        // kite away when too close
       else if (d < 15) spd = e.spd*0.1;    // hold range
-      if (e.atkCd<=0 && d<16){ spawnEnemyShot(e.x, e.z, nx, nz, e.atk); e.atkCd=1.8+Math.random()*0.8; }
+      if (e.atkCd<=0 && d<16) enemyShoot(e,nx,nz);
     }
     if (e.behavior!=='charger' && e.charging>0){ e.charging-=dt; spd=e.spd*2.4; }
     if (e.shieldT>0) e.shieldT-=dt;
@@ -295,7 +295,7 @@ function update(dt) {
     else a.spr.material.opacity = 0.55*(a.life/a.max); }
 
   const profile=progressionProfile();
-  maxEnemies=Math.min(320,profile.cap+(hordeRemaining>0?45:0));
+  maxEnemies=Math.min(overtimeEnemyCap(),profile.cap+(hordeRemaining>0?Math.round(45*otPowerMul()):0));
   waveInterval=profile.interval;
   enemiesPerWave=profile.batch;
 
@@ -323,7 +323,7 @@ function update(dt) {
   if(hordeRemaining>0){
     hordeSpawnTimer-=dt;
     if(hordeSpawnTimer<=0 && enemies.length<maxEnemies){
-      const count=Math.min(3,hordeRemaining,maxEnemies-enemies.length);
+      const count=Math.min(overtimeLevel()?8:3,hordeRemaining,maxEnemies-enemies.length);
       if(count>0){
         spawnCluster(count);
         hordeRemaining-=count;

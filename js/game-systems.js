@@ -159,11 +159,13 @@ function killEnemy(e){
     const dx=player.x-e.x, dz=player.z-e.z, d=Math.hypot(dx,dz);
     if (d < 2.3) hurtPlayer(Math.round(e.atk*1.5),dx/(d||1),dz/(d||1),12);
   } else spawnBurst(e.x, e.z, e.isBoss?0xffd23f:0x9a6cff, e.isBoss?22:9, e.isBoss?1.4:0.8);
-  // item drop — bosses & stage bosses only
-  if (e.isBoss) {
-    const item = e.isStageBoss ? rollItemDrop(true) : rollItemDrop();
+  // item drop — stage bosses only. Minibosses pay out XP/gold below, no items.
+  if (e.isStageBoss) {
+    const item = rollItemDrop(true);
     if (item) spawnGroundItem(e.x, e.z, item);
-    score += e.isStageBoss ? 2000 : 500;
+    score += 2000;
+  } else if (e.isBoss) {
+    score += 500;
   } else if (e.elite) {
     score += 150;
   } else {

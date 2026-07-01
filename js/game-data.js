@@ -220,6 +220,7 @@ const ENEMY_TYPES = [
   { name:'Crypt Spider',hp:16,atk:10,spd:100,xp:7,h:1.4,sprite:'enemy_crypt_spider',tier:0 },
   { name:'Cursed Knight',hp:35,atk:15,spd:55,xp:14,h:1.9,sprite:'enemy_cursed_knight',tier:0 },
   { name:'Plague Rat',hp:10,atk:6,spd:120,xp:5,h:1.1,sprite:'enemy_plague_rat',tier:0 },
+  { name:'Grave Arbalist',hp:24,atk:13,spd:58,xp:12,h:1.7,sprite:'enemy_grave_arbalist',tier:0 },
   // tier 1 — Fenmire
   { name:'Bog Fiend',hp:32,atk:13,spd:70,xp:10,h:1.8,sprite:'enemy_bog_fiend',tier:1 },
   { name:'Marsh Lurker',hp:22,atk:11,spd:90,xp:8,h:1.5,sprite:'enemy_marsh_lurker',tier:1 },
@@ -231,6 +232,7 @@ const ENEMY_TYPES = [
   { name:'Blight Treant',hp:55,atk:19,spd:30,xp:20,h:2.3,sprite:'enemy_blight_treant',tier:1 },
   { name:'Muck Slime',hp:18,atk:7,spd:45,xp:6,h:1.5,sprite:'enemy_muck_slime',tier:1 },
   { name:'Bog Elemental',hp:42,atk:18,spd:55,xp:15,h:2.0,sprite:'enemy_bog_elemental',tier:1 },
+  { name:'Mire Hexer',hp:30,atk:16,spd:62,xp:14,h:1.7,sprite:'enemy_mire_hexer',tier:1 },
   // tier 2 — Void Rift
   { name:'Void Walker',hp:50,atk:19,spd:75,xp:18,h:1.9,sprite:'enemy_void_walker',tier:2 },
   { name:'Abyssal Horror',hp:40,atk:18,spd:85,xp:15,h:1.7,sprite:'enemy_abyssal_horror',tier:2 },
@@ -241,6 +243,8 @@ const ENEMY_TYPES = [
   { name:'Rift Phantom',hp:15,atk:12,spd:120,xp:9,h:1.2,sprite:'enemy_rift_phantom',tier:2 },
   { name:'Oblivion Orb',hp:32,atk:18,spd:60,xp:16,h:1.6,sprite:'enemy_oblivion_orb',tier:2 },
   { name:'Dark Apostle',hp:55,atk:24,spd:50,xp:22,h:2.1,sprite:'enemy_dark_apostle',tier:2 },
+  { name:'Rift Needler',hp:34,atk:20,spd:98,xp:18,h:1.6,sprite:'enemy_rift_needler',tier:2 },
+  { name:'Doom Cantor',hp:58,atk:24,spd:54,xp:24,h:2.0,sprite:'enemy_doom_cantor',tier:2 },
 ];
 
 const MINIBOSS_TYPES = [

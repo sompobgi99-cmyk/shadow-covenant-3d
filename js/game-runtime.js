@@ -163,18 +163,40 @@ function spawnBurst(x, z, color, n, scl){
     m.scale.setScalar(scl||1); scene.add(m);
     particles.push({ x, z, y:0.6, vx:Math.cos(a)*sp, vz:Math.sin(a)*sp, vy:2+Math.random()*3, life:0.5, max:0.5, mesh:m }); }
 }
-function spawnEnemyShot(x, z, dx, dz, dmg){
+function spawnEnemyShot(x, z, dx, dz, dmg, opts){
+  opts=opts||{};
   const m=new THREE.Group();
-  const glow=new THREE.Mesh(new THREE.SphereGeometry(0.34,10,10), new THREE.MeshBasicMaterial({ color:0xff5066, transparent:true, opacity:0.22, blending:THREE.AdditiveBlending, depthWrite:false }));
-  const core=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,8), new THREE.MeshBasicMaterial({ color:0xffb0bc, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending, depthWrite:false }));
+  const color=opts.color||0xff5066, coreColor=opts.coreColor||0xffb0bc;
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(opts.glowSize||0.34,10,10), new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.22, blending:THREE.AdditiveBlending, depthWrite:false }));
+  const core=new THREE.Mesh(new THREE.SphereGeometry(opts.coreSize||0.16,8,8), new THREE.MeshBasicMaterial({ color:coreColor, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending, depthWrite:false }));
   m.add(glow); m.add(core);
-  scene.add(m); enemyShots.push({ x, z, dx, dz, speed:9, dmg, life:3, alive:true, mesh:m });
+  scene.add(m); enemyShots.push({ x, z, dx, dz, speed:opts.speed||9, dmg, life:opts.life||3, alive:true, mesh:m });
 }
-const SHOOTERS  = new Set(['Swamp Witch','Shadow Weaver','Dark Apostle','Toxic Spore','Abyssal Horror']);
+const SHOOTERS  = new Set(['Swamp Witch','Shadow Weaver','Dark Apostle','Toxic Spore','Abyssal Horror','Grave Arbalist','Mire Hexer','Rift Needler','Doom Cantor']);
 const CHARGERS  = new Set(['Wraith','Dire Bat','Chaos Wisp','Willow Wisp','Rift Phantom','Nether Drake']);
 const EXPLODERS = new Set(['Muck Slime','Oblivion Orb','Plague Rat','Bog Elemental']);
 const AIRBORNE  = new Set(['Wraith','Dire Bat','Willow Wisp','Chaos Wisp','Rift Phantom','Nether Drake','Oblivion Orb']);   // Eagle Claw targets
 function behaviorFor(name){ if(SHOOTERS.has(name))return'shooter'; if(CHARGERS.has(name))return'charger'; if(EXPLODERS.has(name))return'exploder'; return'chase'; }
+function enemyShoot(e,nx,nz){
+  const base=Math.atan2(nz,nx);
+  if(e.name==='Grave Arbalist'){
+    spawnEnemyShot(e.x,e.z,nx,nz,Math.round(e.atk*1.05),{ speed:13.5, life:2.2, color:0xd8c08a, coreColor:0xffedb0, glowSize:0.24, coreSize:0.11 });
+    e.atkCd=1.05+Math.random()*0.25;
+  } else if(e.name==='Mire Hexer'){
+    for(let k=-1;k<=1;k++){ const a=base+k*0.22; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.86),{ speed:7.2, life:3.5, color:0x45d66a, coreColor:0xa8ffc0 }); }
+    e.atkCd=2.0+Math.random()*0.45;
+  } else if(e.name==='Rift Needler'){
+    for(let k=-2;k<=2;k++){ const a=base+k*0.10; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.72),{ speed:12.5, life:2.4, color:0x7c8dff, coreColor:0xd8e4ff, glowSize:0.22, coreSize:0.10 }); }
+    e.atkCd=1.55+Math.random()*0.3;
+  } else if(e.name==='Doom Cantor'){
+    const n=12, off=gameTime*0.8;
+    for(let i=0;i<n;i++){ const a=off+(i/n)*Math.PI*2; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.7),{ speed:5.8, life:4.2, color:0x9a55ff, coreColor:0xff75b7, glowSize:0.28, coreSize:0.13 }); }
+    e.atkCd=3.6+Math.random()*0.7;
+  } else {
+    spawnEnemyShot(e.x, e.z, nx, nz, e.atk);
+    e.atkCd=1.8+Math.random()*0.8;
+  }
+}
 function blocked(x, z){
   for (const o of obstacles){ const rr=o.r+0.42; if ((x-o.x)*(x-o.x)+(z-o.z)*(z-o.z) < rr*rr) return true; }
   return false;
@@ -250,8 +272,10 @@ let gameTime = 0, kills = 0, gameOver = false, score = 0, damageTaken = 0, score
 let stageStartTime = 0;                       // gameTime when the current stage began
 function stageTime(){ return gameTime - stageStartTime; }   // per-stage clock (resets each map)
 function healCap(p){ return Math.round(p.maxHp*(1+(p.overheal||0))); }   // Chonkplate lets HP exceed max
-// Overtime escalation: enemies get +45% HP & ATK for every 3 minutes spent in OT (unbounded).
-function otPowerMul(){ const ot=stageTime()-RUN_TARGET; return ot<=0 ? 1 : 1 + 0.45*Math.floor(ot/180); }
+// Overtime escalation: entering OT starts at x2, then doubles again every 30 seconds.
+function overtimeLevel(){ const ot=stageTime()-RUN_TARGET; return ot<=0 ? 0 : Math.floor(ot/30)+1; }
+function otPowerMul(){ return Math.pow(2, overtimeLevel()); }
+function overtimeEnemyCap(){ return overtimeLevel() ? Math.min(520, 320 + (overtimeLevel()-1)*50) : 320; }
 let globalPickupMagnet = 0;
 let waveTimer = 0, waveInterval = 3.2, enemiesPerWave = 2, maxEnemies = 18;
 let nextHordeAt = 240, hordeRemaining = 0, hordeSpawnTimer = 0, hordeNumber = 0, hordeSpawned = 0, hordeWarned = false;
@@ -525,9 +549,7 @@ function xpRequired(level){
   return Math.round(20 + 10*k + 4*k*k + 0.22*k*k*k);
 }
 function enemySpeedMul(){
-  const ot = stageTime()-RUN_TARGET;
-  const otSpd = ot>0 ? Math.min(0.75, 0.06*Math.floor(ot/180)) : 0;   // +6% speed per 3 min of OT (cap +75%)
-  return 1 + Math.min(0.35, stageTime()/720) + otSpd;
+  return (1 + Math.min(0.35, stageTime()/720)) * otPowerMul();
 }
 function progressionProfile(){
   const st=stageTime();   // spawn density ramps fresh each stage
@@ -536,8 +558,8 @@ function progressionProfile(){
     [360,80,1.7,6],[480,105,1.35,8],[600,130,1.1,10]
   ];
   if(st>=600){
-    const overtime=(st-600)/60;
-    return {cap:Math.min(320,130+Math.round(overtime*45)),interval:Math.max(0.7,1.1-overtime*0.08),batch:Math.min(16,10+Math.floor(overtime*1.5))};
+    const mul=otPowerMul();
+    return {cap:Math.min(overtimeEnemyCap(),Math.round(130*mul)),interval:Math.max(0.25,1.1/mul),batch:Math.min(96,Math.round(10*mul))};
   }
   let a=points[0], b=points[1];
   for(let i=1;i<points.length;i++) if(st>=points[i][0]){ a=points[i]; b=points[Math.min(i+1,points.length-1)]; }
@@ -549,9 +571,9 @@ function progressionProfile(){
   };
 }
 function hordeSize(number){
-  if(number<=1) return 35;
-  if(number===2) return 55;
-  return Math.min(150,Math.round(55*Math.pow(1.2,number-2)));
+  const mul=otPowerMul();
+  const base=number<=1 ? 35 : number===2 ? 55 : Math.round(55*Math.pow(1.2,number-2));
+  return Math.min(overtimeEnemyCap(),Math.round(base*mul));
 }
 let toastTimer = 0;
 function showToast(message,duration){
