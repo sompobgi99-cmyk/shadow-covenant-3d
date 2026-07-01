@@ -19,7 +19,7 @@ const WEAPON_TYPES = {
   smite:  { name:'Holy Smite',      icon:'wpn_smite',  desc:'Divine strike from above',  mode:'smite',
             dmg:22, rate:0.9, range:10, count:1, pierce:2, speed:14, life:1.4, color:0xfff2c0, radius:1.6, evolveTo:'smiteX', evolveTome:'growth' },
   lightning:{ name:'Lightning Strike', icon:'wpn_lightning', desc:'Calls lightning onto single targets', mode:'smite',
-            dmg:20, rate:1.15, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25 },
+            dmg:20, rate:1.15, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25, shape:'lightning' },
   dagger: { name:'Throwing Knives', icon:'wpn_dagger', desc:'Fast thrown daggers at nearby foes', mode:'aim',
             dmg:11, rate:2.4, range:10, count:2, pierce:1, speed:26, life:0.9, color:0xdde7ff, shape:'shard' },
   bladewhirl:{ name:'Blade Wave',   icon:'wpn_bladewhirl',     desc:'Fires curved sword waves', mode:'slash',
@@ -282,13 +282,23 @@ function fireSmite(s){
   forEachNearbyEnemy(tx,tz,R+1,e=>{ if(!e.alive) return;
     if (Math.hypot(e.x-tx, e.z-tz) < R+e.r) dealEnemyDamage(e, s.dmg, s.color, e.x-tx, e.z-tz, 3.5); });
   const bm=new THREE.Sprite(new THREE.SpriteMaterial({
-    map:getPixelProjectileTexture('smite',s.color), color:0xffffff,
+    map:getPixelProjectileTexture(s.shape||'smite',s.color), color:0xffffff,
     transparent:true, alphaTest:0.08, depthWrite:false
   }));
-  bm.scale.set(1.35,5.4,1); bm.position.set(tx,3.05,tz);
-  const fxLife=0.28*(s.areaLife||1);
+  if(s.shape==='lightning'){
+    bm.scale.set(1.05,6.2,1); bm.position.set(tx,3.45,tz);
+  } else {
+    bm.scale.set(1.35,5.4,1); bm.position.set(tx,3.05,tz);
+  }
+  const fxLife=(s.shape==='lightning'?0.18:0.28)*(s.areaLife||1);
   scene.add(bm); slashFx.push({ mesh:bm, life:fxLife, max:fxLife, grow:0.04, baseScale:bm.scale.clone(), fade:1 });
-  spawnRing(tx,tz,s.color,R*1.8,0.45*(s.areaLife||1)); spawnBurst(tx,tz,s.color,8,0.8);
+  if(s.shape==='lightning'){
+    spawnRing(tx,tz,0xbff8ff,R*1.25,0.22*(s.areaLife||1));
+    spawnBurst(tx,tz,0x9eefff,12,0.65);
+  } else {
+    spawnRing(tx,tz,s.color,R*1.8,0.45*(s.areaLife||1));
+    spawnBurst(tx,tz,s.color,8,0.8);
+  }
 }
 const WFIRE = { aim:fireAim, spread:fireSpread, nova:fireNova, spiral:fireSpiral, slash:fireSlash, smite:fireSmite };
 function updateOrbit(w, s, dt){

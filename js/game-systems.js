@@ -82,6 +82,25 @@ function getPixelProjectileTexture(shape,color){
   } else if(shape==='smite'){
     px(6,1,4,46,dark); px(4,8,8,31,mid); px(6,4,5,37,light); px(8,2,2,35,'#ffffff');
     px(2,38,12,4,mid); px(0,43,16,3,dark); px(5,46,6,2,light);
+  } else if(shape==='lightning'){
+    cv.width=24; cv.height=56;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    const bolt=[[13,0],[8,11],[12,11],[6,26],[11,25],[7,42],[17,20],[12,22],[18,8],[14,9]];
+    const drawSeg=(pts,w,c)=>{
+      ctx.strokeStyle=c; ctx.lineWidth=w; ctx.lineJoin='miter'; ctx.lineCap='butt';
+      ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+      ctx.stroke();
+    };
+    drawSeg(bolt,5,dark); drawSeg(bolt,3,mid); drawSeg(bolt,1,'#ffffff');
+    const branches=[
+      [[8,13],[2,18],[5,20]],
+      [[10,25],[18,30],[15,33]],
+      [[8,35],[3,43],[6,45]],
+      [[15,10],[22,15],[19,18]]
+    ];
+    for(const b of branches){ drawSeg(b,3,dark); drawSeg(b,1,light); }
+    px(6,48,12,2,mid); px(3,51,18,2,dark); px(9,53,6,2,'#ffffff');
   }
   const t=new THREE.CanvasTexture(cv);
   t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter;
