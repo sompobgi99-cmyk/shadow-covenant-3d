@@ -1229,13 +1229,13 @@ const SHEETS = {
   },
   stormcaller: {
     walk: { key:'char_stormcaller_walk', cols:6, rows:8, fps:10 },
-    idle: { key:'char_stormcaller_idle', cols:1, rows:8, fps:1 },
-    dirRows: [0,1,2,3,4,5,6,7],
+    idle: { key:'char_stormcaller_idle', cols:4, rows:8, fps:6 },
+    dirRows: [0,7,6,5,4,3,2,1],
   },
   assassin: {
     walk: { key:'char_assassin_walk', cols:6, rows:8, fps:10 },
-    idle: { key:'char_assassin_idle', cols:1, rows:8, fps:1 },
-    dirRows: [0,1,2,3,4,5,6,7],
+    idle: { key:'char_assassin_idle', cols:4, rows:8, fps:6 },
+    dirRows: [0,7,6,5,4,3,2,1],
   },
 };
 
