@@ -19,11 +19,11 @@ const WEAPON_TYPES = {
   smite:  { name:'Holy Smite',      icon:'wpn_smite',  desc:'Divine strike from above',  mode:'smite',
             dmg:22, rate:0.9, range:10, count:1, pierce:2, speed:14, life:1.4, color:0xfff2c0, radius:1.6, evolveTo:'smiteX', evolveTome:'growth' },
   lightning:{ name:'Lightning Strike', icon:'wpn_lightning', desc:'Calls lightning onto single targets', mode:'smite',
-            dmg:20, rate:1.15, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25, shape:'lightning' },
+            dmg:20, rate:1.15, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25, shape:'lightning', evolveTo:'lightningX', evolveTome:'focus' },
   dagger: { name:'Throwing Knives', icon:'wpn_dagger', desc:'Fast single-hit daggers at nearby foes', mode:'aim',
-            dmg:11, rate:2.4, range:10, count:2, pierce:0, speed:26, life:0.9, color:0xdde7ff, shape:'dagger' },
+            dmg:11, rate:2.4, range:10, count:2, pierce:0, speed:26, life:0.9, color:0xdde7ff, shape:'dagger', evolveTo:'daggerX', evolveTome:'execution' },
   toolstab:{ name:'Multi-Tool Screwdriver', icon:'wpn_screwdriver', desc:'Quick melee thrusts pierce every enemy in line', mode:'stab',
-            dmg:18, rate:2.55, range:3.0, count:1, pierce:99, speed:0, life:0.16, color:0x64d7ff, shape:'screwdriver', width:0.36 },
+            dmg:18, rate:2.55, range:3.0, count:1, pierce:99, speed:0, life:0.16, color:0x64d7ff, shape:'screwdriver', width:0.36, evolveTo:'toolstabX', evolveTome:'growth' },
   bladewhirl:{ name:'Blade Wave',   icon:'wpn_bladewhirl',     desc:'Fires curved sword waves', mode:'slash',
             dmg:12, rate:1.8, range:3.6, count:1, pierce:1, speed:8, life:0.38, color:0xff5566, arc:0.45, shape:'crescent', evolveTo:'bladewhirlX', evolveTome:'swiftness' },
   soulspiral:{ name:'Soul Spiral',  icon:'wpn_soulspiral',  desc:'Rotating soul bolts',       mode:'spiral',
@@ -41,6 +41,12 @@ const WEAPON_TYPES = {
             dmg:30, rate:1.7, range:18, count:3, pierce:6, speed:30, life:1.9, color:0xc8ff7a, shape:'arrow' },
   smiteX: { name:'Divine Judgment', icon:'wpn_smite_evolved', desc:'Evolved: heaven’s wrath', mode:'smite', hidden:true,
             dmg:40, rate:1.2, range:12, count:2, pierce:3, speed:14, life:1.4, color:0xffe9a0, radius:3.0 },
+  lightningX:{ name:'Storm Tribunal', icon:'wpn_lightning_evolved', desc:'Evolved: chain storm verdicts', mode:'smite', hidden:true,
+            dmg:34, rate:1.75, range:14, count:3, pierce:3, speed:14, life:1.4, color:0xa7f2ff, radius:2.2, shape:'lightning' },
+  daggerX:{ name:'Execution Knives', icon:'wpn_dagger_evolved', desc:'Evolved: piercing knife flurry', mode:'aim', hidden:true,
+            dmg:20, rate:3.35, range:12, count:5, pierce:2, speed:32, life:1.0, color:0xffd8f2, shape:'dagger' },
+  toolstabX:{ name:'Admin Override', icon:'wpn_screwdriver_evolved', desc:'Evolved: wide multi-thrust exploit', mode:'stab', hidden:true,
+            dmg:34, rate:3.15, range:4.2, count:2, pierce:99, speed:0, life:0.18, color:0x7cffd8, shape:'screwdriver', width:0.55 },
   bladewhirlX:{ name:'Tempest Blades', icon:'wpn_bladewhirl_evolved', desc:'Evolved: blade cyclone', mode:'slash', hidden:true,
             dmg:22, rate:2.4, range:4.6, count:3, pierce:3, speed:10, life:0.46, color:0xff7a88, arc:0.9, shape:'crescent' },
   soulspiralX:{ name:'Soul Tempest', icon:'wpn_soulspiral_evolved', desc:'Evolved: spectral maelstrom', mode:'spiral', hidden:true,
@@ -337,28 +343,30 @@ function fireStab(s){
 }
 function fireSmite(s){
   sfx('shoot');
-  const t=nearestEnemies(player.x, player.z, s.range||11, 1)[0];
-  if (!t) return;
-  const tx=t.x, tz=t.z, R=s.radius||2.4;
-  forEachNearbyEnemy(tx,tz,R+1,e=>{ if(!e.alive) return;
-    if (Math.hypot(e.x-tx, e.z-tz) < R+e.r) dealEnemyDamage(e, s.dmg, s.color, e.x-tx, e.z-tz, 3.5); });
-  const bm=new THREE.Sprite(new THREE.SpriteMaterial({
-    map:getPixelProjectileTexture(s.shape||'smite',s.color), color:0xffffff,
-    transparent:true, alphaTest:0.08, depthWrite:false
-  }));
-  if(s.shape==='lightning'){
-    bm.scale.set(1.05,6.2,1); bm.position.set(tx,3.45,tz);
-  } else {
-    bm.scale.set(1.35,5.4,1); bm.position.set(tx,3.05,tz);
-  }
-  const fxLife=(s.shape==='lightning'?0.18:0.28)*(s.areaLife||1);
-  scene.add(bm); slashFx.push({ mesh:bm, life:fxLife, max:fxLife, grow:0.04, baseScale:bm.scale.clone(), fade:1 });
-  if(s.shape==='lightning'){
-    spawnRing(tx,tz,0xbff8ff,R*1.25,0.22*(s.areaLife||1));
-    spawnBurst(tx,tz,0x9eefff,12,0.65);
-  } else {
-    spawnRing(tx,tz,s.color,R*1.8,0.45*(s.areaLife||1));
-    spawnBurst(tx,tz,s.color,8,0.8);
+  const targets=nearestEnemies(player.x, player.z, s.range||11, Math.max(1,s.count||1));
+  if (!targets.length) return;
+  for(const t of targets){
+    const tx=t.x, tz=t.z, R=s.radius||2.4;
+    forEachNearbyEnemy(tx,tz,R+1,e=>{ if(!e.alive) return;
+      if (Math.hypot(e.x-tx, e.z-tz) < R+e.r) dealEnemyDamage(e, s.dmg, s.color, e.x-tx, e.z-tz, 3.5); });
+    const bm=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:getPixelProjectileTexture(s.shape||'smite',s.color), color:0xffffff,
+      transparent:true, alphaTest:0.08, depthWrite:false
+    }));
+    if(s.shape==='lightning'){
+      bm.scale.set(1.05,6.2,1); bm.position.set(tx,3.45,tz);
+    } else {
+      bm.scale.set(1.35,5.4,1); bm.position.set(tx,3.05,tz);
+    }
+    const fxLife=(s.shape==='lightning'?0.18:0.28)*(s.areaLife||1);
+    scene.add(bm); slashFx.push({ mesh:bm, life:fxLife, max:fxLife, grow:0.04, baseScale:bm.scale.clone(), fade:1 });
+    if(s.shape==='lightning'){
+      spawnRing(tx,tz,0xbff8ff,R*1.25,0.22*(s.areaLife||1));
+      spawnBurst(tx,tz,0x9eefff,12,0.65);
+    } else {
+      spawnRing(tx,tz,s.color,R*1.8,0.45*(s.areaLife||1));
+      spawnBurst(tx,tz,s.color,8,0.8);
+    }
   }
 }
 const WFIRE = { aim:fireAim, spread:fireSpread, nova:fireNova, spiral:fireSpiral, slash:fireSlash, stab:fireStab, smite:fireSmite };
