@@ -78,14 +78,15 @@
            align-items:center; justify-content:center; gap:14px; pointer-events:auto; z-index:8; }
   #select h2{ color:#cdbff0; font-size:24px; text-shadow:0 1px 2px #000; }
   #select .sub{ color:#9a8fc0; font-size:13px; margin-top:-8px; }
-  #selcards{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; max-width:900px; }
-  .ccard{ width:124px; background:#1c1430; border:2px solid #5a4a8a; border-radius:8px; padding:10px 8px;
+  #selcards{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; max-width:1040px; }
+  .ccard{ width:148px; min-height:208px; background:#1c1430; border:2px solid #5a4a8a; border-radius:8px; padding:10px 8px;
           text-align:center; cursor:pointer; transition:transform .1s,border-color .1s,background .1s; }
   .ccard:hover{ border-color:#ffcc00; transform:translateY(-4px); background:#2a1f45; }
   .ccard img{ width:64px; height:84px; object-fit:contain; image-rendering:pixelated; display:block; margin:0 auto 6px; }
   .ccard .cn{ color:#fff; font-size:14px; font-weight:bold; }
   .ccard .cw{ color:#8fd0ff; font-size:11px; margin-top:3px; }
   .ccard .cp{ color:#bda8e0; font-size:11px; margin-top:2px; line-height:1.25; }
+  .ccard .cbio{ color:#d8cdae; font-size:10px; line-height:1.22; margin-top:6px; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
   #prompt{ position:absolute; bottom:50px; left:50%; transform:translateX(-50%); color:#ffe08a; font-size:15px;
            text-shadow:0 1px 2px #000; display:none; pointer-events:none; z-index:4; }
   #shop{ position:absolute; inset:0; background:rgba(6,3,12,.9); display:none; flex-direction:column;
@@ -312,10 +313,11 @@
     #select{ justify-content:flex-start; }
     #select h2,#shop h2{ font-size:19px; margin-top:1px; }
     #selcards{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; width:100%; max-width:400px; padding-bottom:6px; }
-    .ccard{ width:auto; min-height:138px; padding:7px 5px; border-radius:7px; }
+    .ccard{ width:auto; min-height:176px; padding:7px 5px; border-radius:7px; }
     .ccard img{ width:48px; height:62px; object-fit:contain; margin-bottom:4px; }
     .ccard .cn{ font-size:12px; }
     .ccard .cw,.ccard .cp{ font-size:9px; }
+    .ccard .cbio{ font-size:8px; line-height:1.16; -webkit-line-clamp:3; margin-top:4px; }
     #shop{ justify-content:flex-start; }
     #shopcards,#cards,#reliccards{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; width:100%; max-width:400px; }
     #shopactions{ position:sticky; bottom:0; width:100%; padding:6px 0 calc(2px + env(safe-area-inset-bottom)); background:linear-gradient(180deg,rgba(6,3,12,0),rgba(6,3,12,.94) 34%); }
@@ -354,7 +356,7 @@
     #select,#playersetup,#shop,#levelup,#relicup,#pause,#over{ padding:calc(10px + env(safe-area-inset-top)) 14px calc(10px + env(safe-area-inset-bottom)); overflow:auto; }
     #selcards{ max-width:760px; }
     #shopcards,#cards,#reliccards{ max-width:720px; }
-    .ccard{ width:104px; min-height:122px; padding:6px 5px; }
+    .ccard{ width:124px; min-height:164px; padding:6px 5px; }
     .ccard img{ width:40px; height:52px; object-fit:contain; }
     .card{ min-height:114px; padding:7px 6px; }
   }

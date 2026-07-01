@@ -22,6 +22,8 @@ const WEAPON_TYPES = {
             dmg:20, rate:1.15, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25, shape:'lightning' },
   dagger: { name:'Throwing Knives', icon:'wpn_dagger', desc:'Fast single-hit daggers at nearby foes', mode:'aim',
             dmg:11, rate:2.4, range:10, count:2, pierce:0, speed:26, life:0.9, color:0xdde7ff, shape:'dagger' },
+  toolstab:{ name:'Multi-Tool Screwdriver', icon:'wpn_screwdriver', desc:'Short thrusts pierce every enemy in line', mode:'aim',
+            dmg:16, rate:2.45, range:7.2, count:1, pierce:99, speed:34, life:0.34, color:0x64d7ff, shape:'screwdriver' },
   bladewhirl:{ name:'Blade Wave',   icon:'wpn_bladewhirl',     desc:'Fires curved sword waves', mode:'slash',
             dmg:12, rate:1.8, range:3.6, count:1, pierce:1, speed:8, life:0.38, color:0xff5566, arc:0.45, shape:'crescent', evolveTo:'bladewhirlX', evolveTome:'swiftness' },
   soulspiral:{ name:'Soul Spiral',  icon:'wpn_soulspiral',  desc:'Rotating soul bolts',       mode:'spiral',

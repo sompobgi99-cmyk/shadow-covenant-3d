@@ -14,6 +14,7 @@ function update(dt) {
   gameTime += dt; player.runTime = gameTime;
   updateAltar(dt);
   if (globalPickupMagnet>0) globalPickupMagnet=Math.max(0, globalPickupMagnet-dt);
+  updateSpecialEvents(dt);
 
   if (player.dashCd > 0) player.dashCd -= dt;
 

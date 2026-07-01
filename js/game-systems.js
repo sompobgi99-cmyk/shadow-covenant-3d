@@ -80,6 +80,11 @@ function getPixelProjectileTexture(shape,color){
     px(8,5,15,6,dark); px(22,6,5,4,dark); px(27,7,3,2,dark);
     px(7,7,3,2,mid); px(10,6,12,4,mid); px(22,7,4,2,light);
     px(12,6,8,1,'#ffffff'); px(4,5,2,1,light); px(4,10,2,1,light);
+  } else if(shape==='screwdriver'){
+    px(1,7,5,2,'#2a3038'); px(3,5,4,6,dark);
+    px(7,6,5,4,mid); px(11,7,12,2,light); px(14,6,8,1,'#ffffff');
+    px(22,6,5,4,dark); px(26,7,4,2,mid); px(29,7,2,2,light);
+    px(4,6,1,4,'#7cffd8'); px(8,5,2,1,'#ffffff'); px(8,10,2,1,dark);
   } else if(shape==='arrow'){
     px(2,7,20,2,dark); px(5,6,15,1,mid); px(5,9,15,1,mid);
     px(20,4,4,8,dark); px(23,3,7,10,dark); px(22,5,5,6,mid); px(25,6,4,4,light);
@@ -130,14 +135,15 @@ function spawnProjectile(dx,dz,s){
       map:getPixelProjectileTexture(shape,s.color), color:0xffffff,
       transparent:true, opacity:1, alphaTest:0.1, depthWrite:false
     });
-    if(shape==='arrow'||shape==='shard'||shape==='dagger') mat.rotation=-Math.atan2(dz,dx);
+    if(shape==='arrow'||shape==='shard'||shape==='dagger'||shape==='screwdriver') mat.rotation=-Math.atan2(dz,dx);
     m=new THREE.Sprite(mat);
     if(shape==='arrow') m.scale.set(1.15*sc,0.52*sc,1);
     else if(shape==='shard') m.scale.set(1.15*sc,0.58*sc,1);
     else if(shape==='dagger') m.scale.set(0.82*sc,0.34*sc,1);
+    else if(shape==='screwdriver') m.scale.set(0.96*sc,0.26*sc,1);
     else if(shape==='doom') m.scale.set(1.05*sc,0.62*sc,1);
     else m.scale.set(0.82*sc,0.52*sc,1);
-    hitRadius=shape==='dagger'?0.28:shape==='arrow'?0.36:0.42;
+    hitRadius=shape==='screwdriver'?0.24:shape==='dagger'?0.28:shape==='arrow'?0.36:0.42;
     spin=shape==='soul'?7:shape==='orb'||shape==='doom'?3:0;
   }
   scene.add(m);
@@ -190,6 +196,12 @@ function killEnemy(e){
     const soulMul = player._soulLantern && !e.isStageBoss && !e.elite && !e.final ? 1.5 : 1;
     for (let i=0;i<6;i++) dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm*soulMul));
     for (let i=0;i<10;i++) dropPickup(e.x, e.z, 'gold', Math.round(3*rm*soulMul));
+    if (!e.elite && Math.random()<0.22) startDontMoveCurse(e.x,e.z);
+  } else if (e.mimic) {
+    for (let i=0;i<7;i++) dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm));
+    for (let i=0;i<12;i++) dropPickup(e.x, e.z, 'gold', Math.round(4*rm));
+    if (Math.random()<0.55) { const item=rollItemDrop(e.tier>=1); if(item) spawnGroundItem(e.x,e.z,item); }
+    if (Math.random()<0.35) spawnHauntedClone(18);
   } else {
     dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm));
     dropPickup(e.x, e.z, 'gold', Math.max(1, Math.round(e.xp*0.3*rm)));
@@ -351,6 +363,7 @@ function clearCombatActors(){
   for (const pk of pickups){ scene.remove(pk.spr); freeObj(pk.spr); }
   for (const gi of groundItems) { if(gi.spr){ scene.remove(gi.spr); freeObj(gi.spr); } if(gi.glow){ scene.remove(gi.glow); freeObj(gi.glow); } }
   for (const a of afterimages){ scene.remove(a.spr); freeObj(a.spr); }
+  clearEventActors();
   for (const w of novaWaves){ scene.remove(w.mesh); freeObj(w.mesh); }
   for (const f of slashFx){ scene.remove(f.mesh); freeObj(f.mesh); }
   for (const d of dmgNums) d.el.remove();
@@ -366,6 +379,7 @@ function transitionToStage(stage){
   mapStage=stage;
   stageStartTime=gameTime;   // reset the per-stage clock (timer/OT/spawn density restart)
   globalPickupMagnet=0;
+  resetEventState(false);
   clearWorldScenery();
   applyMapTheme();
   buildStageScenery(stage);
@@ -393,10 +407,19 @@ function openChest(o){
   player.gold-=cost; chestsOpened++; o.used=true; scene.remove(o.spr); if(o.glow) scene.remove(o.glow); if(o.beacon) scene.remove(o.beacon);
   spawnBurst(o.x, o.z, 0xffd86a, 12, 0.8);
   sfx('chest');
+  const mimicChance = 0.08 + (o.tier||0)*0.035 + Math.min(0.08, mapStage*0.015);
+  if (Math.random() < mimicChance) {
+    spawnMimicChest(o.x, o.z, o.tier||0);
+    showToast('Mimic chest!', 1.8);
+    score += [80,140,220][o.tier]||80;
+    return;
+  }
   // item drop from chest (higher tier = better rates)
   const item = rollItemDrop(o.tier >= 2);
   if (item) spawnGroundItem(o.x, o.z, item);
   score += [50,100,150][o.tier]||50;
+  heroQuip('loot',0.32,2.1);
+  if (gameTime>=nextGoldRainAt && Math.random()<0.18) startGoldRain();
 }
 function activateShrine(o){
   o.used=true; scene.remove(o.spr); if(o.glow) scene.remove(o.glow); if(o.beacon) scene.remove(o.beacon);
@@ -520,6 +543,7 @@ function buyOffer(i){
   o.sold=true;
   shopPurchases++;          // each buy raises prices on remaining/future stock
   if(tryMerchantBetrayal(merchant)) return;
+  maybeSpawnDebtCollector(merchant);
   buildShop();
 }
 function closeShop(){ document.getElementById('shop').style.display='none'; currentShopMerchant=null; paused=false; }
@@ -557,6 +581,180 @@ function spawnMerchantBoss(x,z){
   spawnBurst(e.x,e.z,0xffd86a,24,1.2);
   shake(0.35,0.25);
   sfx('boss');
+}
+function clearEventActors(){
+  for (const c of hauntedClones){
+    if(c.spr){ scene.remove(c.spr); freeObj(c.spr); }
+    if(c.sh){ scene.remove(c.sh); freeObj(c.sh); }
+  }
+  hauntedClones.length=0;
+}
+function resetEventState(full){
+  goldRainT=0; goldRainDropT=0; goldRainSpawnT=0; goldRainCollected=0; goldRainElite=false;
+  dontMoveT=0; dontMoveWarnT=0;
+  clearEventActors();
+  if(full){
+    nextGoldRainAt=150;
+    debtCollectorCooldownUntil=0;
+  } else {
+    nextGoldRainAt=Math.max(gameTime+65,nextGoldRainAt);
+  }
+}
+function spawnMimicChest(x,z,tier){
+  const key=['chest_common','chest_rare','chest_epic'][tier] || 'chest_common';
+  const H=1.45+tier*0.18;
+  const spr=billboard(key,H);
+  const sh=makeShadow(H*0.36);
+  scene.add(spr); scene.add(sh);
+  const hp=Math.round((90+tier*85)*normalHpScale(Math.min(2,mapStage-1)));
+  const atk=Math.round((16+tier*8)*normalAtkScale(Math.min(2,mapStage-1))*stageAtkMul());
+  const e={ x,z,hp,maxHp:hp,atk,spd:(84+tier*16)*SPD_SCALE,xp:35+tier*28,r:H*0.36,name:'Mimic Chest',
+    alive:true,cd:0,flash:0,isBoss:false,mimic:true,tier,behavior:'charger',kx:0,kz:0,atkCd:0,chargeCd:0.6,charging:0,
+    bw:spr.scale.x,bh:spr.scale.y,born:gameTime,face:1,spr,sh,tint:0xffd080 };
+  enemies.push(e);
+  spawnObjectPulse(x,z,0xffd86a,2.6+tier*0.6,0.65);
+  spawnBurst(x,z,0xffb84a,18,1.0);
+  shake(0.18,0.15);
+}
+function maybeSpawnDebtCollector(m){
+  if(!m || shopPurchases<5 || gameTime<debtCollectorCooldownUntil) return;
+  const chance=Math.min(0.28,0.10+Math.max(0,shopPurchases-4)*0.025);
+  if(Math.random()>=chance) return;
+  debtCollectorCooldownUntil=gameTime+90;
+  spawnDebtCollector(m.x,m.z);
+}
+function spawnDebtCollector(x,z){
+  const t=MINIBOSS_TYPES.find(v=>v.sprite==='miniboss_executioner') || MINIBOSS_TYPES[0];
+  const H=t.h*0.95;
+  const { spr, anim } = entitySprite(t.sprite,H);
+  const sh=makeShadow(H*0.34);
+  scene.add(spr); scene.add(sh);
+  const hp=Math.round(t.hp*minibossHpScale()*0.78);
+  const e={ x:clamp(x,-MAP_BOUND,MAP_BOUND), z:clamp(z,-MAP_BOUND,MAP_BOUND), hp, maxHp:hp,
+    atk:Math.round(t.atk*atkTimeScale()*stageAtkMul()*1.25), spd:t.spd*SPD_SCALE*MINIBOSS_SPEED_MUL*1.14,
+    xp:Math.round(t.xp*1.2), r:H*0.31, name:'Debt Collector', alive:true, cd:0, flash:0,
+    isBoss:true, isStageBoss:false, elite:true, behavior:'chase', kx:0,kz:0, atkCd:0, chargeCd:0, charging:0,
+    bw:spr.scale.x,bh:spr.scale.y,born:gameTime,face:1,anim,spr,sh,tint:0xffd86a };
+  assignSkills(e,['rustedGallows','coinStorm','charge'].filter(n=>SK[n]));
+  if(!e.skills || !e.skills.length) assignSkills(e,['fan','charge','ring']);
+  e.aura=makeBossAura(0xffd86a,e.r*1.9,false);
+  enemies.push(e);
+  spawnObjectPulse(e.x,e.z,0xffd86a,H*1.8,0.75);
+  spawnBurst(e.x,e.z,0xffd86a,24,1.15);
+  showToast('Debt Collector arrives!',2.2);
+  sfx('boss');
+}
+function startGoldRain(){
+  goldRainT=14;
+  goldRainDropT=0;
+  goldRainSpawnT=0.5;
+  goldRainCollected=0;
+  goldRainElite=false;
+  nextGoldRainAt=gameTime+150+Math.random()*90;
+  showToast('Greedy Gold Rain!',2.2);
+  spawnObjectPulse(player.x,player.z,0xffd86a,6,0.7);
+}
+function startDontMoveCurse(x,z){
+  if(dontMoveT>0 || gameOver || won) return;
+  dontMoveT=5.2;
+  dontMoveX=player.x;
+  dontMoveZ=player.z;
+  dontMoveWarnT=0;
+  showToast("Don't move: 5 seconds!",2.0);
+  spawnRing(player.x,player.z,0x9a55ff,3.1,0.8);
+  spawnObjectPulse(x,z,0x9a55ff,5.5,0.7);
+}
+function spawnHauntedClone(duration){
+  if(!player || !player.spr || hauntedClones.length>=2) return;
+  const spr=player.spr.clone();
+  spr.material=player.spr.material.clone();
+  spr.material.color.setHex(0xa875ff);
+  spr.material.opacity=0.58;
+  spr.material.transparent=true;
+  const sh=makeShadow(0.34);
+  scene.add(spr); scene.add(sh);
+  const angle=hauntedClones.length*Math.PI+Math.random()*0.8;
+  hauntedClones.push({ spr, sh, t:duration||16, fireT:0.35, angle, x:player.x+Math.cos(angle)*1.6, z:player.z+Math.sin(angle)*1.6 });
+  showToast('Haunted clone joins you',1.8);
+}
+function updateSpecialEvents(dt){
+  updateGoldRain(dt);
+  updateDontMoveCurse(dt);
+  updateHauntedClones(dt);
+}
+function updateGoldRain(dt){
+  if(goldRainT<=0) return;
+  goldRainT-=dt;
+  goldRainDropT-=dt;
+  goldRainSpawnT-=dt;
+  if(goldRainDropT<=0){
+    goldRainDropT=0.16;
+    const a=Math.random()*Math.PI*2, d=Math.sqrt(Math.random())*13;
+    dropPickup(player.x+Math.cos(a)*d,player.z+Math.sin(a)*d,'gold',2+Math.floor(Math.random()*4),'goldrain');
+  }
+  if(goldRainSpawnT<=0){
+    goldRainSpawnT=1.0;
+    const n=Math.min(6+Math.floor(mapStage*1.5),maxEnemies-enemies.length);
+    if(n>0) spawnCluster(n);
+  }
+  if(!goldRainElite && goldRainCollected>=75){
+    goldRainElite=true;
+    const p=pointAroundPlayer(17,22,false);
+    if(p) spawnElite(p.x,p.z);
+    showToast('Greed draws an elite!',1.8);
+  }
+  if(goldRainT<=0) spawnBurst(player.x,player.z,0xffd86a,14,0.9);
+}
+function updateDontMoveCurse(dt){
+  if(dontMoveT<=0) return;
+  dontMoveT-=dt;
+  dontMoveWarnT-=dt;
+  const moved=Math.hypot(player.x-dontMoveX,player.z-dontMoveZ);
+  if(dontMoveWarnT<=0){
+    dontMoveWarnT=0.45;
+    spawnRing(dontMoveX,dontMoveZ,moved>0.45?0xff5566:0x9a55ff,3.1,0.42);
+  }
+  if(moved>0.75){
+    dontMoveT=0;
+    showToast('Curse broken!',1.5);
+    for(let i=0;i<3;i++) spawnElite(player.x,player.z);
+    spawnBurst(player.x,player.z,0xff5566,20,1.1);
+    shake(0.28,0.22);
+    return;
+  }
+  if(dontMoveT<=0){
+    player.hp=Math.min(healCap(player),player.hp+Math.round(player.maxHp*0.22));
+    player.gold+=45+mapStage*25;
+    score+=160;
+    showToast('Curse resisted!',1.8);
+    spawnBurst(player.x,player.z,0x9a55ff,24,1.0);
+  }
+}
+function updateHauntedClones(dt){
+  for(let i=hauntedClones.length-1;i>=0;i--){
+    const c=hauntedClones[i];
+    c.t-=dt;
+    c.fireT-=dt;
+    c.angle+=dt*0.65;
+    c.x += ((player.x+Math.cos(c.angle)*1.85)-c.x)*(1-Math.pow(0.02,dt));
+    c.z += ((player.z+Math.sin(c.angle)*1.85)-c.z)*(1-Math.pow(0.02,dt));
+    const y=groundHeight(c.x,c.z);
+    c.spr.position.set(c.x,y+0.08+Math.sin(gameTime*6+i)*0.08,c.z);
+    c.sh.position.set(c.x,y+0.02,c.z);
+    if(c.fireT<=0){
+      c.fireT=0.62;
+      const t=nearestEnemies(c.x,c.z,8.5,1)[0];
+      if(t){
+        dealEnemyDamage(t.e,7+player.level*0.65,0xa875ff,t.e.x-c.x,t.e.z-c.z,1.5,true);
+        spawnTrail((c.x+t.e.x)*0.5,(c.z+t.e.z)*0.5,0xa875ff,0.7);
+      }
+    }
+    if(c.t<=0){
+      scene.remove(c.spr); freeObj(c.spr);
+      scene.remove(c.sh); freeObj(c.sh);
+      hauntedClones.splice(i,1);
+    }
+  }
 }
 // ---- Boss/Miniboss skill system ----
 function bossShot(e, a, dmgMul=1, ox=0, oz=0){
@@ -757,7 +955,7 @@ function runSkills(e, dt, nx, nz, d){
     if (e.skillT[i] <= 0){ e.castSkill=e.skills[i]; e.castT=e.isStageBoss?0.7:0.52; e.skillT[i]=e.skills[i].cd*fast; spawnTelegraph(e); break; }
   }
 }
-function dropPickup(x,z,type,value){
+function dropPickup(x,z,type,value,eventTag){
   const a=Math.random()*Math.PI*2, pop=1.5+Math.random()*1.5;
   let key;
   if (type==='gold') key='icon_gold';
@@ -776,9 +974,9 @@ function dropPickup(x,z,type,value){
   }
   const spr=billboard(key, 0.55);
   scene.add(spr);
-  pickups.push({ x:x+Math.cos(a)*0.3, z:z+Math.sin(a)*0.3, vx:Math.cos(a)*pop, vz:Math.sin(a)*pop, type, value, alive:true, homing:false, spr });
+  pickups.push({ x:x+Math.cos(a)*0.3, z:z+Math.sin(a)*0.3, vx:Math.cos(a)*pop, vz:Math.sin(a)*pop, type, value, eventTag, alive:true, homing:false, spr });
 }
-function collect(pk){ pk.alive=false; if(pk.type==='gold') player.gold+=Math.round(pk.value*player.goldMul); else if(pk.type==='hp') player.hp=Math.min(healCap(player), player.hp+pk.value); else { let v=pk.value; if(player.echoChance && Math.random()<player.echoChance) v*=2; addXP(v); } }
+function collect(pk){ pk.alive=false; if(pk.type==='gold'){ const g=Math.round(pk.value*player.goldMul); player.gold+=g; if(pk.eventTag==='goldrain') goldRainCollected+=g; } else if(pk.type==='hp') player.hp=Math.min(healCap(player), player.hp+pk.value); else { let v=pk.value; if(player.echoChance && Math.random()<player.echoChance) v*=2; addXP(v); } }
 function addXP(v){ player.xp += Math.round(v*player.xpMul); while(player.xp>=player.xpToNext){ levelUp(); } }
 function levelUp(){
   if (player.level>=MAX_LEVEL){ player.xp=0; player.xpToNext=Infinity; return; }   // hard cap
@@ -787,6 +985,7 @@ function levelUp(){
   player.hp=Math.min(healCap(player), player.hp+8);
   sfx('levelup');
   if (player.passive && player.passive.apply) player.passive.apply(player);   // character passive grows per level
+  heroQuip('level',0.45,2.1);
   pendingUps++; if(!paused) openUpgradeChoice(); }
 function hurtPlayer(amt,dx,dz,force,src){
   if(player.invuln>0) return;
@@ -799,6 +998,7 @@ function hurtPlayer(amt,dx,dz,force,src){
   damageTaken += r;
   player.hp-=r; player.flash=0.12; player.invuln=0.4;
   spawnDmg(player.x, player.z, r, 0xff536d, false, 'playerhit');
+  heroQuip('hurt',0.18,2.0);
   player.hpBarUntil=gameTime+3;
   // Mirror (reflect) + Spiky Shield (thorns) strike the attacker back
   if(src && src.alive && (player.thorns||player.reflect)){
@@ -1086,6 +1286,7 @@ function restart(){
   for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); scene.remove(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
   for (const p of projectiles){ scene.remove(p.mesh); freeObj(p.mesh); }
   for (const a of afterimages){ scene.remove(a.spr); freeObj(a.spr); } afterimages.length=0;
+  clearEventActors();
   for (const sh of enemyShots){ scene.remove(sh.mesh); freeObj(sh.mesh); } enemyShots.length=0;
   for (const p of particles){ scene.remove(p.mesh); freeObj(p.mesh); } particles.length=0;
   for (const r of rings){ scene.remove(r.mesh); freeObj(r.mesh); } rings.length=0;
@@ -1103,7 +1304,7 @@ function restart(){
   if(player.weapons) for(const w of player.weapons) if(w.orbs) w.orbs.forEach(o=>{ scene.remove(o.mesh); freeObj(o.mesh); });
   scene.remove(player.spr); freeObj(player.spr); scene.remove(player.sh); if(player.hpbar){ scene.remove(player.hpbar); freeObj(player.hpbar); }
   player = makePlayer();
-  gameTime=0; stageStartTime=0; globalPickupMagnet=0; kills=0; gameOver=false; won=false; boss=null; mapStage=1; score=0; damageTaken=0; scoreFinalized=false; lastScoreEntry=null; applyMapTheme(); clearStageScenery();
+  gameTime=0; stageStartTime=0; globalPickupMagnet=0; heroQuipAt=0; kills=0; gameOver=false; won=false; boss=null; mapStage=1; score=0; damageTaken=0; scoreFinalized=false; lastScoreEntry=null; resetEventState(true); applyMapTheme(); clearStageScenery();
   if(!worldScenery.length){ spawnTrees(40); buildScenery(); }
   waveTimer=0; waveInterval=3.2; enemiesPerWave=2; maxEnemies=18;
   nextHordeAt=240; hordeRemaining=0; hordeSpawnTimer=0; hordeNumber=0; hordeSpawned=0; hordeWarned=false; relocationCursor=0;

@@ -24,6 +24,9 @@ const MANIFEST = {
   char_assassin_walk:'char_assassin_walk.png',
   char_assassin_idle:'char_assassin_idle.png',
   char_assassin_portrait:'char_assassin_portrait.png',
+  char_it_support_walk:'char_it_support_walk.png',
+  char_it_support_idle:'char_it_support_idle.png',
+  char_it_support_portrait:'char_it_support_portrait.png',
   // Tier 0 — Bleakfield
   enemy_shade:'enemy_shade.png', enemy_bone_stalker:'enemy_bone_stalker.png', enemy_wraith:'enemy_wraith.png',
   enemy_dire_bat:'enemy_dire_bat.png', enemy_rot_hound:'enemy_rot_hound.png', enemy_grave_robber:'enemy_grave_robber.png',
@@ -59,7 +62,7 @@ const MANIFEST = {
   map3_chain_pylon:'map3_chain_pylon_gen.png', map3_star_rift:'map3_star_rift_gen.png',
   wpn_bolt:'wpn_bolt.png', wpn_spread:'wpn_spread.png', wpn_nova:'wpn_nova.png', wpn_orbit:'wpn_orbit.png',
   wpn_arrow:'wpn_arrow.png', wpn_smite:'wpn_smite.png', wpn_bladewhirl:'wpn_bladewhirl.png', wpn_soulspiral:'wpn_soulspiral.png',
-  wpn_lightning:'wpn_lightning.png', wpn_dagger:'wpn_dagger.png',
+  wpn_lightning:'wpn_lightning.png', wpn_dagger:'wpn_dagger.png', wpn_screwdriver:'wpn_screwdriver.png',
   wpn_bolt_evolved:'wpn_bolt_evolved.png', wpn_spread_evolved:'wpn_spread_evolved.png', wpn_nova_evolved:'wpn_nova_evolved.png', wpn_orbit_evolved:'wpn_orbit_evolved.png',
   wpn_arrow_evolved:'wpn_arrow_evolved.png', wpn_smite_evolved:'wpn_smite_evolved.png', wpn_bladewhirl_evolved:'wpn_bladewhirl_evolved.png', wpn_soulspiral_evolved:'wpn_soulspiral_evolved.png',
   tomeic_might:'tomeic_might.png', tomeic_vitality:'tomeic_vitality.png', tomeic_celerity:'tomeic_celerity.png', tomeic_precision:'tomeic_precision.png', tomeic_multishot:'tomeic_multishot.png', tomeic_swiftness:'tomeic_swiftness.png', tomeic_regen:'tomeic_regen.png', tomeic_magnet:'tomeic_magnet.png', tomeic_exp:'tomeic_exp.png', tomeic_greed:'tomeic_greed.png', tomeic_fortitude:'tomeic_fortitude.png', tomeic_lifesteal:'tomeic_lifesteal.png', tomeic_duration:'tomeic_duration.png', tomeic_velocity:'tomeic_velocity.png', tomeic_growth:'tomeic_growth.png', tomeic_impact:'tomeic_impact.png',
@@ -270,7 +273,8 @@ const BIOME_NAMES = ['Bleakfield','Fenmire','Void Rift'];
 (function deriveSpriteManifest(){
   const set = (k,f)=>{ if(!(k in MANIFEST)) MANIFEST[k]=f; };
   const addUnit = (sp,withWalk)=>{ set(sp,sp+'.png'); set(sp+'_8dir',sp+'_8dir.png'); if(withWalk) set(sp+'_walk',sp+'_walk.png'); };
-  ENEMY_TYPES.forEach(t=>addUnit(t.sprite,true));
+  const staticOnly = new Set(['enemy_grave_arbalist','enemy_mire_hexer','enemy_rift_needler','enemy_doom_cantor','enemy_covenant_warder']);
+  ENEMY_TYPES.forEach(t=>addUnit(t.sprite,!staticOnly.has(t.sprite)));
   MINIBOSS_TYPES.forEach(t=>addUnit(t.sprite,true));
   BOSS_TYPES.forEach(t=>set(t.sprite+'_8dir',t.sprite+'_8dir.png'));
 })();

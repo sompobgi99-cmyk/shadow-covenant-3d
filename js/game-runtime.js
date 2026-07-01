@@ -1,5 +1,5 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
-const APP_VERSION = '20260701-boss-relics';
+const APP_VERSION = '20260701-it-support-quips';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
@@ -182,6 +182,8 @@ function spawnBurst(x, z, color, n, scl){
     particles.push({ x, z, y:0.6, vx:Math.cos(a)*sp, vz:Math.sin(a)*sp, vy:2+Math.random()*3, life:0.5, max:0.5, mesh:m }); }
 }
 function spawnEnemyShot(x, z, dx, dz, dmg, opts){
+  if (enemyShots.length > 96) return;
+  if (enemyShots.length > 72 && Math.random() < 0.35) return;
   opts=opts||{};
   const m=new THREE.Group();
   const color=opts.color||0xff5066, coreColor=opts.coreColor||0xffb0bc;
@@ -236,17 +238,21 @@ function enemyShoot(e,nx,nz){
   const base=Math.atan2(nz,nx);
   if(e.name==='Grave Arbalist'){
     spawnEnemyShot(e.x,e.z,nx,nz,Math.round(e.atk*1.05),{ speed:13.5, life:2.2, color:0xd8c08a, coreColor:0xffedb0, shape:'arrow', hitRadius:0.34, trailScale:0.36 });
-    e.atkCd=1.05+Math.random()*0.25;
+    e.atkCd=1.20+Math.random()*0.30;
   } else if(e.name==='Mire Hexer'){
     for(let k=-1;k<=1;k++){ const a=base+k*0.22; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.86),{ speed:7.2, life:3.5, color:0x45d66a, coreColor:0xa8ffc0, hitRadius:0.42, trailScale:0.44 }); }
-    e.atkCd=2.0+Math.random()*0.45;
+    e.atkCd=2.25+Math.random()*0.55;
   } else if(e.name==='Rift Needler'){
-    for(let k=-2;k<=2;k++){ const a=base+k*0.10; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.72),{ speed:12.5, life:2.4, color:0x7c8dff, coreColor:0xd8e4ff, glowSize:0.20, coreSize:0.09, hitRadius:0.34, trailScale:0.34 }); }
-    e.atkCd=1.55+Math.random()*0.3;
+    for(let k=-2;k<=2;k++){
+      if(Math.abs(k)===2 && Math.random()<0.35) continue;
+      const a=base+k*0.10;
+      spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.72),{ speed:12.5, life:2.4, color:0x7c8dff, coreColor:0xd8e4ff, glowSize:0.20, coreSize:0.09, hitRadius:0.34, trailScale:0.34 });
+    }
+    e.atkCd=1.75+Math.random()*0.35;
   } else if(e.name==='Doom Cantor'){
-    const n=12, off=gameTime*0.8;
+    const n=10, off=gameTime*0.8;
     for(let i=0;i<n;i++){ const a=off+(i/n)*Math.PI*2; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.7),{ speed:5.8, life:4.2, color:0x9a55ff, coreColor:0xff75b7, glowSize:0.24, coreSize:0.11, hitRadius:0.44, trailScale:0.44 }); }
-    e.atkCd=3.6+Math.random()*0.7;
+    e.atkCd=4.0+Math.random()*0.8;
   } else {
     spawnEnemyShot(e.x, e.z, nx, nz, e.atk);
     e.atkCd=1.8+Math.random()*0.8;
@@ -347,6 +353,10 @@ let versionCheckTimer = null;
 const interactables = [];   // chests / shrines / merchant {type,tier,x,z,used,spr}
 let chestsOpened = 0, shopOffers = [], currentShopMerchant = null, shopPurchases = 0;
 const groundItems = [];     // dropped item pickups {x,z,item, spr,glow}
+const hauntedClones = [];
+let goldRainT = 0, goldRainDropT = 0, goldRainSpawnT = 0, goldRainCollected = 0, goldRainElite = false, nextGoldRainAt = 150;
+let dontMoveT = 0, dontMoveX = 0, dontMoveZ = 0, dontMoveWarnT = 0;
+let debtCollectorCooldownUntil = 0;
 const CHEST_BASE=[40,100,220];
 const PLAYER_NAME_KEY='sc3_player_name';
 const PLAYER_COUNTRY_KEY='sc3_player_country';
@@ -442,7 +452,7 @@ function buildSelect(){
   for (const key in CHARACTERS){
     const c=CHARACTERS[key], wpn=(WEAPON_TYPES[c.weapon]||{}).name||c.weapon;
     const d=document.createElement('div'); d.className='ccard';
-    d.innerHTML='<img src="'+characterPortrait(key)+'"><div class="cn">'+c.name+'</div><div class="cw">\u2694 '+wpn+'</div><div class="cp">'+c.passive.desc+'</div>';
+    d.innerHTML='<img src="'+characterPortrait(key)+'"><div class="cn">'+escHtml(c.name)+'</div><div class="cw">\u2694 '+escHtml(wpn)+'</div><div class="cp">'+escHtml(c.passive.desc)+'</div>'+(c.bio?'<div class="cbio">'+escHtml(c.bio)+'</div>':'');
     d.onclick=()=>selectCharacter(key);
     wrap.appendChild(d);
   }
@@ -472,7 +482,7 @@ function openGuide(kind){
         stats.def?'DEF '+stats.def:null,
         stats.regen?'Regen '+stats.regen:null
       ].filter(Boolean).join(' / ');
-      return guideCard(characterPortrait(key), c.name, (w.name||c.weapon)+' - '+c.passive.desc, statLine, 'character');
+      return guideCard(characterPortrait(key), c.name, (c.bio?c.bio+' ':'')+(w.name||c.weapon)+' - '+c.passive.desc, statLine, 'character');
     }).join('');
   } else if(kind==='weapons'){
     title='อาวุธ';
@@ -508,6 +518,7 @@ function selectCharacter(key){
   document.getElementById('select').style.display='none';
   document.getElementById('over').style.display='none';
   started=true; restart();
+  heroQuip('start',1,2.8);
 }
 const UPGRADES = [
   { id:'might',    name:'Might',      desc:'+15% damage',        icon:'tomeic_might',     apply:()=>{ player.dmgMul*=1.15; } },
@@ -679,9 +690,19 @@ function hordeSize(number){
   return Math.min(overtimeEnemyCap(),Math.round(base*mul));
 }
 let toastTimer = 0;
+let heroQuipAt = 0;
 function showToast(message,duration){
   $('toast').textContent=message;
   toastTimer=duration||1.5;
+}
+function heroQuip(kind,chance,duration){
+  if(!player || !player.char || !CHARACTERS[player.char] || !CHARACTERS[player.char].quips) return;
+  if(gameTime < heroQuipAt || Math.random() > (chance==null?1:chance)) return;
+  const list=CHARACTERS[player.char].quips[kind] || CHARACTERS[player.char].quips.start || [];
+  if(!list.length) return;
+  const name=CHARACTERS[player.char].name || 'Hero';
+  showToast(name+': '+list[(Math.random()*list.length)|0], duration||2);
+  heroQuipAt = gameTime + 5.5;
 }
 let fpsAccum = 0, fpsFrames = 0;
 const SHADOW_GEO = new THREE.CircleGeometry(0.5, 16);
@@ -1379,6 +1400,11 @@ const SHEETS = {
     idle: { key:'char_assassin_idle', cols:4, rows:8, fps:6 },
     dirRows: [0,7,6,5,4,3,2,1],
   },
+  it_support: {
+    walk: { key:'char_it_support_walk', cols:6, rows:8, fps:10 },
+    idle: { key:'char_it_support_idle', cols:4, rows:8, fps:6 },
+    dirRows: [0,7,6,5,4,3,2,1],
+  },
 };
 
 // ---- Playable characters: signature weapon + base stats + per-level passive ----
@@ -1404,7 +1430,58 @@ const CHARACTERS = {
                  stats:{ maxHp:70, critChance:0.08 }, passive:{ desc:'+6% crit dmg / lv', apply:p=>{ p.critDmg += 0.06; } } },
   assassin:    { name:'Assassin',    sheet:'assassin',    weapon:'dagger', portrait:'assassin',
                  stats:{ maxHp:65, spd:5.9, critChance:0.12 }, passive:{ desc:'+2% crit chance / lv', apply:p=>{ p.critChance += 0.02; } } },
+  it_support:  { name:'IT Support',  sheet:'it_support', weapon:'toolstab', portrait:'it_support',
+                 stats:{ maxHp:78, spd:5.5, magnet:3.6, critChance:0.07 }, passive:{ desc:'+2% cooldown recovery / lv', apply:p=>{ p.rateMul *= 1.02; p.projSpeedMul *= 1.01; } } },
 };
+Object.assign(CHARACTERS.paladin, {
+  bio:'นักรบศักดิ์สิทธิ์ที่ให้อภัยทุกคน ยกเว้นตอน cooldown พร้อม',
+  quips:{ start:['ความยุติธรรมออนไลน์แล้ว'], level:['ศรัทธาอัปเดตแพตช์ใหม่'], hurt:['เกราะรับไว้แล้ว ใจยังรับไม่ไหว'] }
+});
+Object.assign(CHARACTERS.huntress, {
+  bio:'ตามรอยมอนได้ทุกตัว แต่กุญแจบ้านตัวเองยังหาไม่เจอ',
+  quips:{ start:['รอยเท้านี้...น่าจะไม่ใช่ของเพื่อน'], level:['ลูกธนูเยอะขึ้น ความรับผิดชอบก็เช่นกัน'], hurt:['ใครยิงสวน ใจเย็นก่อน'] }
+});
+Object.assign(CHARACTERS.sorceress, {
+  bio:'แก้ปัญหาด้วยระเบิดวงใหญ่ แล้วค่อยถามว่าปัญหาคืออะไร',
+  quips:{ start:['อย่ายืนใกล้เกินไป ฉันก็ยังไม่ชัวร์'], level:['เวทแรงขึ้น ประกันภัยไม่ครอบคลุม'], hurt:['อันนี้เจ็บแบบมีหลักสูตร'] }
+});
+Object.assign(CHARACTERS.templar, {
+  bio:'เกราะหนา ใจนิ่ง เดินช้า เพราะแบกทั้งศรัทธาและโลหะหนัก',
+  quips:{ start:['ข้าจะยืนตรงนี้ ถ้ามอนเดินมาถึงก่อน'], level:['เกราะหนักขึ้นอีกนิด ไม่เป็นไร'], hurt:['เสียงดัง แต่ยังไม่บุบ'] }
+});
+Object.assign(CHARACTERS.ranger, {
+  bio:'รักธรรมชาติ แต่ไม่ค่อยรักสิ่งที่วิ่งเข้าหาเขา',
+  quips:{ start:['ลมดี แสงดี มอนเยอะเกินดี'], level:['ระยะเพิ่ม ใจห่างไปอีก'], hurt:['ธรรมชาติฝากตบกลับมา'] }
+});
+Object.assign(CHARACTERS.necromancer, {
+  bio:'คุยกับวิญญาณได้ทุกคืน ข้อเสียคือบางตนถามเรื่องประกัน',
+  quips:{ start:['ถ้าได้ยินเสียงแปลก ๆ ไม่ใช่บั๊ก'], level:['วิญญาณโหวตให้แรงขึ้น'], hurt:['โอเค อันนี้ยังไม่ต้องเรียกฉันกลับ'] }
+});
+Object.assign(CHARACTERS.slayer, {
+  bio:'ไม่พูดเยอะ เพราะเวลาที่ใช้พูดเอาไปฟันได้อีกสามที',
+  quips:{ start:['พูดน้อย ฟันไว'], level:['คมขึ้นอีกนิด โลกสงบขึ้นอีกหน่อย'], hurt:['ได้ เดี๋ยวจำหน้าไว้'] }
+});
+Object.assign(CHARACTERS.priestess, {
+  bio:'ฮีลด้วยรอยยิ้ม แล้ว smite คนที่ไม่ขอบคุณอย่างสุภาพ',
+  quips:{ start:['พรมาแล้ว ใบเสร็จตามทีหลัง'], level:['ศักดิ์สิทธิ์ขึ้นแบบมี service charge'], hurt:['ขอเวลาฮีลใจหนึ่งวิ'] }
+});
+Object.assign(CHARACTERS.stormcaller, {
+  bio:'เรียกฟ้าผ่าได้แม่นมาก ยกเว้นตอนต้องชาร์จมือถือจริง ๆ',
+  quips:{ start:['พยากรณ์วันนี้ มีโอกาสฟ้าผ่า 100%'], level:['เมฆอนุมัติแล้ว'], hurt:['ใครลัดวงจรฉัน'] }
+});
+Object.assign(CHARACTERS.assassin, {
+  bio:'หายตัวเก่งจนเพื่อนร่วมทีมลืมแบ่ง loot ให้เป็นประจำ',
+  quips:{ start:['ถ้าไม่เห็นฉัน แปลว่าทำงานอยู่'], level:['คมขึ้น เงียบขึ้น น่าสงสัยขึ้น'], hurt:['เห็นเมื่อกี้ไหม ไม่เห็นก็ดี'] }
+});
+Object.assign(CHARACTERS.it_support, {
+  bio:'ถูกเรียกตอนระบบล่มเสมอ และถามบอสว่า ลอง Restart หรือยังครับ?',
+  quips:{
+    start:['ลอง Restart หรือยังครับ?','ถ้าระบบล่ม ใจเราต้องไม่ล่ม','Ticket นี้ไม่มีรายละเอียดอีกแล้วสินะ'],
+    level:['อัปแพตช์เรียบร้อย กรุณาอย่าถามว่าแก้อะไร','เพิ่ม RAM ให้สกิลแล้วครับ','สิทธิ์ admin มาแล้ว'],
+    loot:['ของในกล่องดูเหมือน spare part','อันนี้เบิกแผนกได้ไหมครับ'],
+    hurt:['ใคร unplug สายชีวิต','แจ้ง incident แล้วครับ','ขอ remote เข้าแผลหน่อย']
+  }
+});
 let currentChar = 'paladin';
 const MAX_WEAPONS = 3;   // signature + 2
 function dirIndex(mx, mz){ return ((Math.round(Math.atan2(mx, mz)/(Math.PI/4)))%8+8)%8; }
