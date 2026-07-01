@@ -45,12 +45,12 @@ const PARTICLE_GEO = new THREE.BoxGeometry(0.14,0.14,0.14);
 const trails=[]; const TRAIL_GEO=new THREE.BoxGeometry(0.14,0.14,0.14);
 const dmgNums=[];
 const damageScreenPos=new THREE.Vector3();
-function spawnDmg(x,z,amount,color){
+function spawnDmg(x,z,amount,color,crit){
   if (dmgNums.length>32) return;
-  const el=document.createElement('div'); el.className='dn'; el.textContent=Math.round(amount);
-  el.style.color='#'+('000000'+((color||0xffffff)>>>0).toString(16)).slice(-6);
+  const el=document.createElement('div'); el.className='dn'+(crit?' crit':''); el.textContent=(crit?'✦ ':'')+Math.round(amount);
+  el.style.color=crit?'#ffd86a':'#'+('000000'+((color||0xffffff)>>>0).toString(16)).slice(-6);
   document.getElementById('dmg').appendChild(el);
-  dmgNums.push({ el, x, z, t:0, life:0.65, ox:(Math.random()-0.5)*0.7 });
+  dmgNums.push({ el, x, z, t:0, life:crit?0.78:0.65, ox:(Math.random()-0.5)*0.7 });
 }
 let weaponSig=null;
 function updateWeaponHUD(){
@@ -270,7 +270,7 @@ function buildPauseInfo(){
   for (const w of player.weapons){ const t=WEAPON_TYPES[w.key]; if(!t) continue;
     h+='<div class="piwslot'+(w.evolved?' evo':'')+'"><img src="assets/sprites/'+t.icon+'.png"><div class="pn">'+t.name+'</div><div class="pl">Lv '+w.lvl+'</div></div>'; }
   h+='</div><div class="pist">'+(C.name||'')+' \u00b7 Lv '+player.level+' \u00b7 HP '+Math.ceil(player.hp)+'/'+player.maxHp
-    +' \u00b7 SPD '+player.spd.toFixed(1)+'</div>';
+    +' \u00b7 SPD '+player.spd.toFixed(1)+' \u00b7 CRIT '+Math.round((player.critChance||0)*100)+'%/'+Math.round((player.critDmg||1.5)*100)+'%</div>';
   // items list
   if (player.items.length) {
     h+='<div style="margin-top:8px;color:#ffe08a;font-size:12px">Items ('+player.items.length+')</div>';
@@ -345,10 +345,13 @@ function buildSelect(){
   for (const key in CHARACTERS){
     const c=CHARACTERS[key], wpn=(WEAPON_TYPES[c.weapon]||{}).name||c.weapon;
     const d=document.createElement('div'); d.className='ccard';
-    d.innerHTML='<img src="assets/sprites/char_'+key+'_portrait.png"><div class="cn">'+c.name+'</div><div class="cw">\u2694 '+wpn+'</div><div class="cp">'+c.passive.desc+'</div>';
+    d.innerHTML='<img src="'+characterPortrait(key)+'"><div class="cn">'+c.name+'</div><div class="cw">\u2694 '+wpn+'</div><div class="cp">'+c.passive.desc+'</div>';
     d.onclick=()=>selectCharacter(key);
     wrap.appendChild(d);
   }
+}
+function characterPortrait(key){
+  return 'assets/sprites/char_'+((CHARACTERS[key]&&CHARACTERS[key].portrait)||key)+'_portrait.png';
 }
 function escHtml(s){
   return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -372,7 +375,7 @@ function openGuide(kind){
         stats.def?'DEF '+stats.def:null,
         stats.regen?'Regen '+stats.regen:null
       ].filter(Boolean).join(' / ');
-      return guideCard('assets/sprites/char_'+key+'_portrait.png', c.name, (w.name||c.weapon)+' - '+c.passive.desc, statLine, 'character');
+      return guideCard(characterPortrait(key), c.name, (w.name||c.weapon)+' - '+c.passive.desc, statLine, 'character');
     }).join('');
   } else if(kind==='weapons'){
     title='อาวุธ';
@@ -426,19 +429,37 @@ const UPGRADES = [
   { id:'velocity', name:'Velocity',   desc:'+20% projectile speed',icon:'tomeic_velocity',apply:()=>{ player.projSpeedMul*=1.2; } },
   { id:'growth',   name:'Growth',     desc:'+20% projectile size',icon:'tomeic_growth',     apply:()=>{ player.projScale*=1.2; } },
   { id:'impact',   name:'Impact',     desc:'+15% knockback',        icon:'tomeic_impact',   apply:()=>{ player.knockbackMul=(player.knockbackMul||0)+0.15; } },
+  { id:'focus',    name:'Focus',      desc:'+6% crit chance',       icon:'tomeic_focus',    apply:()=>{ player.critChance+=0.06; } },
+  { id:'execution',name:'Execution',  desc:'+18% crit damage',      icon:'tomeic_execution',apply:()=>{ player.critDmg+=0.18; } },
 ];
 const MAX_TOMES = 4;   // เลือก tome ได้สูงสุด 4 ชนิด (เก็บซ้อนได้ไม่จำกัด)
+function isBannedChoice(u){
+  return !!(u && player.bannedChoices && player.bannedChoices[u.id]);
+}
+function canBanChoice(u){
+  if(!u || !player.bansRemaining || isBannedChoice(u) || u.id.startsWith('evo_')) return false;
+  if(u.id.startsWith('w_')){
+    const key=u.id.slice(2);
+    return !player.weapons.some(w=>w.key===key);
+  }
+  return !player.tomeCount[u.id];
+}
+function choiceCard(u,i){
+  const ban=canBanChoice(u) ? '<button class="banbtn" data-ban="'+i+'">Ban '+player.bansRemaining+'</button>' : '';
+  return '<img src="assets/sprites/'+u.icon+'.png"><div class="nm">'+u.name+'</div><div class="ds">'+u.desc+'</div><div class="key">[ '+(i+1)+' ]</div>'+ban;
+}
 function openUpgradeChoice(){
   // Once 4 distinct tomes are taken, only offer those (level them up), no new tome types.
   const ownedTomes = Object.keys(player.tomeCount||{}).length;
   const tomePool = ownedTomes >= MAX_TOMES ? UPGRADES.filter(u=>player.tomeCount[u.id]) : UPGRADES;
-  const pool=[...tomePool, ...weaponChoices()], pick=[];
+  const pool=[...tomePool, ...weaponChoices()].filter(u=>!isBannedChoice(u)), pick=[];
   for(let i=0;i<3 && pool.length;i++) pick.push(pool.splice((Math.random()*pool.length)|0,1)[0]);
   currentChoices=pick;
   const c=document.getElementById('cards'); c.innerHTML='';
   pick.forEach((u,i)=>{ const d=document.createElement('div'); d.className='card';
-    d.innerHTML='<img src="assets/sprites/'+u.icon+'.png"><div class="nm">'+u.name+'</div><div class="ds">'+u.desc+'</div><div class="key">[ '+(i+1)+' ]</div>';
+    d.innerHTML=choiceCard(u,i);
     d.onclick=()=>pickUpgrade(i); c.appendChild(d); });
+  c.querySelectorAll('.banbtn').forEach(btn=>btn.onclick=e=>{ e.stopPropagation(); banUpgrade(+btn.dataset.ban); });
   paused=true; document.getElementById('levelup').style.display='flex';
 }
 function pickUpgrade(i){ if(!paused) return; const u=currentChoices[i]; if(!u) return; u.apply();
@@ -446,6 +467,15 @@ function pickUpgrade(i){ if(!paused) return; const u=currentChoices[i]; if(!u) r
   checkEvolveReady();
   document.getElementById('levelup').style.display='none';
   pendingUps--; if(pendingUps>0) openUpgradeChoice(); else paused=false; }
+function banUpgrade(i){
+  if(!paused || pendingUps<=0) return;
+  const u=currentChoices[i];
+  if(!canBanChoice(u)) return;
+  player.bannedChoices[u.id]=true;
+  player.bansRemaining--;
+  showToast('Banned '+u.name, 1.1);
+  openUpgradeChoice();
+}
 function skipUpgrade(){
   if(!paused || pendingUps<=0 || document.getElementById('levelup').style.display!=='flex') return;
   document.getElementById('levelup').style.display='none';
@@ -1043,6 +1073,9 @@ function makePlayerHealthBar(){
 const entityAuraTextures=new Map();
 function getEntityAuraTexture(kind){
   if(entityAuraTextures.has(kind)) return entityAuraTextures.get(kind);
+  if(kind==='boss' && tex.fx_boss_aura_gen) return tex.fx_boss_aura_gen;
+  if(kind==='miniboss' && tex.fx_miniboss_aura_gen) return tex.fx_miniboss_aura_gen;
+  if(kind==='object' && tex.fx_shrine_glow_gen) return tex.fx_shrine_glow_gen;
   const cv=document.createElement('canvas'); cv.width=64; cv.height=64;
   const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
   const cx=32, cy=32;
@@ -1077,13 +1110,14 @@ function getEntityAuraTexture(kind){
 function makeBossAura(color, rad, final){
   const g=new THREE.Group();
   const geo=new THREE.PlaneGeometry(rad*3.6,rad*3.6); geo.rotateX(-Math.PI/2);
+  const auraKey=final?'boss':'miniboss';
   const outer=new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
-    map:getEntityAuraTexture('boss'), color, transparent:true, opacity:final?0.76:0.58,
+    map:getEntityAuraTexture(auraKey), color, transparent:true, opacity:final?0.76:0.58,
     alphaTest:0.06, side:THREE.DoubleSide, depthWrite:false
   }));
   outer.position.y=0.06; g.add(outer);
   const inner=new THREE.Mesh(geo.clone(), new THREE.MeshBasicMaterial({
-    map:getEntityAuraTexture('boss'), color:0xffffff, transparent:true, opacity:final?0.22:0.14,
+    map:getEntityAuraTexture(auraKey), color:0xffffff, transparent:true, opacity:final?0.22:0.14,
     alphaTest:0.08, side:THREE.DoubleSide, depthWrite:false
   }));
   inner.scale.setScalar(0.62); inner.position.y=0.08; inner.rotation.z=Math.PI/8; g.add(inner);
@@ -1093,14 +1127,19 @@ function makeObjectGlow(color, rad, type){
   const g=new THREE.Group();
   const base=type==='chest'?1.0:type==='shrine'?1.2:1.08;
   const geo=new THREE.PlaneGeometry(rad*2.4*base,rad*2.4*base); geo.rotateX(-Math.PI/2);
+  const glowTex=type==='chest'&&tex.fx_item_glow_gen?tex.fx_item_glow_gen:
+                type==='magnet_pillar'&&tex.fx_item_glow_gen?tex.fx_item_glow_gen:
+                type==='portal'&&tex.fx_portal_pulse_gen?tex.fx_portal_pulse_gen:
+                type==='shrine'&&tex.fx_shrine_glow_gen?tex.fx_shrine_glow_gen:
+                getEntityAuraTexture('object');
   const foot=new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
-    map:getEntityAuraTexture('object'), color, transparent:true,
+    map:glowTex, color, transparent:true,
     opacity:type==='chest'?0.34:0.42, alphaTest:0.05, side:THREE.DoubleSide,
     depthWrite:false, blending:THREE.AdditiveBlending
   }));
   foot.position.y=0.045; g.add(foot);
   const core=new THREE.Mesh(geo.clone(), new THREE.MeshBasicMaterial({
-    map:getEntityAuraTexture('object'), color:0xffffff, transparent:true,
+    map:glowTex, color:0xffffff, transparent:true,
     opacity:type==='chest'?0.10:0.16, alphaTest:0.08, side:THREE.DoubleSide,
     depthWrite:false, blending:THREE.AdditiveBlending
   }));
@@ -1122,12 +1161,16 @@ function getLootBeaconTexture(color){
   t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
   lootBeaconTextures.set(color,t); return t;
 }
-function makeLootBeacon(color,tier){
+function makeLootBeacon(color,tier,type){
+  const map=type==='magnet_pillar'&&tex.fx_magnet_beacon_gen?tex.fx_magnet_beacon_gen:
+            type==='chest'&&tex.fx_chest_beacon_gen?tex.fx_chest_beacon_gen:
+            tex.fx_loot_sparkle_gen || getLootBeaconTexture(color);
   const s=new THREE.Sprite(new THREE.SpriteMaterial({
-    map:getLootBeaconTexture(color), color:0xffffff, transparent:true, opacity:0.72,
+    map, color:0xffffff, transparent:true, opacity:0.72,
     alphaTest:0.04, depthWrite:false
   }));
-  s.center.set(0.5,0); s.scale.set(0.28+tier*0.06,2.0+tier*0.35,1);
+  const ar=map && map.image ? map.image.width/map.image.height : 1;
+  s.center.set(0.5,0); s.scale.set((0.36+tier*0.07)*ar,2.0+tier*0.35,1);
   scene.add(s); return s;
 }
 
@@ -1184,6 +1227,16 @@ const SHEETS = {
     idle: { key:'char_priestess_idle', cols:4, rows:8, fps:6 },
     dirRows: [0,7,6,5,4,3,2,1],
   },
+  stormcaller: {
+    walk: { key:'char_stormcaller_walk', cols:6, rows:8, fps:10 },
+    idle: { key:'char_stormcaller_idle', cols:1, rows:8, fps:1 },
+    dirRows: [0,1,2,3,4,5,6,7],
+  },
+  assassin: {
+    walk: { key:'char_assassin_walk', cols:6, rows:8, fps:10 },
+    idle: { key:'char_assassin_idle', cols:1, rows:8, fps:1 },
+    dirRows: [0,1,2,3,4,5,6,7],
+  },
 };
 
 // ---- Playable characters: signature weapon + base stats + per-level passive ----
@@ -1205,6 +1258,10 @@ const CHARACTERS = {
                  stats:{ maxHp:75 }, passive:{ desc:'+2.5% damage / lv', apply:p=>{ p.dmgMul *= 1.025; } } },
   priestess:   { name:'Priestess',   sheet:'priestess',   weapon:'smite',
                  stats:{ maxHp:95, regen:0.4 }, passive:{ desc:'+0.3 regen & heal / lv', apply:p=>{ p.regen += 0.3; p.hp=Math.min(healCap(p),p.hp+10); } } },
+  stormcaller: { name:'Stormcaller', sheet:'stormcaller', weapon:'lightning', portrait:'stormcaller',
+                 stats:{ maxHp:70, critChance:0.08 }, passive:{ desc:'+6% crit dmg / lv', apply:p=>{ p.critDmg += 0.06; } } },
+  assassin:    { name:'Assassin',    sheet:'assassin',    weapon:'dagger', portrait:'assassin',
+                 stats:{ maxHp:65, spd:5.9, critChance:0.12 }, passive:{ desc:'+2% crit chance / lv', apply:p=>{ p.critChance += 0.02; } } },
 };
 let currentChar = 'paladin';
 const MAX_WEAPONS = 3;   // signature + 2
@@ -1248,6 +1305,34 @@ function makeGridState(c) {
   return { map:t, cols:c.cols, rows:c.rows, fps:c.fps };
 }
 
+const PLAYER_VISIBLE_SIZE = { w:0.66, h:1.36 };
+const playerFrameBounds = new Map();
+function alphaBoundsForFirstFrame(base, cols, rows){
+  const key=(base.image&&base.image.src||'')+'|'+cols+'|'+rows;
+  if(playerFrameBounds.has(key)) return playerFrameBounds.get(key);
+  const img=base.image, fw=Math.floor(img.width/cols), fh=Math.floor(img.height/rows);
+  let box=null;
+  try{
+    const cv=document.createElement('canvas'); cv.width=fw; cv.height=fh;
+    const ctx=cv.getContext('2d'); ctx.drawImage(img,0,0,fw,fh,0,0,fw,fh);
+    const data=ctx.getImageData(0,0,fw,fh).data;
+    let minX=fw,minY=fh,maxX=-1,maxY=-1;
+    for(let y=0;y<fh;y++) for(let x=0;x<fw;x++){
+      if(data[(y*fw+x)*4+3] > 12){ if(x<minX)minX=x; if(y<minY)minY=y; if(x>maxX)maxX=x; if(y>maxY)maxY=y; }
+    }
+    if(maxX>=minX && maxY>=minY) box={ w:maxX-minX+1, h:maxY-minY+1, fw, fh };
+  }catch(_){}
+  if(!box) box={ w:fw, h:fh, fw, fh };
+  playerFrameBounds.set(key,box); return box;
+}
+function normalizedPlayerScale(base, cfg){
+  const b=alphaBoundsForFirstFrame(base,cfg.walk.cols,cfg.walk.rows);
+  return {
+    x:PLAYER_VISIBLE_SIZE.w * b.fw / Math.max(1,b.w),
+    y:PLAYER_VISIBLE_SIZE.h * b.fh / Math.max(1,b.h)
+  };
+}
+
 function makePlayer() {
   const C = CHARACTERS[currentChar] || CHARACTERS.paladin;
   const cfg = SHEETS[C.sheet] || SHEETS.player;
@@ -1257,8 +1342,8 @@ function makePlayer() {
     const idle = tex[cfg.idle.key] ? makeGridState(cfg.idle) : walk;
     spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: walk.map, transparent:true, alphaTest:0.4, depthWrite:true }));
     const base = tex[cfg.walk.key];
-    const ar = (base.image.width/cfg.walk.cols) / (base.image.height/cfg.walk.rows);
-    const H = 1.7; spr.center.set(0.5, 0); spr.scale.set(H*ar, H, 1);
+    const scale=normalizedPlayerScale(base,cfg);
+    spr.center.set(0.5, 0); spr.scale.set(scale.x, scale.y, 1);
     anim = { grid:true, walk, idle, dirRows: cfg.dirRows };
   } else {
     spr = billboard('player', 1.7);
@@ -1268,13 +1353,15 @@ function makePlayer() {
   scene.add(spr); scene.add(sh);
   const p = { x:0, z:0, hp:80, maxHp:80, def:5, spd:PLAYER_SPEED,
            level:1, xp:0, xpToNext:xpRequired(1), gold:0, alive:true, moving:false, dir:0,
-           invuln:0, flash:0, hpBarUntil:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, lifesteal:0, knockbackMul:0, lifeMul:1, areaLifeMul:1, projSpeedMul:1, projScale:1, tomeCount:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh, hpbar };
+           invuln:0, flash:0, hpBarUntil:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, lifesteal:0, knockbackMul:0, lifeMul:1, areaLifeMul:1, projSpeedMul:1, projScale:1, critChance:0.05, critDmg:1.5, tomeCount:{}, bansRemaining:3, bannedChoices:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh, hpbar };
   const st = C.stats || {};
   if (st.maxHp!=null){ p.maxHp=st.maxHp; p.hp=st.maxHp; }
   if (st.spd!=null)   p.spd=st.spd;
   if (st.def!=null)   p.def=st.def;
   if (st.magnet!=null)p.magnet=st.magnet;
   if (st.regen!=null) p.regen=st.regen;
+  if (st.critChance!=null) p.critChance=st.critChance;
+  if (st.critDmg!=null) p.critDmg=st.critDmg;
   return p;
 }
 

@@ -18,6 +18,10 @@ const WEAPON_TYPES = {
             dmg:16, rate:1.2, range:15, count:1, pierce:3, speed:24, life:1.6, color:0x8ef06a, shape:'arrow', evolveTo:'arrowX', evolveTome:'velocity' },
   smite:  { name:'Holy Smite',      icon:'wpn_smite',  desc:'Divine strike from above',  mode:'smite',
             dmg:22, rate:0.9, range:10, count:1, pierce:2, speed:14, life:1.4, color:0xfff2c0, radius:1.6, evolveTo:'smiteX', evolveTome:'growth' },
+  lightning:{ name:'Lightning Strike', icon:'wpn_lightning', desc:'Calls lightning onto single targets', mode:'smite',
+            dmg:20, rate:1.15, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25 },
+  dagger: { name:'Throwing Knives', icon:'wpn_dagger', desc:'Fast thrown daggers at nearby foes', mode:'aim',
+            dmg:11, rate:2.4, range:10, count:2, pierce:1, speed:26, life:0.9, color:0xdde7ff, shape:'shard' },
   bladewhirl:{ name:'Blade Wave',   icon:'wpn_bladewhirl',     desc:'Fires curved sword waves', mode:'slash',
             dmg:12, rate:1.8, range:3.6, count:1, pierce:1, speed:8, life:0.38, color:0xff5566, arc:0.45, shape:'crescent', evolveTo:'bladewhirlX', evolveTome:'swiftness' },
   soulspiral:{ name:'Soul Spiral',  icon:'wpn_soulspiral',  desc:'Rotating soul bolts',       mode:'spiral',
@@ -162,10 +166,17 @@ function hitMul(e){
   if (player.killDmgBonus) m *= 1 + player.killDmgBonus;
   return m;
 }
+function rollCrit(){
+  const chance=Math.max(0, Math.min(0.75, player.critChance||0));
+  if(chance<=0 || Math.random()>=chance) return { crit:false, mul:1 };
+  return { crit:true, mul:Math.max(1, player.critDmg||1.5) };
+}
 function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc){
   if (!e.alive) return;
   let d = dmg * hitMul(e);
   if (player.bonkChance && Math.random() < player.bonkChance) d *= 20;   // Big Bonk
+  const crit=rollCrit();
+  if(crit.crit) d *= crit.mul;
   if (e.shieldT > 0) d *= 0.4;                                           // Warden shield
   d = Math.round(d);
   if(e.final && e.finalPhase){
@@ -176,7 +187,7 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc){
     e.hp -= d;
   }
   e.flash = 0.08;
-  spawnDmg(e.x, e.z, d, color);
+  spawnDmg(e.x, e.z, d, color, crit.crit && d > 0);
   if (kbCap){ const kd=Math.hypot(kx,kz)||1, kb=Math.min(kbCap, d*0.045/Math.max(0.5,e.r))*(player.knockbackMul||0);
     e.kx += kx/kd*kb; e.kz += kz/kd*kb; }
   spawnBurst(e.x, e.z, color, 3, 0.5);
@@ -219,6 +230,8 @@ const novaWaves = [];
 let pixelRingTexture=null;
 function getPixelRingTexture(){
   if (pixelRingTexture) return pixelRingTexture;
+  const gen=typeof getSpriteFrameTexture==='function' ? getSpriteFrameTexture('fx_nova_gen',2,4) : null;
+  if(gen){ pixelRingTexture=gen; return gen; }
   const cv=document.createElement('canvas'); cv.width=32; cv.height=32;
   const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
   for(let y=0;y<32;y++) for(let x=0;x<32;x++){

@@ -1,6 +1,23 @@
 let crescentTexture=null;
+const spriteFrameTextures=new Map();
+function getSpriteFrameTexture(key, frame, cols){
+  const src=tex[key];
+  if(!src || !src.image || !src.image.width || !src.image.height) return null;
+  const cacheKey=key+'_'+frame+'_'+cols;
+  if(spriteFrameTextures.has(cacheKey)) return spriteFrameTextures.get(cacheKey);
+  const img=src.image, fw=Math.floor(img.width/cols), fh=img.height;
+  if(fw<=0 || fh<=0) return null;
+  const cv=document.createElement('canvas'); cv.width=fw; cv.height=fh;
+  const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(img, fw*frame, 0, fw, fh, 0, 0, fw, fh);
+  const t=new THREE.CanvasTexture(cv);
+  t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
+  spriteFrameTextures.set(cacheKey,t); return t;
+}
 function getCrescentTexture(){
   if (crescentTexture) return crescentTexture;
+  const gen=getSpriteFrameTexture('fx_slash_gen',2,4);
+  if(gen){ crescentTexture=gen; return gen; }
   const cv=document.createElement('canvas'); cv.width=48; cv.height=24;
   const ctx=cv.getContext('2d');
   ctx.imageSmoothingEnabled=false;
@@ -32,6 +49,14 @@ const pixelProjectileTextures=new Map();
 function getPixelProjectileTexture(shape,color){
   const key=shape+'_'+color;
   if(pixelProjectileTextures.has(key)) return pixelProjectileTextures.get(key);
+  if(shape==='soul'){
+    const gen=getSpriteFrameTexture('fx_soul_gen',2,4);
+    if(gen){ pixelProjectileTextures.set(key,gen); return gen; }
+  }
+  if(shape==='smite'){
+    const gen=getSpriteFrameTexture('fx_smite_gen',2,4);
+    if(gen){ pixelProjectileTextures.set(key,gen); return gen; }
+  }
   const tall=shape==='smite', cv=document.createElement('canvas');
   cv.width=tall?16:32; cv.height=tall?48:16;
   const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
@@ -232,7 +257,7 @@ function spawnObject(type, tier){
   const spr=billboard(key,h); spr.position.set(x, groundHeight(x,z), z); scene.add(spr);
   const gcol = type==='chest' ? [0xffcc66,0x66aaff,0xcc66ff][tier] : type==='shrine' ? [0x6ef0e0,0xff6060,0xffcc00,0x9966ff,0xff8844][tier] : type==='magnet_pillar' ? 0x52e7d1 : 0xffd86a;
   const glow = makeObjectGlow(gcol, type==='chest'?0.9:type==='magnet_pillar'?1.55:1.2, type); glow.position.set(x, groundHeight(x,z), z);
-  const beacon=(type==='chest'||type==='magnet_pillar')?makeLootBeacon(gcol,type==='magnet_pillar'?2:tier):null;
+  const beacon=(type==='chest'||type==='magnet_pillar')?makeLootBeacon(gcol,type==='magnet_pillar'?2:tier,type):null;
   if(beacon) beacon.position.set(x,groundHeight(x,z)+0.1,z);
   interactables.push({ type, tier, x, z, used:false, spr, glow, beacon, baseW:spr.scale.x, baseH:spr.scale.y });
 }
