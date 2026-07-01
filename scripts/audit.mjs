@@ -149,6 +149,9 @@ const apiBuild = (leaderboardSource.match(/REQUIRED_BUILD\s*=\s*"([^"]+)"/) || [
 if (!versionJson.version) fail("version.json has no version");
 if (htmlBuild !== versionJson.version) fail(`index.html build ${htmlBuild || "(missing)"} does not match version.json ${versionJson.version}`);
 if (apiBuild !== versionJson.version) fail(`leaderboard REQUIRED_BUILD ${apiBuild || "(missing)"} does not match version.json ${versionJson.version}`);
+if (!runtimeSource.includes("const APP_VERSION = window.SHADOW_BUILD_VERSION || 'dev';")) {
+  fail("game-runtime.js APP_VERSION must read window.SHADOW_BUILD_VERSION so the reload prompt can clear after refresh");
+}
 
 const derivedManifest = { ...manifest };
 const setManifest = (key, file) => {

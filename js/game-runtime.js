@@ -1,5 +1,5 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
-const APP_VERSION = '20260701-all-weapon-evolves';
+const APP_VERSION = window.SHADOW_BUILD_VERSION || 'dev';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
@@ -95,7 +95,7 @@ async function checkForGameUpdate(){
     const data=await res.json();
     const latest=String(data.version||'').trim();
     const btn=document.getElementById('updatebtn');
-    if(btn && latest && latest!==APP_VERSION) btn.style.display='block';
+    if(btn && latest) btn.style.display = latest!==APP_VERSION ? 'block' : 'none';
   } catch(e){}
 }
 function startVersionCheck(){
