@@ -1,5 +1,5 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
-const APP_VERSION = '20260701-warder-spawn-limit';
+const APP_VERSION = '20260701-warder-buff-cap';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
@@ -208,14 +208,21 @@ function behaviorFor(name){ if(WARDERS.has(name))return'warder'; if(SHOOTERS.has
 function updateWarderAura(e,dt){
   e.wardPulse=(e.wardPulse||0)-dt;
   const radius=6.2;
-  let linked=0;
+  const targets=[];
   forEachNearbyEnemy(e.x,e.z,radius+1,t=>{
     if(!t.alive || t===e || t.isBoss || t.elite) return;
     const dx=t.x-e.x,dz=t.z-e.z;
-    if(dx*dx+dz*dz>(radius+t.r)*(radius+t.r)) return;
-    t.wardedBy=e; t.wardT=0.35; linked++;
-    if(t.spr && t.spr.material) t.spr.material.color.setHex(0xd8a2ff);
+    const dist2=dx*dx+dz*dz;
+    if(dist2>(radius+t.r)*(radius+t.r)) return;
+    targets.push({t,dist2});
   });
+  targets.sort((a,b)=>a.dist2-b.dist2);
+  const linked=Math.min(5,targets.length);
+  for(let i=0;i<linked;i++){
+    const t=targets[i].t;
+    t.wardedBy=e; t.wardT=0.35;
+    if(t.spr && t.spr.material) t.spr.material.color.setHex(0xd8a2ff);
+  }
   if(e.wardPulse<=0){
     e.wardPulse=1.0;
     spawnObjectPulse(e.x,e.z,0x9a55ff,radius,0.55);
