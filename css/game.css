@@ -146,14 +146,25 @@
   .guidehead h2{ color:#fff0bf; font-size:24px; text-shadow:0 1px 2px #000; }
   .guidehead span{ color:#a99eb1; font-size:12px; text-align:right; }
   .guidegrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:10px; }
+  .guidegrid.characters{ grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
   .guidecard{ min-width:0; display:grid; grid-template-columns:44px 1fr; gap:10px; align-items:center;
               background:rgba(28,20,48,.64); border:1px solid rgba(90,74,138,.66); border-radius:6px;
               padding:9px; box-shadow:0 0 14px rgba(0,0,0,.16); }
   .guidecard img{ width:42px; height:42px; object-fit:contain; image-rendering:pixelated; }
-  .guidecard.character img{ width:42px; height:66px; object-fit:contain; align-self:end; }
+  .guidecard.character{ grid-template-columns:58px 1fr; align-items:start; min-height:124px; padding:10px; }
+  .guidecard.character img{ width:54px; height:76px; object-fit:contain; align-self:start; }
+  .guidecard .gctxt{ min-width:0; display:flex; flex-direction:column; gap:5px; }
   .guidecard b{ display:block; color:#fff8e8; font-size:13px; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .guidecard p{ color:#bda8e0; font-size:11px; line-height:1.28; margin-top:3px; }
   .guidecard small{ display:block; color:#8fd0ff; font-size:10px; margin-top:4px; }
+  .guidecard.character b{ white-space:normal; overflow:visible; text-overflow:clip; }
+  .guidecard .gcbio{ margin:0; color:#d8cdae; line-height:1.28; }
+  .guidecard .gcrow{ display:grid; grid-template-columns:54px minmax(0,1fr); gap:7px; align-items:start;
+                     color:#cdbff0; font-size:10px; line-height:1.25; }
+  .guidecard .gcrow span{ color:#8fd0ff; text-transform:uppercase; font-size:9px; }
+  .guidecard .gcrow strong{ color:#efe8ff; font-weight:normal; overflow-wrap:anywhere; }
+  .guidecard .gcrow.passive strong{ color:#ffe08a; }
+  .guidecard.character small{ margin-top:1px; color:#8fd0ff; line-height:1.25; overflow-wrap:anywhere; }
   .guidecard.common{ border-color:rgba(126,207,90,.66); }
   .guidecard.uncommon{ border-color:rgba(90,158,207,.76); }
   .guidecard.rare{ border-color:rgba(207,90,207,.76); }
@@ -211,6 +222,10 @@
     .guidehead h2{ font-size:20px; }
     .guidehead span{ text-align:left; }
     .guidegrid{ grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:8px; }
+    .guidegrid.characters{ grid-template-columns:1fr; gap:9px; }
+    .guidecard.character{ grid-template-columns:52px 1fr; min-height:116px; padding:9px; }
+    .guidecard.character img{ width:48px; height:68px; }
+    .guidecard .gcrow{ grid-template-columns:50px minmax(0,1fr); gap:6px; }
     .titlecontrols{ left:24px; right:24px; bottom:26px; gap:9px 18px; flex-wrap:wrap; }
     .titleversion{ display:none; }
     #leaderboard{ left:24px; right:24px; top:24px; transform:none; width:auto; }

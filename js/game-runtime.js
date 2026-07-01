@@ -1,5 +1,5 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
-const APP_VERSION = '20260701-it-walkfix';
+const APP_VERSION = '20260701-character-guide-layout';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
@@ -466,6 +466,15 @@ function escHtml(s){
 function guideCard(img, name, desc, meta, cls){
   return '<div class="guidecard '+(cls||'')+'"><img src="'+img+'" loading="lazy"><div><b>'+escHtml(name)+'</b><p>'+escHtml(desc)+'</p>'+(meta?'<small>'+escHtml(meta)+'</small>':'')+'</div></div>';
 }
+function guideCharacterCard(img, name, bio, weapon, passive, stats){
+  return '<div class="guidecard character"><img src="'+img+'" loading="lazy"><div class="gctxt">'
+    +'<b>'+escHtml(name)+'</b>'
+    +(bio?'<p class="gcbio">'+escHtml(bio)+'</p>':'')
+    +'<div class="gcrow"><span>Weapon</span><strong>'+escHtml(weapon)+'</strong></div>'
+    +'<div class="gcrow passive"><span>Passive</span><strong>'+escHtml(passive)+'</strong></div>'
+    +(stats?'<small>'+escHtml(stats)+'</small>':'')
+    +'</div></div>';
+}
 function openGuide(kind){
   const guide=document.getElementById('guide'), body=document.getElementById('guidebody');
   if(!guide||!body) return;
@@ -482,7 +491,7 @@ function openGuide(kind){
         stats.def?'DEF '+stats.def:null,
         stats.regen?'Regen '+stats.regen:null
       ].filter(Boolean).join(' / ');
-      return guideCard(characterPortrait(key), c.name, (c.bio?c.bio+' ':'')+(w.name||c.weapon)+' - '+c.passive.desc, statLine, 'character');
+      return guideCharacterCard(characterPortrait(key), c.name, c.bio||'', w.name||c.weapon, c.passive.desc, statLine);
     }).join('');
   } else if(kind==='weapons'){
     title='อาวุธ';
@@ -506,7 +515,7 @@ function openGuide(kind){
       guideCard('assets/sprites/'+it.icon+'.png', it.name, it.desc, it.rarity, it.rarity)
     ).join('');
   }
-  body.innerHTML='<div class="guidehead"><h2>'+escHtml(title)+'</h2><span>'+escHtml(note)+'</span></div><div class="guidegrid">'+cards+'</div>';
+  body.innerHTML='<div class="guidehead"><h2>'+escHtml(title)+'</h2><span>'+escHtml(note)+'</span></div><div class="guidegrid '+escHtml(kind)+'">'+cards+'</div>';
   guide.style.display='flex';
 }
 function closeGuide(){
