@@ -194,7 +194,29 @@
   .rankno{ color:#e5b55a; font-weight:bold; font-size:13px; text-align:center; }
   .rankwho{ min-width:0; }
   .rankwho b{ display:flex; align-items:center; gap:5px; color:#fff8e8; font-size:13px; line-height:1.1; overflow:hidden; white-space:nowrap; }
-  .rankflag{ flex:0 0 auto; font-size:14px; line-height:1; filter:drop-shadow(0 1px 1px #000); }
+  .rankflag{ flex:0 0 auto; display:inline-flex; align-items:center; line-height:1; filter:drop-shadow(0 1px 1px #000); }
+  .cflag{ position:relative; display:inline-block; width:22px; height:14px; overflow:hidden; border:1px solid rgba(255,255,255,.26);
+    border-radius:2px; background:#1b1430; box-shadow:inset 0 0 0 1px rgba(0,0,0,.18); vertical-align:-2px; }
+  .cflag b{ display:none; }
+  .cflag-th{ background:linear-gradient(to bottom,#a51931 0 16%,#f4f5f8 16% 30%,#2d2a4a 30% 70%,#f4f5f8 70% 84%,#a51931 84%); }
+  .cflag-us{ background:repeating-linear-gradient(to bottom,#b22234 0 7.69%,#fff 7.69% 15.38%); }
+  .cflag-us::after{ content:""; position:absolute; left:0; top:0; width:42%; height:54%; background:#3c3b6e; }
+  .cflag-jp{ background:radial-gradient(circle at 50% 50%,#bc002d 0 28%,transparent 29%),#fff; }
+  .cflag-kr{ background:radial-gradient(circle at 50% 43%,#cd2e3a 0 19%,transparent 20%),radial-gradient(circle at 50% 57%,#0047a0 0 19%,transparent 20%),#fff; }
+  .cflag-cn{ background:radial-gradient(circle at 28% 30%,#ffde00 0 9%,transparent 10%),#de2910; }
+  .cflag-sg{ background:radial-gradient(circle at 26% 28%,#fff 0 11%,transparent 12%),linear-gradient(to bottom,#ef3340 0 50%,#fff 50%); }
+  .cflag-my{ background:repeating-linear-gradient(to bottom,#cc0001 0 7.14%,#fff 7.14% 14.28%); }
+  .cflag-my::after{ content:""; position:absolute; left:0; top:0; width:46%; height:58%; background:#010066; }
+  .cflag-id{ background:linear-gradient(to bottom,#ce1126 0 50%,#fff 50%); }
+  .cflag-ph{ background:linear-gradient(146deg,#fff 0 32%,transparent 33%),linear-gradient(to bottom,#0038a8 0 50%,#ce1126 50%); }
+  .cflag-vn{ background:radial-gradient(circle at 50% 50%,#ffdf00 0 13%,transparent 14%),#da251d; }
+  .cflag-gb{ background:linear-gradient(to right,transparent 0 42%,#fff 42% 58%,transparent 58%),linear-gradient(to bottom,transparent 0 35%,#fff 35% 65%,transparent 65%),#012169; }
+  .cflag-gb::after{ content:""; position:absolute; inset:0; background:linear-gradient(to right,transparent 0 46%,#c8102e 46% 54%,transparent 54%),linear-gradient(to bottom,transparent 0 42%,#c8102e 42% 58%,transparent 58%); }
+  .cflag-fr{ background:linear-gradient(to right,#0055a4 0 33.33%,#fff 33.33% 66.66%,#ef4135 66.66%); }
+  .cflag-de{ background:linear-gradient(to bottom,#000 0 33.33%,#dd0000 33.33% 66.66%,#ffce00 66.66%); }
+  .cflag-br{ background:radial-gradient(circle at 50% 50%,#002776 0 16%,transparent 17%),linear-gradient(35deg,transparent 0 35%,#ffdf00 36% 50%,transparent 51%),linear-gradient(145deg,transparent 0 35%,#ffdf00 36% 50%,transparent 51%),#009b3a; }
+  .cflag-au{ background:#012169; }
+  .cflag-au::after{ content:""; position:absolute; right:21%; top:29%; width:4px; height:4px; border-radius:50%; background:#fff; box-shadow:7px 4px 0 #fff,2px 9px 0 #fff; }
   .rankname{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .rankwho > span{ display:block; color:#a99eb1; font-size:10px; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .rankscore{ color:#ffe08a; font-weight:bold; font-size:13px; text-align:right; white-space:nowrap; }

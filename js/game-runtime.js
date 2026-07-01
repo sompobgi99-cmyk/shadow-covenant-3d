@@ -424,7 +424,7 @@ function cleanCountryCode(v){
 }
 function countryFlag(code){
   const cc=cleanCountryCode(code);
-  return String.fromCodePoint(...[...cc].map(ch=>0x1f1e6 + ch.charCodeAt(0) - 65));
+  return '<i class="cflag cflag-'+cc.toLowerCase()+'" title="'+cc+'"><b>'+cc+'</b></i>';
 }
 function openPlayerSetup(){
   closeGuide();
