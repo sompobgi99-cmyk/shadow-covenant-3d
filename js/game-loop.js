@@ -1,5 +1,47 @@
 // ---------- loop ----------
 let frameN=0;
+function rotateProjectileToVelocity(p){
+  if(p && p.orient && p.mesh && p.mesh.material) p.mesh.material.rotation=-Math.atan2(p.dz,p.dx);
+}
+function ricochetTarget(p, origin){
+  if(!p || !origin || !p.bounceRadius) return null;
+  let best=null, bd=(p.bounceRadius||8);
+  forEachNearbyEnemy(origin.x, origin.z, bd+2, e=>{
+    if(!e.alive || p.hit.has(e)) return;
+    const dx=e.x-origin.x, dz=e.z-origin.z;
+    const d=Math.hypot(dx,dz);
+    if(d<0.25 || d>bd+e.r) return;
+    if(!best || d<bd){ best=e; bd=d; }
+  });
+  return best;
+}
+function projectileImpactSplash(p, e){
+  if(!p || !e || !p.impactRadius) return;
+  const radius=p.impactRadius;
+  const dmg=Math.max(1, Math.round(p.dmg*(p.impactDmgMul||0.45)));
+  spawnRing(e.x, e.z, p.color||0xffaa44, radius*1.8, 0.25);
+  spawnBurst(e.x, e.z, p.color||0xffaa44, 8, 0.75);
+  forEachNearbyEnemy(e.x, e.z, radius+1, t=>{
+    if(!t.alive || t===e) return;
+    const dx=t.x-e.x, dz=t.z-e.z;
+    if(dx*dx+dz*dz < (radius+t.r)*(radius+t.r))
+      dealEnemyDamage(t, dmg, p.color, dx, dz, 2.4, true, { weapon:p.sourceKey });
+  });
+}
+function tryProjectileRicochet(p, fromEnemy){
+  if(!p || (p.bouncesLeft||0)<=0) return false;
+  const target=ricochetTarget(p, fromEnemy);
+  if(!target) return false;
+  const dx=target.x-p.x, dz=target.z-p.z, len=Math.hypot(dx,dz)||1;
+  p.dx=dx/len; p.dz=dz/len;
+  p.dmg=Math.max(1, Math.round(p.dmg*(p.bounceDmgMul||0.88)));
+  p.bouncesLeft--;
+  p.life=Math.max(p.life, Math.min(0.9, Math.max(0.28, len/Math.max(1,p.speed)+0.16)));
+  rotateProjectileToVelocity(p);
+  spawnRing(fromEnemy.x, fromEnemy.z, p.color||0xffffff, 1.15, 0.18);
+  spawnBurst(fromEnemy.x, fromEnemy.z, p.color||0xffffff, 4, 0.42);
+  return true;
+}
 function frame() {
   frameN++;
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -15,11 +57,15 @@ function update(dt) {
   updateAltar(dt);
   if (globalPickupMagnet>0) globalPickupMagnet=Math.max(0, globalPickupMagnet-dt);
   updateSpecialEvents(dt);
+  updateOvertimeWarning();
+  if(updateFinalBossDeadline()) return;
 
   if (player.dashCd > 0) player.dashCd -= dt;
 
   // shrine buffs
   if (player.speedBoostTimer > 0) { player.speedBoostTimer -= dt; if (player.speedBoostTimer <= 0) player.speedBoost = 0; }
+  if (player.pickupSpeedTimer > 0) { player.pickupSpeedTimer -= dt; if (player.pickupSpeedTimer <= 0) player.pickupSpeedBoost = 0; }
+  if (player.pickupDmgTimer > 0) { player.pickupDmgTimer -= dt; if (player.pickupDmgTimer <= 0) player.pickupDmgBoost = 0; }
 
   // input -> screen-aligned movement (W = away/-Z), equal speed all dirs
   let mx=0, mz=0;
@@ -39,7 +85,7 @@ function update(dt) {
   let moveX, moveZ;
   if (player.dashTime > 0){ player.dashTime -= dt; moveX = player.dashX*DASH_SPEED; moveZ = player.dashZ*DASH_SPEED;
     player.trailT -= dt; if (player.trailT <= 0){ spawnAfterimage(); player.trailT = 0.02; } }
-  else if (player.moving){ const spd=player.spd*(1+(player.speedBoost||0)); moveX = mx*spd; moveZ = mz*spd; }
+  else if (player.moving){ const spd=player.spd*(1+(player.speedBoost||0)+(player.pickupSpeedBoost||0)); moveX = mx*spd; moveZ = mz*spd; }
   if (moveX !== undefined){
     const nx = clamp(player.x + moveX*dt, -MAP_BOUND, MAP_BOUND);
     const nz = clamp(player.z + moveZ*dt, -MAP_BOUND, MAP_BOUND);
@@ -62,16 +108,17 @@ function update(dt) {
 
   // standing-still item effects (Idle Juice tracked via stillT, Campfire heal)
   if (player.moving) player.stillT = 0; else player.stillT = (player.stillT||0) + dt;
-  if (player._campfire && !player.moving) player.hp = Math.min(healCap(player), player.hp + 2*player._campfire*dt);
+  if (player._campfire && !player.moving){ const before=player.hp; player.hp = Math.min(healCap(player), player.hp + 2*player._campfire*dt); const healed=player.hp-before; if(healed>0) recordRunItem('campfire',{ heal:healed }); }
   // Energy Core: pulsing damage aura
   if (player._energyCore){
     player._energyTick = (player._energyTick||0) - dt;
     if (player._energyTick <= 0){ player._energyTick = 0.5;
       const r = 2.4 + 0.3*player._energyCore, dmg = 6*player._energyCore*(player.dmgMul||1);
+      recordRunItem('energy_core',{ procs:1 });
       spawnRing(player.x, player.z, 0x66ddff, r*1.4, 0.3);
       forEachNearbyEnemy(player.x, player.z, r+1, e=>{ if(!e.alive) return;
         const dx=e.x-player.x, dz=e.z-player.z;
-        if (dx*dx+dz*dz < (r+e.r)*(r+e.r)) dealEnemyDamage(e, dmg, 0x66ddff, dx, dz, 0, true); });
+        if (dx*dx+dz*dz < (r+e.r)*(r+e.r)) dealEnemyDamage(e, dmg, 0x66ddff, dx, dz, 0, true, { item:'energy_core' }); });
     }
   }
 
@@ -88,6 +135,7 @@ function update(dt) {
     if (e.burnT>0){
       e.burnT-=dt;
       const burnDamage=(e.final&&e.phaseInvuln>0)?0:e.burnDps*dt;
+      if(burnDamage>0) recordRunDamage(burnDamage,{ item:'dragonfire' });
       const floor=(e.final&&e.finalPhase&&(e.finalPhase>1||e.phaseInvuln>0))?1:-Infinity;
       e.hp=Math.max(floor,e.hp-burnDamage);
       e.flash=Math.max(e.flash,0.04);
@@ -147,7 +195,7 @@ function update(dt) {
     if (e.flash>0) e.flash-=dt;
     if (e.skills) runSkills(e, dt, nx, nz, d);
     if (d < e.r+0.75 && e.cd<=0){
-      hurtPlayer(e.atk,nx,nz,e.isBoss?13:e.elite?11:8.5,e);
+      hurtPlayer(e.atk,nx,nz,e.isBoss?13:e.elite?11:8.5,e,e.isBoss?'boss contact':e.elite?'miniboss contact':'monster contact');
       e.cd=e.isBoss?1.15:1.35;
       e.kx-=nx*1.2; e.kz-=nz*1.2;
     }
@@ -191,7 +239,7 @@ function update(dt) {
         const radius=e.r+width;
         if (sideX*sideX+sideZ*sideZ < radius*radius){
           p.hit.add(e);
-          dealEnemyDamage(e, p.dmg, p.color, p.dx, p.dz, 2.2);
+          dealEnemyDamage(e, p.dmg, p.color, p.dx, p.dz, 2.2, false, { weapon:p.sourceKey });
           if (p.hit.size > p.pierce){ p.alive=false; return false; }
         }
       });
@@ -210,8 +258,12 @@ function update(dt) {
       const radius=e.r+(p.hitRadius||0.4)*(p.scale||1);
       if (dx*dx+dz*dz < radius*radius) {
         p.hit.add(e);
-        dealEnemyDamage(e, p.dmg, p.color, p.dx, p.dz, 4.5);
-        if (p.hit.size > p.pierce){ p.alive=false; return false; }
+        dealEnemyDamage(e, p.dmg, p.color, p.dx, p.dz, 4.5, false, { weapon:p.sourceKey });
+        projectileImpactSplash(p, e);
+        if (p.hit.size > p.pierce){
+          if(tryProjectileRicochet(p, e)) return false;
+          p.alive=false; return false;
+        }
       }
     });
   }
@@ -254,7 +306,7 @@ function update(dt) {
     if (frameN%6===0) spawnTrail(sh.x, sh.z, sh.color||0xff5066, sh.trailScale||0.48);
     if (sh.life<=0 || blocked(sh.x,sh.z)){ sh.alive=false; continue; }
     const hitR=sh.hitRadius||0.46;
-    if ((sh.x-player.x)*(sh.x-player.x)+(sh.z-player.z)*(sh.z-player.z) < hitR*hitR){ hurtPlayer(sh.dmg,sh.dx,sh.dz,6.5); sh.alive=false; spawnBurst(sh.x,sh.z,sh.color||0xff5066,4,0.5); } }
+    if ((sh.x-player.x)*(sh.x-player.x)+(sh.z-player.z)*(sh.z-player.z) < hitR*hitR){ hurtPlayer(sh.dmg,sh.dx,sh.dz,6.5,sh.source,'projectile'); sh.alive=false; spawnBurst(sh.x,sh.z,sh.color||0xff5066,4,0.5); } }
   for (let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.life-=dt;
     if (p.life<=0){ scene.remove(p.mesh); freeObj(p.mesh); particles.splice(i,1); continue; }
     p.vy-=12*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.z+=p.vz*dt; if(p.y<0.1){ p.y=0.1; p.vy*=-0.3; }
@@ -283,7 +335,7 @@ function update(dt) {
     }
     if(a.t<a.delay) continue;
     const dx=player.x-a.x, dz=player.z-a.z, dist=Math.hypot(dx,dz);
-    if(dist<a.radius+0.45) hurtPlayer(a.damage,dx/(dist||1),dz/(dist||1),a.knock||12,a.src);
+    if(dist<a.radius+0.45) hurtPlayer(a.damage,dx/(dist||1),dz/(dist||1),a.knock||12,a.src,'AoE');
     spawnBossImpactFx(a.x,a.z,a.radius,a.color,a.impact);
     spawnRing(a.x,a.z,a.color,a.radius*1.65,0.36);
     spawnObjectPulse(a.x,a.z,a.color,a.radius*1.45,0.42);
@@ -312,7 +364,7 @@ function update(dt) {
     if (w.wash) w.wash.material.opacity=0.16*no;
     forEachNearbyEnemy(w.x,w.z,w.r+1,e=>{ if(!e.alive||w.hit.has(e)) return;
       const dd=Math.hypot(e.x-w.x, e.z-w.z);
-      if (Math.abs(dd-w.r) < e.r+0.6){ w.hit.add(e); dealEnemyDamage(e, w.dmg, w.color, e.x-w.x, e.z-w.z, 4); } });
+      if (Math.abs(dd-w.r) < e.r+0.6){ w.hit.add(e); dealEnemyDamage(e, w.dmg, w.color, e.x-w.x, e.z-w.z, 4, false, { weapon:w.sourceKey }); } });
     if (w.r>=w.maxR){ scene.remove(w.mesh); freeObj(w.mesh); novaWaves.splice(i,1); } }
   for (let i=slashFx.length-1;i>=0;i--){ const f=slashFx[i]; f.life-=dt;
     if (f.life<=0){ scene.remove(f.mesh); freeObj(f.mesh); slashFx.splice(i,1); continue; }

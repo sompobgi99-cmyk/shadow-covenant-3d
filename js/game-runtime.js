@@ -46,6 +46,12 @@ const PARTICLE_GEO = new THREE.BoxGeometry(0.14,0.14,0.14);
 const trails=[]; const TRAIL_GEO=new THREE.BoxGeometry(0.14,0.14,0.14);
 const dmgNums=[];
 const damageScreenPos=new THREE.Vector3();
+function spriteSrc(key){
+  const src = SP + (MANIFEST[key] || (key + '.png'));
+  if (src.includes('?')) return src;
+  const v = (typeof window !== 'undefined' && window.SHADOW_BUILD_VERSION) ? window.SHADOW_BUILD_VERSION : 'local';
+  return src + '?v=' + encodeURIComponent(v);
+}
 function spawnDmg(x,z,amount,color,crit,kind){
   if (dmgNums.length>36) return;
   const cls=['dn'];
@@ -60,14 +66,14 @@ function spawnDmg(x,z,amount,color,crit,kind){
 }
 let weaponSig=null;
 function updateWeaponHUD(){
-  const sig = player.weapons.map(w=>w.key+w.lvl).join(',');
+  const sig = player.weapons.map(w=>w.key+w.lvl+evolveStateForWeapon(w).state).join(',')+'|'+Object.entries(player.tomeCount||{}).map(([k,v])=>k+v).join(',');
   if (sig===weaponSig) return; weaponSig=sig;
   const wrap=document.getElementById('weapons'); wrap.innerHTML='';
   for (let i=0;i<MAX_WEAPONS;i++){
     const w=player.weapons[i];
     const d=document.createElement('div');
-    if (w){ const t=WEAPON_TYPES[w.key]||{}; d.className='wslot'+(w.evolved?' evo':''); d.title=t.name||w.key;
-      d.innerHTML='<img src="assets/sprites/'+t.icon+'.png"><span>Lv'+w.lvl+'</span>'; }
+    if (w){ const t=WEAPON_TYPES[w.key]||{}, ev=evolveStateForWeapon(w); d.className='wslot'+(w.evolved?' evo':'')+(ev.state!=='none'?' ev-'+ev.state:''); d.title=(t.name||w.key)+(ev.text?' - '+ev.text:'');
+      d.innerHTML='<img src="'+escHtml(spriteSrc(t.icon))+'"><span>Lv'+w.lvl+'</span>'; }
     else { d.className='wslot empty'; d.title='ช่องอาวุธว่าง'; d.textContent='+'; }
     wrap.appendChild(d);
   }
@@ -76,14 +82,14 @@ let tomeSig=null;
 function updateTomeHUD(){
   const tc=player.tomeCount||{};
   const ids=Object.keys(tc).filter(id=>tc[id]>0);
-  const sig=ids.map(id=>id+tc[id]).join(',');
+  const sig=ids.map(id=>id+tc[id]+evolveStateForTome(id).state).join(',')+'|'+player.weapons.map(w=>w.key+w.lvl).join(',');
   if (sig===tomeSig) return; tomeSig=sig;
   const wrap=document.getElementById('tomes'); if(!wrap) return; wrap.innerHTML='';
   for (let i=0;i<MAX_TOMES;i++){
     const id=ids[i];
     const d=document.createElement('div');
-    if (id){ const u=UPGRADES.find(x=>x.id===id)||{}; d.className='tslot'; d.title=(u.name||id)+' — '+(u.desc||'');
-      d.innerHTML='<img src="assets/sprites/'+u.icon+'.png"><span>×'+tc[id]+'</span>'; }
+    if (id){ const u=UPGRADES.find(x=>x.id===id)||{}, ev=evolveStateForTome(id); d.className='tslot'+(ev.state!=='none'?' ev-'+ev.state:''); d.title=(u.name||id)+' - '+(u.desc||'')+(ev.text?' - '+ev.text:'');
+      d.innerHTML='<img src="'+escHtml(spriteSrc(u.icon))+'"><span>×'+tc[id]+'</span>'; }
     else { d.className='tslot empty'; d.title='ช่อง tome ว่าง'; d.textContent='+'; }
     wrap.appendChild(d);
   }
@@ -114,14 +120,16 @@ function updateObjective(){
   let cur=1; if(altar){ if(altar.state==='boss') cur=2; else if(altar.state==='portal') cur=3; }
   const bossName = boss ? boss.name : 'บอส';
   const finalStage = mapStage>=3;
+  const deadlineLeft = finalStage && finalBossKilledAt==null ? Math.max(0, Math.ceil(RUN_TARGET-stageTime())) : null;
   const steps=[
     'ไปแท่นบูชา · กด F เรียกบอส',
     'กำจัด '+bossName,
     finalStage ? 'เข้าวาป — ชนะ!' : 'เข้าวาปไปด่านต่อไป'
   ];
-  const sig=mapStage+'|'+cur+'|'+bossName;
+  const sig=mapStage+'|'+cur+'|'+bossName+'|'+deadlineLeft;
   if(sig===objSig) return; objSig=sig;
   let html='<div class="qhead">🎯 ด่าน '+mapStage+'/3</div>';
+  if(deadlineLeft!=null) html+='<div class="qstep active">TIME LIMIT '+fmt(deadlineLeft)+'</div>';
   steps.forEach((s,idx)=>{ const n=idx+1, cls=n<cur?'done':(n===cur?'active':'');
     const mark=n<cur?'✓':(n===cur?'▶':'○');
     html+='<div class="qstep '+cls+'">'+mark+' '+s+'</div>';
@@ -199,7 +207,7 @@ function spawnEnemyShot(x, z, dx, dz, dmg, opts){
     const core=new THREE.Mesh(new THREE.SphereGeometry(opts.coreSize||0.12,8,8), new THREE.MeshBasicMaterial({ color:coreColor, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending, depthWrite:false }));
     m.add(glow); m.add(core);
   }
-  scene.add(m); enemyShots.push({ x, z, dx, dz, speed:opts.speed||9, dmg, life:opts.life||3, alive:true, mesh:m, color, hitRadius:opts.hitRadius||0.46, trailScale:opts.trailScale||0.48 });
+  scene.add(m); enemyShots.push({ x, z, dx, dz, speed:opts.speed||9, dmg, life:opts.life||3, alive:true, mesh:m, color, source:opts.source||null, hitRadius:opts.hitRadius||0.46, trailScale:opts.trailScale||0.48 });
 }
 const SHOOTERS  = new Set(['Swamp Witch','Shadow Weaver','Dark Apostle','Toxic Spore','Abyssal Horror','Grave Arbalist','Mire Hexer','Rift Needler','Doom Cantor']);
 const CHARGERS  = new Set(['Wraith','Dire Bat','Chaos Wisp','Willow Wisp','Rift Phantom','Nether Drake']);
@@ -237,24 +245,23 @@ function isDeathWarded(e){
 function enemyShoot(e,nx,nz){
   const base=Math.atan2(nz,nx);
   if(e.name==='Grave Arbalist'){
-    spawnEnemyShot(e.x,e.z,nx,nz,Math.round(e.atk*1.05),{ speed:13.5, life:2.2, color:0xd8c08a, coreColor:0xffedb0, shape:'arrow', hitRadius:0.34, trailScale:0.36 });
-    e.atkCd=1.20+Math.random()*0.30;
+    spawnEnemyShot(e.x,e.z,nx,nz,Math.round(e.atk*1.05),{ source:e, speed:13.5, life:2.2, color:0xd8c08a, coreColor:0xffedb0, shape:'arrow', hitRadius:0.34, trailScale:0.36 });
+    e.atkCd=1.45+Math.random()*0.40;
   } else if(e.name==='Mire Hexer'){
-    for(let k=-1;k<=1;k++){ const a=base+k*0.22; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.86),{ speed:7.2, life:3.5, color:0x45d66a, coreColor:0xa8ffc0, hitRadius:0.42, trailScale:0.44 }); }
-    e.atkCd=2.25+Math.random()*0.55;
+    for(const k of [-0.5,0.5]){ const a=base+k*0.26; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.9),{ source:e, speed:7.2, life:3.2, color:0x45d66a, coreColor:0xa8ffc0, hitRadius:0.40, trailScale:0.40 }); }
+    e.atkCd=2.70+Math.random()*0.70;
   } else if(e.name==='Rift Needler'){
-    for(let k=-2;k<=2;k++){
-      if(Math.abs(k)===2 && Math.random()<0.35) continue;
-      const a=base+k*0.10;
-      spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.72),{ speed:12.5, life:2.4, color:0x7c8dff, coreColor:0xd8e4ff, glowSize:0.20, coreSize:0.09, hitRadius:0.34, trailScale:0.34 });
+    for(let k=-1;k<=1;k++){
+      const a=base+k*0.12;
+      spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.76),{ source:e, speed:12.5, life:2.2, color:0x7c8dff, coreColor:0xd8e4ff, glowSize:0.18, coreSize:0.08, hitRadius:0.32, trailScale:0.30 });
     }
-    e.atkCd=1.75+Math.random()*0.35;
+    e.atkCd=2.20+Math.random()*0.45;
   } else if(e.name==='Doom Cantor'){
-    const n=10, off=gameTime*0.8;
-    for(let i=0;i<n;i++){ const a=off+(i/n)*Math.PI*2; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.7),{ speed:5.8, life:4.2, color:0x9a55ff, coreColor:0xff75b7, glowSize:0.24, coreSize:0.11, hitRadius:0.44, trailScale:0.44 }); }
-    e.atkCd=4.0+Math.random()*0.8;
+    const n=7, off=gameTime*0.8;
+    for(let i=0;i<n;i++){ const a=off+(i/n)*Math.PI*2; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.74),{ source:e, speed:5.5, life:3.8, color:0x9a55ff, coreColor:0xff75b7, glowSize:0.22, coreSize:0.10, hitRadius:0.40, trailScale:0.38 }); }
+    e.atkCd=4.8+Math.random()*0.9;
   } else {
-    spawnEnemyShot(e.x, e.z, nx, nz, e.atk);
+    spawnEnemyShot(e.x, e.z, nx, nz, e.atk, { source:e });
     e.atkCd=1.8+Math.random()*0.8;
   }
 }
@@ -330,16 +337,28 @@ function moveEnemyAroundObstacles(e,mvx,mvz,dt){
 }
 const keys = {};
 let gameTime = 0, kills = 0, gameOver = false, score = 0, damageTaken = 0, scoreFinalized = false, lastScoreEntry = null;
+let runStats = null;
 let stageStartTime = 0;                       // gameTime when the current stage began
 function stageTime(){ return gameTime - stageStartTime; }   // per-stage clock (resets each map)
 function healCap(p){ return Math.round(p.maxHp*(1+(p.overheal||0))); }   // Chonkplate lets HP exceed max
-// Overtime escalation: entering OT starts at x4, then quadruples again every 30 seconds.
-function overtimeLevel(){ const ot=stageTime()-RUN_TARGET; return ot<=0 ? 0 : Math.floor(ot/30)+1; }
-function otPowerMul(){ return Math.pow(4, overtimeLevel()); }
+// Overtime escalation is map-specific. Map 3 starts only after the final boss dies.
+function overtimeBase(){ return mapStage>=3 ? 4 : mapStage>=2 ? 3 : 2; }
+function overtimeElapsed(){
+  if(mapStage>=3) return finalBossKilledAt==null ? -1 : gameTime-finalBossKilledAt;
+  return stageTime()-RUN_TARGET;
+}
+function overtimeLevel(){
+  const ot=overtimeElapsed();
+  if(mapStage>=3) return ot<0 ? 0 : Math.floor(ot/30)+1;
+  return ot<=0 ? 0 : Math.floor(ot/30)+1;
+}
+function otPowerMul(){ const level=overtimeLevel(); return level ? Math.pow(overtimeBase(), level) : 1; }
 function overtimeEnemyCap(){ return overtimeLevel() ? Math.min(520, 320 + (overtimeLevel()-1)*50) : 320; }
 let globalPickupMagnet = 0;
 let waveTimer = 0, waveInterval = 3.2, enemiesPerWave = 2, maxEnemies = 18;
 let nextHordeAt = 240, hordeRemaining = 0, hordeSpawnTimer = 0, hordeNumber = 0, hordeSpawned = 0, hordeWarned = false;
+let overtimeWarnStage = 0;
+let finalBossWarnStage = 0;
 let relocationCursor = 0;
 let mbTimer = 0;
 let nextMinibossAt = 180;
@@ -347,6 +366,7 @@ const MINIBOSS_INTERVAL = 55;
 const RUN_TARGET = 600;            // 10:00 clear target
 let mapStage = 1;
 let won = false, altar = null, boss = null;
+let finalBossKilledAt = null;
 let started = false;   // false until a character is chosen
 let composer = null;   // bloom post-processing
 let versionCheckTimer = null;
@@ -370,21 +390,22 @@ function buildPauseInfo(){
   const C=CHARACTERS[player.char]||{};
   let h='<div class="piw">';
   for (const w of player.weapons){ const t=WEAPON_TYPES[w.key]; if(!t) continue;
-    h+='<div class="piwslot'+(w.evolved?' evo':'')+'"><img src="assets/sprites/'+t.icon+'.png"><div class="pn">'+t.name+'</div><div class="pl">Lv '+w.lvl+'</div></div>'; }
+    h+='<div class="piwslot'+(w.evolved?' evo':'')+'"><img src="'+escHtml(spriteSrc(t.icon))+'"><div class="pn">'+t.name+'</div><div class="pl">Lv '+w.lvl+'</div></div>'; }
   h+='</div><div class="pist">'+(C.name||'')+' \u00b7 Lv '+player.level+' \u00b7 HP '+Math.ceil(player.hp)+'/'+player.maxHp
-    +' \u00b7 SPD '+player.spd.toFixed(1)+' \u00b7 CRIT '+Math.round((player.critChance||0)*100)+'%/'+Math.round((player.critDmg||1.5)*100)+'%</div>';
+    +' \u00b7 SPD '+player.spd.toFixed(1)+' \u00b7 DASH '+Math.round(100*(player.dashCdMul||1))+'% CD/'+Math.round(100*(player.dashDistMul||1))+'% DIST'
+    +' \u00b7 CRIT '+Math.round((player.critChance||0)*100)+'%/'+Math.round((player.critDmg||1.5)*100)+'%</div>';
   // items list
   if (player.items.length) {
     h+='<div style="margin-top:8px;color:#ffe08a;font-size:12px">Items ('+player.items.length+')</div>';
-    const counts={}; for(const it of player.items) counts[it.name]=(counts[it.name]||0)+1;
-    for(const [name,n] of Object.entries(counts)){
-      const it=player.items.find(i=>i.name===name);
-      const rc={common:'Common',uncommon:'Uncommon',rare:'Rare',legendary:'Legendary'};
-      h+='<div style="color:#cdbff0;font-size:11px">'+it.name+(n>1?' x'+n:'')+' - '+it.desc+'</div>';
+    h+='<div class="piitems">';
+    for(const s of itemStacks()){
+      const it=s.item;
+      h+='<div class="piitem '+escHtml(it.rarity||'common')+'"><img src="'+escHtml(spriteSrc(it.icon))+'"><div><b>'+escHtml(it.name)+'</b><p>'+escHtml(it.desc)+'</p></div><span>x'+s.count+'</span></div>';
     }
+    h+='</div>';
   }
   if (player.relics && player.relics.length) {
-    h+='<div style="margin-top:8px;color:#ffd86a;font-size:12px">Relics</div>';
+    h+='<div style="margin-top:8px;color:#ffd86a;font-size:12px">Relic</div>';
     for(const r of player.relics) h+='<div style="color:#d7c18a;font-size:11px">'+r.name+' - '+r.desc+'</div>';
   }
   el.innerHTML=h;
@@ -402,9 +423,9 @@ function tryDash(){
   let dx=player.ldx, dz=player.ldz;
   if (!dx && !dz){ dx=player.face||1; dz=0; }
   const l=Math.hypot(dx,dz)||1; player.dashX=dx/l; player.dashZ=dz/l;
-  player.dashTime=DASH_DUR; player.dashCd=DASH_CD;
+  player.dashTime=DASH_DUR*(player.dashDistMul||1); player.dashCd=DASH_CD*(player.dashCdMul||1);
   sfx('dash');
-  player.invuln=Math.max(player.invuln, DASH_DUR+0.08);   // i-frames while dashing
+  player.invuln=Math.max(player.invuln, player.dashTime+0.08+(player.dashInvulnBonus||0));   // i-frames while dashing
 }
 function quitToTitle(){
   started=false; userPaused=false; paused=false; gameOver=false; won=false; pendingUps=0;
@@ -425,6 +446,51 @@ function cleanCountryCode(v){
 function countryFlag(code){
   const cc=cleanCountryCode(code);
   return '<i class="cflag cflag-'+cc.toLowerCase()+'" title="'+cc+'"><b>'+cc+'</b></i>';
+}
+function resetRunStats(){
+  runStats = { startedAt:Date.now(), weaponDamage:{}, itemStats:{}, damageTakenBy:{}, lastHit:null, deathCause:null };
+}
+function statName(kind,key){
+  if(kind==='weapon'){
+    const w=WEAPON_TYPES[key]||{};
+    return w.name||key||'อาวุธไม่ทราบชื่อ';
+  }
+  const special={ hp_orb:'HP Orb', lifesteal:'Lifesteal', orbit:'Orbiting Skull Guard', orbitX:'Death Orbit Guard' };
+  if(special[key]) return special[key];
+  const it=(typeof ITEMS!=='undefined') ? ITEMS.find(x=>x.id===key) : null;
+  return (it&&it.name)||key||'Unknown Item';
+}
+function addStatBucket(group,key,fields){
+  if(!runStats || !key) return null;
+  const bucket=runStats[group] || (runStats[group]={});
+  const isWeapon=group==='weaponDamage';
+  const row=bucket[key] || (bucket[key]={ key, name:statName(isWeapon?'weapon':'item',key), damage:0, procs:0, heal:0, blocked:0 });
+  for(const k in fields) row[k]=(row[k]||0)+fields[k];
+  return row;
+}
+function recordRunDamage(amount, meta){
+  if(!runStats || !amount || amount<=0) return;
+  meta=meta||{};
+  if(meta.weapon) addStatBucket('weaponDamage',meta.weapon,{ damage:amount });
+  else if(meta.item) addStatBucket('itemStats',meta.item,{ damage:amount });
+  else addStatBucket('weaponDamage','unknown',{ damage:amount });
+}
+function recordRunItem(key, fields){
+  if(!runStats || !key) return;
+  addStatBucket('itemStats',key,fields||{ procs:1 });
+}
+function sourceLabel(src, kind){
+  if(src && src.name) return src.name + (kind ? ' '+kind : '');
+  return kind || 'Unknown';
+}
+function recordPlayerHit(amount, src, kind){
+  if(!runStats || !amount || amount<=0) return;
+  const label=sourceLabel(src,kind);
+  runStats.lastHit={ label, source:src&&src.name||'', kind:kind||'hit', amount, time:gameTime, stage:mapStage };
+  runStats.damageTakenBy[label]=(runStats.damageTakenBy[label]||0)+amount;
+}
+function recordDeathCause(){
+  if(runStats && !runStats.deathCause) runStats.deathCause=runStats.lastHit || { label:'Unknown', kind:'unknown', amount:0, time:gameTime, stage:mapStage };
 }
 function openPlayerSetup(){
   closeGuide();
@@ -457,27 +523,144 @@ function buildSelect(){
     wrap.appendChild(d);
   }
 }
+let itemSig=null;
+function itemStacks(){
+  const out=new Map();
+  for(const it of (player&&player.items)||[]){
+    const key=it.id||it.name;
+    const row=out.get(key) || { item:it, count:0 };
+    row.count++;
+    out.set(key,row);
+  }
+  return Array.from(out.values()).sort((a,b)=>{
+    const rarityOrder={legendary:4,rare:3,uncommon:2,common:1};
+    const ro=(rarityOrder[b.item.rarity]||0)-(rarityOrder[a.item.rarity]||0);
+    if(ro) return ro;
+    if(b.count!==a.count) return b.count-a.count;
+    return String(a.item.name).localeCompare(String(b.item.name));
+  });
+}
+function updateItemHUD(force){
+  const wrap=document.getElementById('itemhud'); if(!wrap || !player) return;
+  const stacks=itemStacks();
+  const buffs=[
+    player.pickupSpeedTimer>0 ? 'haste:'+Math.ceil(player.pickupSpeedTimer) : '',
+    player.pickupDmgTimer>0 ? 'might:'+Math.ceil(player.pickupDmgTimer) : ''
+  ].filter(Boolean).join('|');
+  const sig=buffs+'||'+stacks.map(s=>(s.item.id||s.item.name)+':'+s.count).join('|');
+  if(!force && sig===itemSig) return;
+  itemSig=sig;
+  wrap.innerHTML='';
+  if(!stacks.length && !buffs){ wrap.style.display='none'; return; }
+  wrap.style.display='flex';
+  if(player.pickupSpeedTimer>0){
+    const d=document.createElement('div');
+    d.className='islot buff haste';
+    d.title='เร่งฝีเท้า: ความเร็วเคลื่อนที่ +25%';
+    d.innerHTML='<span>'+Math.ceil(player.pickupSpeedTimer)+'</span>';
+    wrap.appendChild(d);
+  }
+  if(player.pickupDmgTimer>0){
+    const d=document.createElement('div');
+    d.className='islot buff might';
+    d.title='พลังโจมตี: ดาเมจ +30%';
+    d.innerHTML='<span>'+Math.ceil(player.pickupDmgTimer)+'</span>';
+    wrap.appendChild(d);
+  }
+  const limit=document.body.classList.contains('touch') ? 8 : 10;
+  stacks.slice(0,limit).forEach(s=>{
+    const it=s.item, d=document.createElement('div');
+    d.className='islot '+(it.rarity||'common');
+    d.title=it.name+(s.count>1?' x'+s.count:'')+' - '+it.desc;
+    d.innerHTML='<img src="'+escHtml(spriteSrc(it.icon))+'"><span>'+s.count+'</span>';
+    d.onclick=()=>showToast(it.name+(s.count>1?' x'+s.count:'')+' - '+it.desc,2.0);
+    wrap.appendChild(d);
+  });
+  if(stacks.length>limit){
+    const d=document.createElement('div');
+    d.className='islot more';
+    d.title=(stacks.length-limit)+' more item stacks. Pause to view all.';
+    d.textContent='+'+(stacks.length-limit);
+    wrap.appendChild(d);
+  }
+}
 function characterPortrait(key){
-  return 'assets/sprites/char_'+((CHARACTERS[key]&&CHARACTERS[key].portrait)||key)+'_portrait.png';
+  return spriteSrc('char_'+((CHARACTERS[key]&&CHARACTERS[key].portrait)||key)+'_portrait');
 }
 function escHtml(s){
   return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function guideCard(img, name, desc, meta, cls){
-  return '<div class="guidecard '+(cls||'')+'"><img src="'+img+'" loading="lazy"><div><b>'+escHtml(name)+'</b><p>'+escHtml(desc)+'</p>'+(meta?'<small>'+escHtml(meta)+'</small>':'')+'</div></div>';
+  return '<div class="guidecard '+(cls||'')+'"><img src="'+escHtml(img)+'" loading="lazy"><div><b>'+escHtml(name)+'</b><p>'+escHtml(desc)+'</p>'+(meta?'<small>'+escHtml(meta)+'</small>':'')+'</div></div>';
+}
+function guideTextCard(name, desc, meta, cls){
+  return '<div class="guidecard text '+(cls||'')+'"><b>'+escHtml(name)+'</b><p>'+escHtml(desc)+'</p>'+(meta?'<small>'+escHtml(meta)+'</small>':'')+'</div>';
+}
+function guideSectionTitle(name, desc){
+  return '<div class="guidesection"><b>'+escHtml(name)+'</b>'+(desc?'<span>'+escHtml(desc)+'</span>':'')+'</div>';
+}
+function guideJumpCard(kind, name, desc){
+  return '<button class="guidecard text jump" data-jump="'+escHtml(kind)+'"><b>'+escHtml(name)+'</b><p>'+escHtml(desc)+'</p><small>เปิดคู่มือ</small></button>';
 }
 function guideCharacterCard(img, name, bio, weapon, passive, stats){
-  return '<div class="guidecard character"><img src="'+img+'" loading="lazy"><div class="gctxt">'
+  return '<div class="guidecard character"><img src="'+escHtml(img)+'" loading="lazy"><div class="gctxt">'
     +'<b>'+escHtml(name)+'</b>'
     +(bio?'<p class="gcbio">'+escHtml(bio)+'</p>':'')
-    +'<div class="gcrow"><span>Weapon</span><strong>'+escHtml(weapon)+'</strong></div>'
-    +'<div class="gcrow passive"><span>Passive</span><strong>'+escHtml(passive)+'</strong></div>'
+    +'<div class="gcrow"><span>อาวุธ</span><strong>'+escHtml(weapon)+'</strong></div>'
+    +'<div class="gcrow passive"><span>สกิลติดตัว</span><strong>'+escHtml(passive)+'</strong></div>'
     +(stats?'<small>'+escHtml(stats)+'</small>':'')
     +'</div></div>';
+}
+function guideUnitCard(img, name, desc, meta, cls){
+  return '<div class="guidecard unit '+(cls||'')+'"><img src="'+escHtml(img)+'" loading="lazy"><div><b>'+escHtml(name)+'</b><p>'+escHtml(desc)+'</p>'+(meta?'<small>'+escHtml(meta)+'</small>':'')+'</div></div>';
+}
+function unitSpritePath(sprite){
+  return spriteSrc(sprite);
+}
+function unitBehaviorText(unit){
+  if(typeof behaviorFor!=='function') return 'ไล่ล่า';
+  const b=behaviorFor(unit.name);
+  return ({chase:'ไล่ล่า',shooter:'ยิงระยะไกล',charger:'พุ่งชน',exploder:'ระเบิด',warder:'ออร่าคุ้มกัน'})[b]||b;
+}
+function skillListFor(sprite, table){
+  if(!table || !table[sprite]) return 'สกิล: พื้นฐาน';
+  return 'สกิล: '+table[sprite].map(s=>s.replace(/([A-Z])/g,' $1')).join(', ');
+}
+function evolveGuideForTome(id){
+  const pairs=Object.values(WEAPON_TYPES).filter(w=>!w.hidden && w.evolveTome===id).map(w=>w.name);
+  return pairs.length ? ' / วิวัฒน์: '+pairs.join(', ') : '';
+}
+function evolvedFromName(evolvedKey){
+  const base=Object.values(WEAPON_TYPES).find(w=>w && !w.hidden && w.evolveTo===evolvedKey);
+  return base ? base.name : '';
 }
 function openGuide(kind){
   const guide=document.getElementById('guide'), body=document.getElementById('guidebody');
   if(!guide||!body) return;
+  kind=kind||'hub';
+  if(kind==='hub'){
+    const title='สารบัญคู่มือ', note='รวมข้อมูลสำคัญของตัวละคร อาวุธ ศัตรู และระบบการเล่น';
+    const cards=[
+      guideJumpCard('characters','ตัวละคร','อาวุธเริ่มต้น สกิลติดตัว และค่าสถานะพื้นฐาน'),
+      guideJumpCard('weapons','อาวุธ','อาวุธพื้นฐานและร่างวิวัฒน์'),
+      guideJumpCard('tomes','Tome','อัปเกรดติดตัวและคู่สำหรับวิวัฒน์อาวุธ'),
+      guideJumpCard('evolution','วิวัฒน์อาวุธ','กติกาอาวุธ Lv8 พร้อม Tome ที่ตรงกัน'),
+      guideJumpCard('items','ไอเทม','ของดรอปที่ซ้อนทับได้และระดับความหายาก'),
+      guideJumpCard('relics','Relic','รางวัลหลังฆ่าบอสที่เปลี่ยนแนวเล่นของรัน'),
+      guideJumpCard('monsters','สารานุกรมมอนสเตอร์','ระดับและพฤติกรรมของศัตรูทั่วไป'),
+      guideJumpCard('bosses','สารานุกรมบอส','สกิลสำคัญของมินิบอสและบอส'),
+      guideJumpCard('events','อีเวนต์','เหตุการณ์พิเศษและความปั่นระหว่างรัน'),
+      guideJumpCard('maps','แผนที่','ความต่างของแต่ละด่าน'),
+      guideJumpCard('combat','ระบบต่อสู้','Crit, knockback, pierce, guard และ overtime'),
+      guideJumpCard('shrine','Shrine','เสาแม่เหล็ก, Shrine, Chest, Merchant, Altar และ Portal'),
+      guideJumpCard('shop','ร้านค้า / NPC','การซื้อของ reroll และโอกาสพ่อค้าทรยศ'),
+      guideJumpCard('ranking','Ranking','กติกาคะแนนและ leaderboard online')
+    ].join('');
+    body.innerHTML='<div class="guidehead"><h2>'+escHtml(title)+'</h2><span>'+escHtml(note)+'</span></div><div class="guidegrid hub">'+cards+'</div>';
+    body.querySelectorAll('[data-jump]').forEach(btn=>btn.onclick=()=>openGuide(btn.dataset.jump));
+    guide.style.display='flex';
+    return;
+  }
   let title='คู่มือ', note='', cards='';
   if(kind==='characters'){
     title='ตัวละคร';
@@ -496,26 +679,155 @@ function openGuide(kind){
   } else if(kind==='weapons'){
     title='อาวุธ';
     note='อาวุธที่เลือกได้ตอนอัปเลเวล และร่าง evolved';
-    cards=Object.keys(WEAPON_TYPES).map(key=>{
+    title='อาวุธ';
+    note='อาวุธพื้นฐานคือสิ่งที่เลือกได้ตอนอัปเลเวล ส่วนร่างวิวัฒน์จะเกิดหลังอาวุธ Lv8 และมี Tome ที่ตรงกัน';
+    const baseCards=Object.keys(WEAPON_TYPES).filter(key=>!WEAPON_TYPES[key].hidden).map(key=>{
       const w=WEAPON_TYPES[key];
-      const meta=(w.hidden?'Evolved':'Base')+' / DMG '+(w.dmg||'-')+(w.rate?' / Rate '+w.rate:'')+(w.count?' / Count '+w.count:'');
-      return guideCard('assets/sprites/'+w.icon+'.png', w.name, w.desc, meta, w.hidden?'rare':'');
+      const pair=w.evolveTome ? ' / วิวัฒน์คู่กับ '+tomeName(w.evolveTome) : '';
+      const meta='พื้นฐาน / DMG '+(w.dmg||'-')+(w.rate?' / ความถี่ '+w.rate:'')+(w.count?' / จำนวน '+w.count:'')+pair;
+      return guideCard(spriteSrc(w.icon), w.name, w.desc, meta, '');
     }).join('');
+    const evolvedCards=Object.keys(WEAPON_TYPES).filter(key=>WEAPON_TYPES[key].hidden).map(key=>{
+      const w=WEAPON_TYPES[key];
+      const from=evolvedFromName(key);
+      const meta='ร่างวิวัฒน์'+(from?' จาก '+from:'')+' / DMG '+(w.dmg||'-')+(w.rate?' / ความถี่ '+w.rate:'')+(w.count?' / จำนวน '+w.count:'');
+      return guideCard(spriteSrc(w.icon), w.name, w.desc, meta, 'rare');
+    }).join('');
+    cards=guideSectionTitle('อาวุธพื้นฐาน','เลือกได้ตอนอัปเลเวล รายละเอียด Tome คู่จะแสดงอยู่ในการ์ด')+
+      baseCards+
+      guideSectionTitle('ร่างวิวัฒน์','เป็นผลลัพธ์จากการวิวัฒน์ ไม่ใช่ตัวเลือกอัปเลเวลปกติ')+
+      evolvedCards;
   } else if(kind==='tomes'){
     title='Tome';
-    note='Passive upgrade เลือกได้สูงสุด 4 ชนิดต่อรัน แต่เก็บซ้ำเพื่อเพิ่มพลังได้';
+    note='อัปเกรดติดตัว เลือกได้สูงสุด 4 ชนิดต่อรัน แต่เก็บซ้ำเพื่อเพิ่มพลังได้';
+    note='อัปเกรดติดตัว เลือกได้สูงสุด 4 ชนิดต่อรัน และเก็บซ้ำเพื่อเพิ่มพลังได้';
     cards=UPGRADES.map(u=>
-      guideCard('assets/sprites/'+u.icon+'.png', u.name, u.desc, 'Tome upgrade', 'uncommon')
+      guideCard(spriteSrc(u.icon), u.name, u.desc, 'อัปเกรด Tome'+evolveGuideForTome(u.id), 'uncommon')
     ).join('');
-  } else {
+  } else if(kind==='items') {
+    title='ไอเทม';
+    note='ไอเทม stack ได้ เก็บซ้ำแล้วคูณความสามารถต่อเนื่อง';
     title='ไอเทม';
     note='ไอเทม stack ได้ เก็บซ้ำแล้วคูณความสามารถต่อเนื่อง';
     const order={common:0,uncommon:1,rare:2,legendary:3};
     cards=ITEMS.slice().sort((a,b)=>order[a.rarity]-order[b.rarity]||a.name.localeCompare(b.name)).map(it=>
-      guideCard('assets/sprites/'+it.icon+'.png', it.name, it.desc, it.rarity, it.rarity)
+      guideCard(spriteSrc(it.icon), it.name, it.desc, it.rarity, it.rarity)
     ).join('');
+  } else if(kind==='evolution'){
+    title='คู่มือวิวัฒน์อาวุธ';
+    note='อัปอาวุธพื้นฐานให้ถึง Lv8 แล้วมี Tome คู่ให้พอ ตัวเลือกที่พร้อมวิวัฒน์จะเรืองแสงสีทอง';
+    cards=Object.keys(WEAPON_TYPES).filter(key=>{
+      const w=WEAPON_TYPES[key];
+      return w && !w.hidden && w.evolveTo;
+    }).map(key=>{
+      const w=WEAPON_TYPES[key], ev=WEAPON_TYPES[w.evolveTo]||{};
+      const desc=w.name+' วิวัฒน์เป็น '+(ev.name||w.evolveTo);
+      const meta='ต้องมี '+w.name+' Lv8 + '+tomeName(w.evolveTome)+' x3. Ancient Anvil ทำให้ครั้งแรกใช้ x2';
+      return guideCard(spriteSrc(ev.icon||w.icon), ev.name||w.name, desc, meta, 'rare');
+    }).join('');
+  } else if(kind==='relics'){
+    title='Relic';
+    note='รางวัลหลังฆ่าบอส มีผลแรงและเปลี่ยนแนวเล่นของรัน เลือกให้เข้ากับบิลด์และแผนที่ถัดไป';
+    cards=RELICS.map(r=>guideCard(spriteSrc(r.icon), r.name, r.desc, 'รางวัล Relic จากบอส', 'legendary')).join('');
+  } else if(kind==='events'){
+    title='อีเวนต์';
+    note='เหตุการณ์พิเศษเพิ่มความปั่น รางวัล หรือปัญหาระยะสั้นให้ต้องแก้ระหว่างรัน';
+    cards=[
+      guideTextCard('หีบปลอม','หีบที่ดูน่าหยิบอาจกลายเป็นศัตรูได้ ของฟรีในเกมนี้ควรระแวงไว้ก่อน','อีเวนต์เสี่ยงแลกรางวัล','rare'),
+      guideTextCard('ฝนทอง','เหรียญจะตกทั่วแผนที่ช่วงสั้น ๆ เอฟเฟกต์แม่เหล็กช่วยได้มาก','อีเวนต์เก็บทอง','uncommon'),
+      guideTextCard('นักทวงหนี้','ศัตรูพิเศษจะกดดันเศรษฐกิจของคุณ ฆ่าให้เร็วหรือจ่ายราคาแพง','อีเวนต์กดดันร้านค้า','rare'),
+      guideTextCard('คำสาปห้ามยืน','การยืนนิ่งจะอันตราย รีบขยับจนกว่าคำสาปจะหมด','อีเวนต์ท้าทายการเคลื่อนที่','uncommon'),
+      guideTextCard('ร่างเงาหลอน','ร่างเลียนแบบจะไล่กดดันเส้นทางและลงโทษการหนีแบบตื่นตระหนก','อีเวนต์ดวลตัวเอง','rare'),
+      guideTextCard('พ่อค้าทรยศ','ซื้อของถี่เกินไปอาจทำให้พ่อค้ากลายเป็นบอส','โอกาส 15% เมื่อซื้อบ่อย','legendary')
+    ].join('');
+  } else if(kind==='maps'){
+    title='คู่มือแผนที่';
+    note='แต่ละแผนที่จะเปลี่ยนชนิดศัตรู จังหวะเกม และแรงกดดันจากบอส';
+    cards=[
+      guideTextCard('Map 1: Bleakfield','ด่านเริ่มต้น มีเวฟช่วงต้น มินิบอสตัวแรกตอน 3:00 และเสาแม่เหล็ก 1 ต้น','ใช้ตั้งทิศทางบิลด์ช่วงต้น'),
+      guideTextCard('Map 2: Fenmire','ด่านบึงแดง ศัตรูแรงขึ้น object เยอะขึ้น และมีเสาแม่เหล็ก 1-2 ต้น','ฆ่าบอสเพื่อเปิดทางไปด่านถัดไป'),
+      guideTextCard('Map 3: Void Rift','ด่านบอสสุดท้าย เข้าไปแล้วเจอบอสทันทีพร้อมเวฟช่วยตีหนัก','บอสมีเลือด 3 หลอดและลูกเล่นหลายเฟส'),
+      guideTextCard('วาร์ปศัตรูไกล','ศัตรูที่อยู่ไกลเกินไปจะกลับมาเกิดรอบผู้เล่นโดยไม่ฟื้นเลือดที่เสียไป','ช่วยให้แรงกดดันไม่หาย')
+    ].join('');
+  } else if(kind==='combat'){
+    title='ระบบต่อสู้';
+    note='กติกาสั้น ๆ ของค่าสถานะและเอฟเฟกต์ที่สำคัญระหว่างรัน';
+    cards=[
+      guideTextCard('โอกาสคริติคอล','โอกาสที่การโจมตีจะติดคริติคอล Focus Tome และบางตัวละครช่วยเพิ่มค่านี้','คริติคอลจะแสดงเลขดาเมจสีเหลืองใหญ่ขึ้น'),
+      guideTextCard('ดาเมจคริติคอล','ตัวคูณดาเมจเมื่อโจมตีติดคริติคอล Execution Tome และ Stormcaller ช่วยเพิ่มค่านี้','เหมาะกับอาวุธที่ยิงเร็วหรือหลายฮิต'),
+      guideTextCard('ยิงทะลุ','จำนวนศัตรูที่กระสุนหรือวัตถุโจมตีผ่านได้ก่อนหายไป','แข็งแรงมากเมื่อเจอฝูงศัตรูแน่น ๆ'),
+      guideTextCard('Ricochet','อาวุธที่รองรับจะเด้งไปหาเป้าหมายใหม่หลังชน Ricochet Tome เพิ่มจำนวนเด้ง','เหมาะกับ Cursed Football, Shield Toss, Bone Boomerang และ Bouncing Bomb'),
+      guideTextCard('บิลด์ Ricochet','Football เด้งต่อเป้าหมาย, Shield Toss ทะลุก่อนเด้ง, Bone Boomerang ยิงเป็นโค้งคู่, Bouncing Bomb ทิ้งแรงระเบิด','Ricochet ไม่ส่งผลกับ melee, nova, orbit, smite หรือ lightning'),
+      guideTextCard('Knockback','แรงผลักศัตรู ยิ่งเข้า Overtime ศัตรูยิ่งต้านแรงผลักมากขึ้น','ผู้เล่นเองก็โดนมอนสเตอร์ตีจนกระเด็นได้'),
+      guideTextCard('Guard','Orbiting Skull บล็อกดาเมจได้ หัวกะโหลกจะหายไปเมื่อบล็อกแล้วค่อยฟื้นตามคูลดาวน์','มีกะโหลกมากเท่ากับกันตายได้มากขึ้น'),
+      guideTextCard('Overtime','หลังเวลาปกติ ทุก 30 วินาทีพลังและจำนวนศัตรูจะกระโดดตามแผนที่ Map 3 เริ่มหลังบอสสุดท้ายตาย','Map 1 x2 / Map 2 x3 / Map 3 x4')
+    ].join('');
+  } else if(kind==='shrine'){
+    title='Shrine';
+    note='สิ่งก่อสร้างและ object สำคัญบนแผนที่ กด F เมื่อเข้าใกล้เพื่อใช้งาน';
+    cards=[
+      guideSectionTitle('เสาแม่เหล็ก','ใช้ครั้งเดียวต่อเสา วางแผนใช้หลังเวฟใหญ่หรือหลังบอสเพื่อเก็บ XP/ทองที่ค้างทั้งแผนที่'),
+      guideCard(spriteSrc('obj_magnet_pillar'),'เสาแม่เหล็ก','ดูด XP และทองที่ตกอยู่ทั่วแผนที่เข้าหาผู้เล่นทันที','Map 1: 1 ต้น / Map 2: 1-2 ต้น / Map 3: 1 ต้น', 'uncommon'),
+      guideSectionTitle('Shrine','แท่นเสี่ยงแลกผลตอบแทน มีหลายแบบและใช้แล้วหายไป'),
+      guideCard(spriteSrc('obj_shrine_elite'),'Elite Shrine','เรียก Elite 8 ตัวออกมารอบแท่น เหมาะเมื่อพร้อมรับไฟต์เพื่อแลกรางวัลจากการฆ่า','เสี่ยงสูงช่วงต้นเกม', 'rare'),
+      guideCard(spriteSrc('obj_shrine_blood'),'Blood Shrine','เสียเลือด 30% แล้วดรอปไอเทมแบบ boosted','อย่าใช้ตอนเลือดต่ำหรือมีฝูงศัตรูล้อม', 'rare'),
+      guideCard(spriteSrc('obj_shrine_speed'),'Speed Shrine','เพิ่มความเร็วเคลื่อนที่ 40% เป็นเวลา 30 วินาที','ใช้หนีเวฟ เก็บของ หรือวนหลบบอส', 'uncommon'),
+      guideCard(spriteSrc('obj_shrine_curse'),'Curse Shrine','ทำให้ศัตรูโหดขึ้น แต่เพิ่ม XP และทองที่ได้รับ 50% ตลอดรัน','เหมาะกับรันที่มั่นใจและอยากเร่งสเกล', 'legendary'),
+      guideCard(spriteSrc('obj_shrine_gamble'),'Gamble Shrine','สุ่ม 50/50 ระหว่างได้ไอเทม legendary หรือโดน Elite 12 ตัว','สนุก แต่ไม่สุภาพกับคนเลือดน้อย', 'legendary'),
+      guideSectionTitle('Chest และ Merchant','แหล่งซื้อของ/สุ่มของหลักของรัน แต่มีความเสี่ยง'),
+      guideCard(spriteSrc('chest_common'),'Common Chest','ใช้ทองเปิด มีโอกาสได้ไอเทมและมีโอกาสเป็น Mimic','ราคาถูก เหมาะเปิดช่วงต้น', 'common'),
+      guideCard(spriteSrc('chest_rare'),'Rare Chest','ใช้ทองมากขึ้น แต่โอกาสของดีสูงกว่า','เหมาะเมื่อมีบิลด์เริ่มนิ่ง', 'rare'),
+      guideCard(spriteSrc('chest_epic'),'Epic Chest','แพงที่สุด แต่โอกาส rare/legendary สูงสุด','อย่าเปิดถ้าเงินยังต้องใช้กับร้าน', 'legendary'),
+      guideCard(spriteSrc('obj_merchant'),'Merchant','ขายไอเทม 3 ชิ้น สินค้าไม่รีเองจนกด Reroll','ซื้อบ่อยมีโอกาส 15% ที่พ่อค้าจะกลายเป็นบอส', 'rare'),
+      guideSectionTitle('Altar และ Portal','ใช้คุมความคืบหน้าของ map และการย้ายด่าน'),
+      guideCard(spriteSrc('obj_altar'),'Boss Altar','กด F เพื่อเรียกบอสประจำด่าน เมื่อพร้อมสู้และอยากไปต่อ','ฆ่าบอสเพื่อเลือก Relic และเปิดทางไป map ถัดไป', 'legendary'),
+      guideCard(spriteSrc('obj_portal'),'Portal','ประตูสำหรับย้าย map หรือจบรันหลังเงื่อนไขสำคัญสำเร็จ','หลังฆ่าบอส/บอสสุดท้าย ให้ตาม Portal เพื่อไปต่อ', 'legendary')
+    ].join('');
+  } else if(kind==='shop'){
+    title='ร้านค้า / NPC';
+    note='พ่อค้าเร่มีประโยชน์ ราคาแรง และอารมณ์ไม่ค่อยมั่นคง';
+    cards=[
+      guideTextCard('ซื้อไอเทม','ไอเทมออกซ้ำได้ ซื้อหรือเก็บซ้ำแล้ว stack ผลของมันต่อไป','ราคาถูกปรับให้สูงขึ้นตามระบบเศรษฐกิจร้านค้า'),
+      guideTextCard('Reroll','สุ่มสินค้าในร้านใหม่ และจะแพงขึ้นทุกครั้งที่ใช้','ใช้เมื่อบิลด์ต้องการค่าสถานะเฉพาะจริง ๆ'),
+      guideTextCard('พ่อค้าทรยศ','ซื้อของถี่เกินไปมีโอกาส 15% ที่ NPC จะกลายเป็นบอส','Relic Golden Pact เพิ่มความเสี่ยงนี้'),
+      guideTextCard('ของที่น่าซื้อ','ดาเมจ, crit, growth และไอเทมเศรษฐกิจมักคุ้มเมื่อเข้ากับสไตล์อาวุธของคุณ','อย่ากวาดซื้อทุกอย่างแบบไม่ดูบิลด์')
+    ].join('');
+  } else if(kind==='ranking'){
+    title='Ranking';
+    note='Leaderboard online รับคะแนนจากเกมเวอร์ชันปัจจุบันเท่านั้น';
+    cards=[
+      guideTextCard('เฉพาะเวอร์ชันปัจจุบัน','คะแนนจาก build เก่าจะถูกปฏิเสธ เพื่อให้ทุกคนแข่งด้วยกติกาเดียวกัน','รันที่ถูกปฏิเสธจะไม่ขึ้น ranking'),
+      guideTextCard('ที่มาของคะแนน','จำนวน kill, บอส, เวลารอดชีวิต, ความคืบหน้าแผนที่ และรางวัลที่เลือก มีผลกับคะแนน','เสาแม่เหล็กอาจให้คะแนนน้อยหรือไม่ให้เลย'),
+      guideTextCard('ชื่อผู้เล่น','ชื่อที่กรอกก่อนเริ่มเกมจะใช้แสดงบน ranking','ช่วงแรกยังไม่ต้อง login'),
+      guideTextCard('ธงประเทศ','เลือกประเทศก่อนเริ่มรัน และแสดงธงด้วย CSS เพื่อให้ใช้ได้บน PC','เหมาะกับการแข่งกันเล่นแบบขำ ๆ')
+    ].join('');
+  } else if(kind==='monsters'){
+    title='สารานุกรมมอนสเตอร์';
+    note='มอนสเตอร์ปกติ แยกตามแผนที่และพฤติกรรมหลัก';
+    note='มอนสเตอร์ปกติ แยกตามแผนที่และพฤติกรรมหลัก';
+    const mapName=t=>t.tier===0?'Map 1 Bleakfield':t.tier===1?'Map 2 Fenmire':'Map 3 Void Rift';
+    cards=ENEMY_TYPES.slice().sort((a,b)=>a.tier-b.tier||a.name.localeCompare(b.name)).map(e=>{
+      const desc=unitBehaviorText(e)+' / '+mapName(e);
+      const meta='เลือด '+e.hp+' / โจมตี '+e.atk+' / ความเร็ว '+e.spd+' / XP '+e.xp;
+      return guideUnitCard(unitSpritePath(e.sprite), e.name, desc, meta, 'monster');
+    }).join('');
+  } else if(kind==='bosses'){
+    title='สารานุกรมบอส';
+    note='บอสและมินิบอส พร้อมสกิลสำคัญที่ต้องระวัง';
+    note='บอสและมินิบอส พร้อมสกิลสำคัญที่ต้องระวัง';
+    const minis=MINIBOSS_TYPES.map(e=>
+      guideUnitCard(unitSpritePath(e.sprite), e.name, 'มินิบอส / '+skillListFor(e.sprite, typeof MB_SKILLS!=='undefined'?MB_SKILLS:null), 'เลือด '+e.hp+' / โจมตี '+e.atk+' / ความเร็ว '+e.spd, 'boss')
+    ).join('');
+    const bosses=BOSS_TYPES.map(e=>{
+      const where=e.final?'Map 3 บอสสุดท้าย':e.name==='Lich King'||e.name==='Abyssal Behemoth'?'Map 1 กลุ่มบอส':'Map 2 กลุ่มบอส';
+      return guideUnitCard(unitSpritePath(e.sprite+'_8dir'), e.name, where+' / '+skillListFor(e.sprite, typeof BOSS_SKILLS!=='undefined'?BOSS_SKILLS:null), 'เลือด '+e.hp+' / โจมตี '+e.atk+(e.final?' / เลือด 3 หลอด':''), 'boss');
+    }).join('');
+    cards=minis+bosses;
+  } else {
+    return openGuide('hub');
   }
   body.innerHTML='<div class="guidehead"><h2>'+escHtml(title)+'</h2><span>'+escHtml(note)+'</span></div><div class="guidegrid '+escHtml(kind)+'">'+cards+'</div>';
+  body.querySelectorAll('[data-jump]').forEach(btn=>btn.onclick=()=>openGuide(btn.dataset.jump));
   guide.style.display='flex';
 }
 function closeGuide(){
@@ -530,35 +842,36 @@ function selectCharacter(key){
   heroQuip('start',1,2.8);
 }
 const UPGRADES = [
-  { id:'might',    name:'Might',      desc:'+15% damage',        icon:'tomeic_might',     apply:()=>{ player.dmgMul*=1.15; } },
-  { id:'vitality', name:'Vitality',   desc:'+25 max HP, heal',   icon:'tomeic_vitality',  apply:()=>{ player.maxHp+=25; player.hp=Math.min(healCap(player), player.hp+25); } },
-  { id:'celerity', name:'Celerity',   desc:'+10% attack speed',  icon:'tomeic_celerity',  apply:()=>{ player.rateMul*=1.10; } },
-  { id:'precision',name:'Precision',  desc:'+25% range',         icon:'tomeic_precision', apply:()=>{ player.rangeMul*=1.25; } },
-  { id:'multishot',name:'Multishot',  desc:'+1 projectile',      icon:'tomeic_multishot', apply:()=>{ player.countBonus+=1; } },
-  { id:'swiftness',name:'Swiftness',  desc:'+6% move speed',     icon:'tomeic_swiftness', apply:()=>{ player.spd*=1.06; } },
-  { id:'regen',    name:'Regen',      desc:'+0.8 HP/sec',        icon:'tomeic_regen',     apply:()=>{ player.regen+=0.8; } },
-  { id:'magnet',   name:'Magnetism',  desc:'+30% pickup range',  icon:'tomeic_magnet', apply:()=>{ player.magnet*=1.3; } },
-  { id:'exp',      name:'Experience', desc:'+15% XP gain',       icon:'tomeic_exp',apply:()=>{ player.xpMul*=1.15; } },
-  { id:'greed',    name:'Greed',      desc:'+20% gold',          icon:'tomeic_greed',     apply:()=>{ player.goldMul*=1.2; } },
-  { id:'fortitude',name:'Fortitude',  desc:'+5 armor',           icon:'tomeic_fortitude', apply:()=>{ player.def+=5; } },
-  { id:'lifesteal',name:'Lifesteal',  desc:'+1 HP per kill',     icon:'tomeic_lifesteal',  apply:()=>{ player.lifesteal+=1; } },
-  { id:'duration', name:'Persistence',desc:'+20% projectile life, +10% area duration',icon:'tomeic_duration',    apply:()=>{ player.lifeMul*=1.20; player.areaLifeMul*=1.10; } },
-  { id:'velocity', name:'Velocity',   desc:'+20% projectile speed',icon:'tomeic_velocity',apply:()=>{ player.projSpeedMul*=1.2; } },
-  { id:'growth',   name:'Growth',     desc:'+20% projectile size',icon:'tomeic_growth',     apply:()=>{ player.projScale*=1.2; } },
-  { id:'impact',   name:'Impact',     desc:'+15% knockback',        icon:'tomeic_impact',   apply:()=>{ player.knockbackMul=(player.knockbackMul||0)+0.15; } },
-  { id:'focus',    name:'Focus',      desc:'+6% crit chance',       icon:'tomeic_focus',    apply:()=>{ player.critChance+=0.06; } },
-  { id:'execution',name:'Execution',  desc:'+18% crit damage',      icon:'tomeic_execution',apply:()=>{ player.critDmg+=0.18; } },
+  { id:'might',    name:'Might',      desc:'ดาเมจ +15%',        icon:'tomeic_might',     apply:()=>{ player.dmgMul*=1.15; } },
+  { id:'vitality', name:'Vitality',   desc:'เลือดสูงสุด +25 และฮีลทันที',   icon:'tomeic_vitality',  apply:()=>{ player.maxHp+=25; player.hp=Math.min(healCap(player), player.hp+25); } },
+  { id:'celerity', name:'Celerity',   desc:'ความเร็วโจมตี +10%',  icon:'tomeic_celerity',  apply:()=>{ player.rateMul*=1.10; } },
+  { id:'precision',name:'Precision',  desc:'ระยะโจมตี +25%',         icon:'tomeic_precision', apply:()=>{ player.rangeMul*=1.25; } },
+  { id:'multishot',name:'Multishot',  desc:'จำนวนกระสุน/วัตถุโจมตี +1',      icon:'tomeic_multishot', apply:()=>{ player.countBonus+=1; } },
+  { id:'swiftness',name:'Swiftness',  desc:'ความเร็วเดิน +6%',     icon:'tomeic_swiftness', apply:()=>{ player.spd*=1.06; } },
+  { id:'regen',    name:'Regen',      desc:'ฟื้นเลือด +0.8 ต่อวินาที',        icon:'tomeic_regen',     apply:()=>{ player.regen+=0.8; } },
+  { id:'magnet',   name:'Magnetism',  desc:'ระยะดูดของ +30%',  icon:'tomeic_magnet', apply:()=>{ player.magnet*=1.3; } },
+  { id:'exp',      name:'Experience', desc:'XP ที่ได้รับ +15%',       icon:'tomeic_exp',apply:()=>{ player.xpMul*=1.15; } },
+  { id:'greed',    name:'Greed',      desc:'ทองที่ได้รับ +20%',          icon:'tomeic_greed',     apply:()=>{ player.goldMul*=1.2; } },
+  { id:'fortitude',name:'Fortitude',  desc:'เกราะ +5',           icon:'tomeic_fortitude', apply:()=>{ player.def+=5; } },
+  { id:'lifesteal',name:'Lifesteal',  desc:'ฆ่าศัตรูแล้วฟื้นเลือด +1',     icon:'tomeic_lifesteal',  apply:()=>{ player.lifesteal+=1; } },
+  { id:'duration', name:'Persistence',desc:'อายุกระสุน/วัตถุโจมตี +20%, ระยะเวลา AoE +10%',icon:'tomeic_duration',    apply:()=>{ player.lifeMul*=1.20; player.areaLifeMul*=1.10; } },
+  { id:'velocity', name:'Velocity',   desc:'ความเร็วกระสุน/วัตถุโจมตี +20%',icon:'tomeic_velocity',apply:()=>{ player.projSpeedMul*=1.2; } },
+  { id:'growth',   name:'Growth',     desc:'ขนาดสกิล +20%',icon:'tomeic_growth',     apply:()=>{ player.projScale*=1.2; } },
+  { id:'impact',   name:'Impact',     desc:'แรงผลัก +15%',        icon:'tomeic_impact',   apply:()=>{ player.knockbackMul=(player.knockbackMul||0)+0.15; } },
+  { id:'focus',    name:'Focus',      desc:'โอกาสคริติคอล +6%',       icon:'tomeic_focus',    apply:()=>{ player.critChance+=0.06; } },
+  { id:'execution',name:'Execution',  desc:'ดาเมจคริติคอล +18%',      icon:'tomeic_execution',apply:()=>{ player.critDmg+=0.18; } },
+  { id:'ricochet', name:'Ricochet',   desc:'เด้งเพิ่ม +1 ครั้งสำหรับ Football, Shield, Bone Boomerang และ Bomb', icon:'tomeic_velocity', apply:()=>{ player.ricochetBonus=(player.ricochetBonus||0)+1; } },
 ];
 const RELICS = [
-  { id:'phoenix_sigil', name:'Phoenix Sigil', desc:'Revive once at 50% HP', icon:'tomeic_vitality',
+  { id:'phoenix_sigil', name:'Phoenix Sigil', desc:'คืนชีพ 1 ครั้งที่เลือด 50%', icon:'tomeic_vitality',
     apply:p=>{ p._phoenix=1; } },
-  { id:'blood_crown', name:'Blood Crown', desc:'+35% damage, -20% max HP', icon:'tomeic_might',
+  { id:'blood_crown', name:'Blood Crown', desc:'ดาเมจ +35%, เลือดสูงสุด -20%', icon:'tomeic_might',
     apply:p=>{ p.dmgMul*=1.35; p.maxHp=Math.max(1,Math.round(p.maxHp*0.8)); p.hp=Math.min(p.hp,p.maxHp); } },
-  { id:'golden_pact', name:'Golden Pact', desc:'Shop prices -30%, betrayal chance 25%', icon:'tomeic_greed',
+  { id:'golden_pact', name:'Golden Pact', desc:'ราคาขายในร้าน -30%, โอกาสพ่อค้าทรยศ 25%', icon:'tomeic_greed',
     apply:p=>{ p._goldenPact=1; } },
-  { id:'execution_seal', name:'Execution Seal', desc:'+25% damage to bosses and minibosses', icon:'tomeic_execution',
+  { id:'execution_seal', name:'Execution Seal', desc:'ดาเมจต่อบอสและมินิบอส +25%', icon:'tomeic_execution',
     apply:p=>{ p._executionSeal=1; } },
-  { id:'soul_lantern', name:'Soul Lantern', desc:'Miniboss XP and gold +50%', icon:'tomeic_exp',
+  { id:'soul_lantern', name:'Soul Lantern', desc:'XP และทองจากมินิบอส +50%', icon:'tomeic_exp',
     apply:p=>{ p._soulLantern=1; } },
   { id:'ancient_anvil', name:'Ancient Anvil', desc:'First weapon evolve needs 2 Tome stacks instead of 3', icon:'tomeic_fortitude',
     apply:p=>{ p._ancientAnvil=1; p._anvilUsed=0; } },
@@ -566,8 +879,58 @@ const RELICS = [
 function evolveTomeNeed(w){
   return player && player._ancientAnvil && !player._anvilUsed && w && !w.evolved ? 2 : 3;
 }
+function tomeName(id){
+  const u=UPGRADES.find(x=>x.id===id);
+  return u ? u.name : id;
+}
+function weaponName(key){
+  const w=WEAPON_TYPES[key]||{};
+  return w.name||key;
+}
+function evolveStateForWeapon(w){
+  const t=w&&WEAPON_TYPES[w.key];
+  if(!t || !t.evolveTo || w.evolved) return { state:'none', text:'' };
+  const need=evolveTomeNeed(w);
+  const have=(player.tomeCount&&player.tomeCount[t.evolveTome])||0;
+  if(w.lvl>=8 && have>=need) return { state:'ready', text:'พร้อมวิวัฒน์ด้วย '+tomeName(t.evolveTome) };
+  if(w.lvl>=8 && have===need-1) return { state:'almost', text:'1 more '+tomeName(t.evolveTome)+' to evolve' };
+  if(have>0) return { state:'pair', text:'จับคู่กับ '+tomeName(t.evolveTome)+' ('+have+'/'+need+')' };
+  return { state:'none', text:'วิวัฒน์คู่กับ '+tomeName(t.evolveTome) };
+}
+function evolveStateForTome(id){
+  if(!id || !player || !player.weapons) return { state:'none', text:'' };
+  let best={ state:'none', text:'' }, priority={ none:0, pair:1, almost:2, ready:3 };
+  for(const w of player.weapons){
+    const t=WEAPON_TYPES[w.key];
+    if(!t || !t.evolveTo || t.evolveTome!==id || w.evolved) continue;
+    const need=evolveTomeNeed(w), have=(player.tomeCount&&player.tomeCount[id])||0;
+    let cur={ state:'pair', text:'จับคู่กับ '+weaponName(w.key) };
+    if(w.lvl>=8 && have>=need) cur={ state:'ready', text:weaponName(w.key)+' พร้อมวิวัฒน์' };
+    else if(w.lvl>=8 && have===need-1) cur={ state:'almost', text:'เลือกอันนี้เพื่อเตรียมวิวัฒน์ '+weaponName(w.key) };
+    else if(have>0) cur={ state:'pair', text:'จับคู่กับ '+weaponName(w.key)+' ('+have+'/'+need+')' };
+    if(priority[cur.state]>priority[best.state]) best=cur;
+  }
+  return best;
+}
+function evolveHintForChoice(u){
+  if(!u || !player) return null;
+  if(u.id && u.id.startsWith('evo_')) return { state:'ready', label:'พร้อมวิวัฒน์', text:'เลือกตอนนี้เพื่อวิวัฒน์อาวุธนี้' };
+  if(u.id && u.id.startsWith('w_')){
+    const key=u.id.slice(2), w=player.weapons.find(x=>x.key===key);
+    if(w){
+      const st=evolveStateForWeapon(w);
+      if(st.state!=='none') return { state:st.state, label:st.state==='ready'?'พร้อม':st.state==='almost'?'ใกล้พร้อม':'คู่วิวัฒน์', text:st.text };
+    }
+    const t=WEAPON_TYPES[key];
+    if(t && t.evolveTome && player.tomeCount[t.evolveTome]) return { state:'pair', label:'คู่วิวัฒน์', text:'จับคู่กับ '+tomeName(t.evolveTome) };
+  } else if(u.id){
+    const st=evolveStateForTome(u.id);
+    if(st.state!=='none') return { state:st.state, label:st.state==='ready'?'พร้อม':st.state==='almost'?'ใกล้พร้อม':'คู่วิวัฒน์', text:st.text };
+  }
+  return null;
+}
 function relicCard(r,i){
-  return '<img src="assets/sprites/'+r.icon+'.png"><div class="nm">'+r.name+'</div><div class="ds">'+r.desc+'</div><div class="key">[ '+(i+1)+' ]</div>';
+  return '<img src="'+escHtml(spriteSrc(r.icon))+'"><div class="nm">'+r.name+'</div><div class="ds">'+r.desc+'</div><div class="key">[ '+(i+1)+' ]</div>';
 }
 function openRelicChoice(nextStage){
   const pool=RELICS.filter(r=>!(player.relics||[]).some(x=>x.id===r.id));
@@ -589,7 +952,7 @@ function pickRelic(i){
   pendingRelicPortal=null;
   paused=false;
   if(nextStage) altarToPortal('nextStage', nextStage);
-  showToast('Relic gained: '+r.name,2.4);
+  showToast('ได้รับ Relic: '+r.name,2.4);
 }
 const MAX_TOMES = 4;   // เลือก tome ได้สูงสุด 4 ชนิด (เก็บซ้อนได้ไม่จำกัด)
 function isBannedChoice(u){
@@ -605,7 +968,9 @@ function canBanChoice(u){
 }
 function choiceCard(u,i){
   const ban=canBanChoice(u) ? '<button class="banbtn" data-ban="'+i+'">Ban '+player.bansRemaining+'</button>' : '';
-  return '<img src="assets/sprites/'+u.icon+'.png"><div class="nm">'+u.name+'</div><div class="ds">'+u.desc+'</div><div class="key">[ '+(i+1)+' ]</div>'+ban;
+  const hint=evolveHintForChoice(u);
+  const badge=hint ? '<div class="evobadge '+hint.state+'">'+escHtml(hint.label)+'</div><div class="evohint">'+escHtml(hint.text)+'</div>' : '';
+  return '<img src="'+escHtml(spriteSrc(u.icon))+'">'+badge+'<div class="nm">'+u.name+'</div><div class="ds">'+u.desc+'</div><div class="key">[ '+(i+1)+' ]</div>'+ban;
 }
 function openUpgradeChoice(){
   // Once 4 distinct tomes are taken, only offer those (level them up), no new tome types.
@@ -615,7 +980,7 @@ function openUpgradeChoice(){
   for(let i=0;i<3 && pool.length;i++) pick.push(pool.splice((Math.random()*pool.length)|0,1)[0]);
   currentChoices=pick;
   const c=document.getElementById('cards'); c.innerHTML='';
-  pick.forEach((u,i)=>{ const d=document.createElement('div'); d.className='card';
+  pick.forEach((u,i)=>{ const hint=evolveHintForChoice(u); const d=document.createElement('div'); d.className='card'+(hint?' evochoice ev-'+hint.state:'');
     d.innerHTML=choiceCard(u,i);
     d.onclick=()=>pickUpgrade(i); c.appendChild(d); });
   c.querySelectorAll('.banbtn').forEach(btn=>btn.onclick=e=>{ e.stopPropagation(); banUpgrade(+btn.dataset.ban); });
@@ -632,7 +997,7 @@ function banUpgrade(i){
   if(!canBanChoice(u)) return;
   player.bannedChoices[u.id]=true;
   player.bansRemaining--;
-  showToast('Banned '+u.name, 1.1);
+  showToast('แบน '+u.name, 1.1);
   openUpgradeChoice();
 }
 function skipUpgrade(){
@@ -647,7 +1012,7 @@ function checkEvolveReady(){
     const t = WEAPON_TYPES[w.key];
     if (t && t.evolveTo && !w.evolved && !w.evoAnnounced && w.lvl>=8 && (player.tomeCount[t.evolveTome]||0)>=evolveTomeNeed(w)){
       w.evoAnnounced = true;
-      showToast('⚡ '+t.name+' พร้อม Evolve — เลือกการ์ด ★ ตอนอัพเลเวล!', 3.5);
+      showToast('⚡ '+t.name+' พร้อมวิวัฒน์ — เลือกการ์ด ★ ตอนอัพเลเวล!', 3.5);
       sfx('levelup');
     }
   }
@@ -665,7 +1030,7 @@ function minibossHpScale(){ return timeScale()*1.35*(mapStage>=3 ? 5.0 : mapStag
 function bossHpScale(){ return timeScale()*1.45*(mapStage>=3 ? 5.8 : mapStage>=2 ? 3.1 : 1)*otPowerMul(); }
 const MINIBOSS_SPEED_MUL = 1.18;
 const BOSS_SPEED_MUL = 1.22;
-const MAX_LEVEL = 40;
+const MAX_LEVEL = 60;
 function xpRequired(level){
   const k=Math.max(0,level-1);
   // cubic ramp: gentle early, brutal near max level
@@ -680,7 +1045,7 @@ function progressionProfile(){
     [0,18,3.4,2],[60,28,3.0,3],[120,40,2.6,4],[240,60,2.1,5],
     [360,80,1.7,6],[480,105,1.35,8],[600,130,1.1,10]
   ];
-  if(st>=600){
+  if(overtimeLevel()){
     const mul=otPowerMul();
     return {cap:Math.min(overtimeEnemyCap(),Math.round(130*mul)),interval:Math.max(0.25,1.1/mul),batch:Math.min(96,Math.round(10*mul))};
   }
@@ -698,6 +1063,45 @@ function hordeSize(number){
   const base=number<=1 ? 35 : number===2 ? 55 : Math.round(55*Math.pow(1.2,number-2));
   return Math.min(overtimeEnemyCap(),Math.round(base*mul));
 }
+function updateOvertimeWarning(){
+  if(mapStage>=3 || overtimeLevel()) return;
+  const remain=RUN_TARGET-stageTime();
+  const base=overtimeBase();
+  if(overtimeWarnStage<1 && remain<=60 && remain>30){
+    overtimeWarnStage=1;
+    showToast('ใกล้ Overtime: เหลือ 60 วิ ก่อน x'+base,2.8);
+  } else if(overtimeWarnStage<2 && remain<=30 && remain>10){
+    overtimeWarnStage=2;
+    showToast('เตือน Overtime: เหลือ 30 วิ ก่อน x'+base,3.0);
+  } else if(overtimeWarnStage<3 && remain<=10 && remain>0){
+    overtimeWarnStage=3;
+    showToast('Overtime ในอีก 10 วินาที!',2.6);
+  }
+}
+function finalBossDeadlineActive(){
+  return mapStage>=3 && finalBossKilledAt==null && !won && !gameOver;
+}
+function updateFinalBossDeadline(){
+  if(!finalBossDeadlineActive()) return false;
+  const remain=RUN_TARGET-stageTime();
+  if(finalBossWarnStage<1 && remain<=60 && remain>30){
+    finalBossWarnStage=1;
+    showToast('เส้นตายบอสสุดท้าย: เหลือ 60 วิ',3.0);
+  } else if(finalBossWarnStage<2 && remain<=30 && remain>10){
+    finalBossWarnStage=2;
+    showToast('เส้นตายบอสสุดท้าย: เหลือ 30 วิ',3.0);
+  } else if(finalBossWarnStage<3 && remain<=10 && remain>0){
+    finalBossWarnStage=3;
+    showToast('เส้นตายบอสสุดท้าย: เหลือ 10 วิ!',2.8);
+  }
+  if(remain>0) return false;
+  if(runStats) runStats.deathCause={ label:'หมดเวลา Map 3', source:'THE OVERLORD', kind:'deadline', amount:0, time:gameTime, stage:mapStage };
+  player.hp=0;
+  player.alive=false;
+  showToast('หมดเวลา - พันธสัญญาแห่งความมืดกลืนกินคุณ!',4.0);
+  sfx('hurt');
+  return true;
+}
 let toastTimer = 0;
 let heroQuipAt = 0;
 function showToast(message,duration){
@@ -710,8 +1114,9 @@ function heroQuip(kind,chance,duration){
   const list=CHARACTERS[player.char].quips[kind] || CHARACTERS[player.char].quips.start || [];
   if(!list.length) return;
   const name=CHARACTERS[player.char].name || 'Hero';
-  showToast(name+': '+list[(Math.random()*list.length)|0], duration||2);
-  heroQuipAt = gameTime + 5.5;
+  const readTime=Math.min(5.2, Math.max(3.8, (duration||2.4)*1.55));
+  showToast(name+': '+list[(Math.random()*list.length)|0], readTime);
+  heroQuipAt = gameTime + Math.max(6.5, readTime+1.4);
 }
 let fpsAccum = 0, fpsFrames = 0;
 const SHADOW_GEO = new THREE.CircleGeometry(0.5, 16);
@@ -754,12 +1159,13 @@ const MAP_THEMES = {
     clear:0x120609,
     ground:0xffffff,
     groundKey:'map2_ground',
+    groundTile:10,
     borderKey:'map2_border_wall',
-    hemiSky:0xff8a62,
+    hemiSky:0xe8785d,
     hemiGround:0x1a0707,
-    sun:0xffb36a,
-    rim:0xff3048,
-    playerLight:0xff7658
+    sun:0xe89a62,
+    rim:0xd6424e,
+    playerLight:0xee7763
   },
   3: {
     name:'Void Citadel',
@@ -796,7 +1202,8 @@ function applyMapTheme(){
     const groundTex=tex[theme.groundKey] || tex.px_ground;
     if(groundTex){
       groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
-      groundTex.repeat.set(Math.round(170/2.5), Math.round(170/2.5));
+      const tile=theme.groundTile || 2.5;
+      groundTex.repeat.set(Math.round(170/tile), Math.round(170/tile));
       ground.material.map=groundTex;
       ground.material.needsUpdate=true;
     }
@@ -832,7 +1239,7 @@ let pendingTex = 0, bootDone = false;
 function bootIfReady(){ if (!bootDone && pendingTex<=0){ bootDone = true; init(); } }
 for (const [k,f] of Object.entries(MANIFEST)) {
   pendingTex++;
-  loader.load(SP+f, (t) => {
+  loader.load(spriteSrc(k), (t) => {
     t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
     t.generateMipmaps = false; t.encoding = THREE.sRGBEncoding;
     tex[k] = t; pendingTex--; bootIfReady();
@@ -1414,33 +1821,40 @@ const SHEETS = {
     idle: { key:'char_it_support_idle', cols:4, rows:8, fps:6 },
     dirRows: [0,7,6,5,4,3,2,1],
   },
+  striker: {
+    walk: { key:'char_striker_walk', cols:8, rows:8, fps:10 },
+    idle: { key:'char_striker_idle', cols:4, rows:8, fps:6 },
+    dirRows: [0,7,6,5,4,3,2,1],
+  },
 };
 
 // ---- Playable characters: signature weapon + base stats + per-level passive ----
 // (add SHEETS.<sheet> entries when the char_<key>_walk/idle sheets exist; falls back to paladin art)
 const CHARACTERS = {
   paladin:     { name:'Paladin',     sheet:'player',      weapon:'bolt',
-                 stats:{}, passive:{ desc:'+0.4 HP regen / lv', apply:p=>{ p.regen += 0.4; } } },
+                 stats:{}, passive:{ desc:'เกราะ +2 / Lv', apply:p=>{ p.def += 2; } } },
   huntress:    { name:'Huntress',    sheet:'huntress',    weapon:'spread',
-                 stats:{ maxHp:70, spd:5.8 }, passive:{ desc:'+3.5% attack speed / lv', apply:p=>{ p.rateMul *= 1.035; } } },
+                 stats:{ maxHp:70, spd:5.8 }, passive:{ desc:'ความเร็วโจมตี +3.5% / Lv', apply:p=>{ p.rateMul *= 1.035; } } },
   sorceress:   { name:'Sorceress',   sheet:'sorceress',   weapon:'nova',
-                 stats:{ maxHp:65 }, passive:{ desc:'+3.5% damage / lv', apply:p=>{ p.dmgMul *= 1.035; } } },
+                 stats:{ maxHp:65 }, passive:{ desc:'ดาเมจ +2% / Lv', apply:p=>{ p.dmgMul *= 1.02; } } },
   templar:     { name:'Templar',     sheet:'templar',     weapon:'orbit',
-                 stats:{ maxHp:110, spd:5.2, def:7 }, passive:{ desc:'+5 max HP / lv', apply:p=>{ p.maxHp += 5; p.hp += 5; } } },
+                 stats:{ maxHp:110, spd:5.2, def:7 }, passive:{ desc:'เลือดสูงสุด +5 / Lv', apply:p=>{ p.maxHp += 5; p.hp += 5; } } },
   ranger:      { name:'Ranger',      sheet:'ranger',      weapon:'arrow',
-                 stats:{ maxHp:75, spd:5.6, magnet:4.4 }, passive:{ desc:'+1.5% move speed / lv', apply:p=>{ p.spd *= 1.015; } } },
+                 stats:{ maxHp:75, spd:5.6, magnet:4.4 }, passive:{ desc:'ความเร็วเดิน +1.5% / Lv', apply:p=>{ p.spd *= 1.015; } } },
   necromancer: { name:'Necromancer', sheet:'necromancer', weapon:'soulspiral',
-                 stats:{ maxHp:75 }, passive:{ desc:'+3% XP gain / lv', apply:p=>{ p.xpMul *= 1.03; } } },
+                 stats:{ maxHp:75 }, passive:{ desc:'XP ที่ได้รับ +3% / Lv', apply:p=>{ p.xpMul *= 1.03; } } },
   slayer:      { name:'Slayer',      sheet:'slayer',      weapon:'bladewhirl',
-                 stats:{ maxHp:75 }, passive:{ desc:'+2.5% damage / lv', apply:p=>{ p.dmgMul *= 1.025; } } },
+                 stats:{ maxHp:75 }, passive:{ desc:'ดาเมจ +2.5% / Lv', apply:p=>{ p.dmgMul *= 1.025; } } },
   priestess:   { name:'Priestess',   sheet:'priestess',   weapon:'smite',
-                 stats:{ maxHp:95, regen:0.4 }, passive:{ desc:'+0.3 regen & heal / lv', apply:p=>{ p.regen += 0.3; p.hp=Math.min(healCap(p),p.hp+10); } } },
+                 stats:{ maxHp:95, regen:0.4 }, passive:{ desc:'ฟื้นเลือด +0.3 และฮีล / Lv', apply:p=>{ p.regen += 0.3; p.hp=Math.min(healCap(p),p.hp+10); } } },
   stormcaller: { name:'Stormcaller', sheet:'stormcaller', weapon:'lightning', portrait:'stormcaller',
-                 stats:{ maxHp:70, critChance:0.08 }, passive:{ desc:'+6% crit dmg / lv', apply:p=>{ p.critDmg += 0.06; } } },
+                 stats:{ maxHp:70, critChance:0.08 }, passive:{ desc:'ดาเมจคริติคอล +6% / Lv', apply:p=>{ p.critDmg += 0.06; } } },
   assassin:    { name:'Assassin',    sheet:'assassin',    weapon:'dagger', portrait:'assassin',
-                 stats:{ maxHp:65, spd:5.9, critChance:0.12 }, passive:{ desc:'+2% crit chance / lv', apply:p=>{ p.critChance += 0.02; } } },
+                 stats:{ maxHp:65, spd:5.9, critChance:0.12 }, passive:{ desc:'โอกาสคริติคอล +2% / Lv', apply:p=>{ p.critChance += 0.02; } } },
   it_support:  { name:'IT Support',  sheet:'it_support', weapon:'toolstab', portrait:'it_support',
-                 stats:{ maxHp:78, spd:5.5, magnet:3.6, critChance:0.07 }, passive:{ desc:'+3% skill size / lv', apply:p=>{ p.projScale *= 1.03; } } },
+                 stats:{ maxHp:78, spd:5.5, magnet:3.6, critChance:0.07 }, passive:{ desc:'ขนาดสกิล +3% / Lv', apply:p=>{ p.projScale *= 1.03; } } },
+  striker:     { name:'Striker',     sheet:'striker',     weapon:'football', portrait:'striker',
+                 stats:{ maxHp:76, spd:5.7, magnet:3.4, critChance:0.06 }, passive:{ desc:'ความเร็วเดิน +1.5%, ความเร็วกระสุน/วัตถุโจมตี +1% / Lv', apply:p=>{ p.spd *= 1.015; p.projSpeedMul *= 1.01; } } },
 };
 Object.assign(CHARACTERS.paladin, {
   bio:'นักรบศักดิ์สิทธิ์ที่ให้อภัยทุกคน ยกเว้นตอน cooldown พร้อม',
@@ -1489,6 +1903,15 @@ Object.assign(CHARACTERS.it_support, {
     level:['อัปแพตช์เรียบร้อย กรุณาอย่าถามว่าแก้อะไร','เพิ่ม RAM ให้สกิลแล้วครับ','สิทธิ์ admin มาแล้ว'],
     loot:['ของในกล่องดูเหมือน spare part','อันนี้เบิกแผนกได้ไหมครับ'],
     hurt:['ใคร unplug สายชีวิต','แจ้ง incident แล้วครับ','ขอ remote เข้าแผลหน่อย']
+  }
+});
+Object.assign(CHARACTERS.striker, {
+  bio:'กองหน้าทัวร์นาเมนต์ต้องสาป ผู้เอาแรงกดดันวันแข่งเข้ามาในพันธสัญญา',
+  quips:{
+    start:['เริ่มเขี่ยบอล อย่าฟาวล์ศพเดินได้ก็พอ','VAR บอกว่ารันนี้นับคะแนน','เก้าสิบนาทีเหรอ ผมขอแค่สิบก็พอ'],
+    level:['สปีดเพิ่ม เด้งเพิ่ม ทรงผมยังพังเหมือนเดิม','โค้ชอยากครองบอล ผมเลือกความวุ่นวาย'],
+    loot:['อันนี้ต้องเอาเข้าตู้ถ้วยรางวัล','โบนัสย้ายทีมฟรี'],
+    hurt:['กรรมการ อันนั้นเปิดปุ่มชัด ๆ','เกมเยือนบางนัดยังหนักกว่านี้']
   }
 });
 let currentChar = 'paladin';
@@ -1581,7 +2004,7 @@ function makePlayer() {
   scene.add(spr); scene.add(sh);
   const p = { x:0, z:0, hp:80, maxHp:80, def:5, spd:PLAYER_SPEED,
            level:1, xp:0, xpToNext:xpRequired(1), gold:0, alive:true, moving:false, dir:0,
-           invuln:0, flash:0, hpBarUntil:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, lifesteal:0, knockbackMul:0, lifeMul:1, areaLifeMul:1, projSpeedMul:1, projScale:1, critChance:0.05, critDmg:1.5, tomeCount:{}, bansRemaining:3, bannedChoices:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, relics:[], char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh, hpbar };
+           invuln:0, flash:0, hpBarUntil:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, dashCdMul:1, dashDistMul:1, dashInvulnBonus:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, ricochetBonus:0, lifesteal:0, knockbackMul:0, lifeMul:1, areaLifeMul:1, projSpeedMul:1, projScale:1, pickupSpeedBoost:0, pickupSpeedTimer:0, pickupDmgBoost:0, pickupDmgTimer:0, critChance:0.05, critDmg:1.5, tomeCount:{}, bansRemaining:3, bannedChoices:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, relics:[], char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh, hpbar };
   const st = C.stats || {};
   if (st.maxHp!=null){ p.maxHp=st.maxHp; p.hp=st.maxHp; }
   if (st.spd!=null)   p.spd=st.spd;
@@ -1600,6 +2023,7 @@ function pickupItem(gi){
   it.apply(player);
   player.items.push(it);
   player.itemCounts[it.name]=(player.itemCounts[it.name]||0)+1;
+  itemSig=null; updateItemHUD(true);
   sfx('pickup');
   if (gi.spr) scene.remove(gi.spr);
   score += ({common:100,uncommon:200,rare:300,legendary:500})[it.rarity]||100;
@@ -1630,7 +2054,17 @@ function rollItemDrop(boosted){
   const luck = 1 + (player.luck||0);
   const r = Math.random();
   let rarity = null;
-  if (boosted) {
+  if (boosted === 'chest_epic') {
+    if (r < 0.14*luck) rarity = 'legendary';
+    else if (r < 0.42*luck) rarity = 'rare';
+    else if (r < 0.75*luck) rarity = 'uncommon';
+    else rarity = 'common';
+  } else if (boosted === 'chest_rare') {
+    if (r < 0.06*luck) rarity = 'legendary';
+    else if (r < 0.24*luck) rarity = 'rare';
+    else if (r < 0.55*luck) rarity = 'uncommon';
+    else rarity = 'common';
+  } else if (boosted) {
     if (r < 0.08*luck) rarity = 'legendary';
     else if (r < 0.30*luck) rarity = 'rare';
     else if (r < 0.60*luck) rarity = 'uncommon';
@@ -1738,7 +2172,7 @@ function spawnMiniboss() {
   assignSkills(enemies[enemies.length-1], MB_SKILLS[t.sprite] || ['ring','charge']);
   { const mb=enemies[enemies.length-1]; mb.aura=makeBossAura(0xff3f66, mb.r*1.85, false); mb.tint=0xffe3e8; }
   spawnObjectPulse(x,z,0xff3f66,t.h*1.8,0.75); spawnBurst(x,z,0xff6a82,18,1.0); shake(0.22,0.16);
-  showToast('\u26a0 ' + t.name + ' appears!', 2.0);
+  showToast('\u26a0 ' + t.name + ' ปรากฏตัว!', 2.0);
 }
 
 // low-poly 3D gothic trees — 5 variants (haunted twilight)

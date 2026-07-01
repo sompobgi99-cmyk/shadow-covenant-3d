@@ -54,6 +54,7 @@
 
   function buildRunTelemetry(entry){
     const p = typeof player !== 'undefined' ? player : null;
+    const stats = typeof runStats !== 'undefined' ? runStats : null;
     const runId = 'run_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
     return {
       schema: 1,
@@ -80,6 +81,11 @@
       tomes: tomeSnapshot(p),
       items: itemSnapshot(p),
       relics: (p && Array.isArray(p.relics) ? p.relics : []).map(r => ({ id: r.id, name: r.name })),
+      summary: stats ? {
+        weapon_damage: stats.weaponDamage || {},
+        item_stats: stats.itemStats || {},
+        death_cause: stats.deathCause || stats.lastHit || null,
+      } : null,
     };
   }
 
