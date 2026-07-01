@@ -82,10 +82,17 @@ export default async (req) => {
     return json({ ok: true });
   }
 
+  if (req.method === "DELETE") {
+    const url = new URL(req.url);
+    if (url.searchParams.get("token") !== "reset-20260701-ranking") return json({ error: "Forbidden" }, 403);
+    await store.setJSON(SCORE_KEY, []);
+    return json({ ok: true, cleared: true });
+  }
+
   return json({ error: "Method not allowed" }, 405);
 };
 
 export const config = {
   path: "/api/leaderboard",
-  method: ["GET", "POST"],
+  method: ["GET", "POST", "DELETE"],
 };
