@@ -216,6 +216,7 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc){
   const crit=rollCrit();
   if(crit.crit) d *= crit.mul;
   if (e.shieldT > 0) d *= 0.4;                                           // Warden shield
+  if (e.damageTakenMul != null) d *= Math.max(0.05, e.damageTakenMul);    // boss armor/resistance
   d = Math.round(d);
   if(e.final && e.finalPhase){
     if(e.phaseInvuln>0) d = 0;

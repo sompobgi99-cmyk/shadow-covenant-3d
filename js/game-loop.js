@@ -234,6 +234,42 @@ function update(dt) {
     if (r.life<=0){ scene.remove(r.mesh); freeObj(r.mesh); rings.splice(i,1); continue; }
     const t=1-r.life/r.max, rad=0.5+(r.maxR-0.5)*t;
     r.mesh.scale.set(rad,rad,rad); r.mesh.material.opacity=0.85*(1-t); }
+  for (let i=bossAoEs.length-1;i>=0;i--){ const a=bossAoEs[i]; a.t+=dt;
+    const p=Math.min(1,a.t/a.delay);
+    const pulse=0.86+Math.sin(gameTime*18)*0.08;
+    const rad=a.radius*(0.38+0.62*p)*pulse;
+    a.mesh.scale.set(rad,rad,rad);
+    a.mesh.position.y=groundHeight(a.x,a.z)+0.16;
+    a.mesh.material.opacity=0.18+0.42*p;
+    if(a.core){
+      a.core.scale.set(a.radius*(0.18+0.82*p),a.radius*(0.18+0.82*p),a.radius*(0.18+0.82*p));
+      a.core.position.y=groundHeight(a.x,a.z)+0.18;
+      a.core.material.opacity=0.10+0.26*p;
+    }
+    if(a.t<a.delay) continue;
+    const dx=player.x-a.x, dz=player.z-a.z, dist=Math.hypot(dx,dz);
+    if(dist<a.radius+0.45) hurtPlayer(a.damage,dx/(dist||1),dz/(dist||1),a.knock||12,a.src);
+    spawnBossImpactFx(a.x,a.z,a.radius,a.color,a.impact);
+    spawnRing(a.x,a.z,a.color,a.radius*1.65,0.36);
+    spawnObjectPulse(a.x,a.z,a.color,a.radius*1.45,0.42);
+    spawnBurst(a.x,a.z,a.color,Math.min(34,10+Math.round(a.radius*4)),1.1);
+    shake(0.24+Math.min(0.25,a.radius*0.035),0.18);
+    scene.remove(a.mesh); freeObj(a.mesh);
+    if(a.core){ scene.remove(a.core); freeObj(a.core); }
+    bossAoEs.splice(i,1);
+  }
+  for (let i=bossImpactFx.length-1;i>=0;i--){ const f=bossImpactFx[i]; f.t+=dt;
+    const p=Math.min(1,f.t/f.life);
+    const frame=Math.min(f.frames-1,Math.floor(p*f.frames));
+    if(f.map) f.map.offset.x=frame/f.frames;
+    const grow=1+p*0.24;
+    f.mesh.scale.set(f.radius*grow,f.radius*grow,f.radius*grow);
+    f.mesh.position.y=groundHeight(f.x,f.z)+0.2;
+    f.mesh.material.opacity=(1-p)*0.92;
+    if(f.t<f.life) continue;
+    scene.remove(f.mesh); freeObj(f.mesh);
+    bossImpactFx.splice(i,1);
+  }
   for (let i=novaWaves.length-1;i>=0;i--){ const w=novaWaves[i];
     w.r += (w.speed||16)*dt; w.mesh.scale.set(w.r,w.r,w.r);
     const no=Math.max(0,1-w.r/w.maxR);

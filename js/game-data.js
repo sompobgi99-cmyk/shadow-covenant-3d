@@ -78,6 +78,7 @@ const MANIFEST = {
   fx_chest_beacon_gen:'fx_chest_beacon_gen.png', fx_magnet_beacon_gen:'fx_magnet_beacon_gen.png',
   fx_shrine_glow_gen:'fx_shrine_glow_gen.png', fx_item_glow_gen:'fx_item_glow_gen.png',
   fx_loot_sparkle_gen:'fx_loot_sparkle_gen.png', fx_portal_pulse_gen:'fx_portal_pulse_gen.png',
+  fx_boss_aoe_fire_gen:'fx_boss_aoe_fire_gen.png', fx_boss_aoe_arcane_gen:'fx_boss_aoe_arcane_gen.png', fx_boss_aoe_void_gen:'fx_boss_aoe_void_gen.png',
   enemy_bone_stalker_8dir:'enemy_bone_stalker_8dir.png',
   enemy_wraith_8dir:'enemy_wraith_8dir.png',
   enemy_dire_bat_8dir:'enemy_dire_bat_8dir.png',

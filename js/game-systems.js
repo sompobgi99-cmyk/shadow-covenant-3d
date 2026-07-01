@@ -336,6 +336,8 @@ function clearCombatActors(){
   for (const sh of enemyShots){ scene.remove(sh.mesh); freeObj(sh.mesh); }
   for (const p of particles){ scene.remove(p.mesh); freeObj(p.mesh); }
   for (const r of rings){ scene.remove(r.mesh); freeObj(r.mesh); }
+  for (const a of bossAoEs){ scene.remove(a.mesh); freeObj(a.mesh); if(a.core){ scene.remove(a.core); freeObj(a.core); } }
+  for (const f of bossImpactFx){ scene.remove(f.mesh); freeObj(f.mesh); }
   for (const tr of trails){ scene.remove(tr.mesh); freeObj(tr.mesh); }
   for (const pk of pickups){ scene.remove(pk.spr); freeObj(pk.spr); }
   for (const gi of groundItems) { if(gi.spr){ scene.remove(gi.spr); freeObj(gi.spr); } if(gi.glow){ scene.remove(gi.glow); freeObj(gi.glow); } }
@@ -343,7 +345,7 @@ function clearCombatActors(){
   for (const w of novaWaves){ scene.remove(w.mesh); freeObj(w.mesh); }
   for (const f of slashFx){ scene.remove(f.mesh); freeObj(f.mesh); }
   for (const d of dmgNums) d.el.remove();
-  enemies.length=0; projectiles.length=0; enemyShots.length=0; particles.length=0; rings.length=0;
+  enemies.length=0; projectiles.length=0; enemyShots.length=0; particles.length=0; rings.length=0; bossAoEs.length=0; bossImpactFx.length=0;
   trails.length=0; pickups.length=0; groundItems.length=0; afterimages.length=0; novaWaves.length=0; slashFx.length=0; dmgNums.length=0;
   boss=null; weaponSig=null; enemyGrid.clear();
 }
@@ -523,6 +525,42 @@ function bossCross(e, offset=0, dmgMul=1){
 function bossPlayerAngle(e){
   return Math.atan2(player.z-e.z, player.x-e.x);
 }
+function spawnBossImpactFx(x,z,radius,color,kind){
+  const key=kind==='fire'?'fx_boss_aoe_fire_gen':kind==='arcane'?'fx_boss_aoe_arcane_gen':kind==='void'?'fx_boss_aoe_void_gen':'';
+  const base=key&&tex[key];
+  if(!base) return;
+  const map=base.clone();
+  map.magFilter=THREE.NearestFilter; map.minFilter=THREE.NearestFilter;
+  map.repeat.set(1/6,1); map.offset.set(0,0); map.needsUpdate=true;
+  const geo=new THREE.PlaneGeometry(2,2); geo.rotateX(-Math.PI/2);
+  const mesh=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({
+    map, color:0xffffff, transparent:true, opacity:0.92,
+    alphaTest:0.04, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending
+  }));
+  mesh.position.set(x,groundHeight(x,z)+0.2,z);
+  mesh.rotation.z=Math.random()*Math.PI;
+  mesh.scale.set(radius,radius,radius);
+  scene.add(mesh);
+  bossImpactFx.push({ x,z,radius:radius*1.12,life:0.46,t:0,frames:6,map,mesh,color });
+}
+function bossAoe(e,x,z,radius,delay,dmgMul,color,knock,impact){
+  const geo=new THREE.PlaneGeometry(2,2); geo.rotateX(-Math.PI/2);
+  const mat=new THREE.MeshBasicMaterial({
+    map:getEntityAuraTexture('object'), color, transparent:true, opacity:0.26,
+    alphaTest:0.04, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending
+  });
+  const mesh=new THREE.Mesh(geo,mat);
+  mesh.rotation.z=Math.PI/4;
+  mesh.position.set(x,groundHeight(x,z)+0.16,z);
+  scene.add(mesh);
+  const core=new THREE.Mesh(geo.clone(),new THREE.MeshBasicMaterial({
+    map:getPixelRingTexture(), color:0xffffff, transparent:true, opacity:0.16,
+    alphaTest:0.06, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending
+  }));
+  core.position.set(x,groundHeight(x,z)+0.18,z);
+  scene.add(core);
+  bossAoEs.push({ x,z,radius,delay:delay||0.85,t:0,damage:Math.round(e.atk*(dmgMul||1)),color,knock:knock||13,impact:impact||'void',src:e,mesh,core });
+}
 const SK = {
   ring:    { cd:3.0, fn:(e)=>{ const n=16; for(let i=0;i<n;i++){const a=(i/n)*6.2832; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),e.atk);} e.flash=0.12; } },
   bigRing: { cd:3.4, fn:(e)=>{ const n=24; for(let i=0;i<n;i++){const a=(i/n)*6.2832; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),e.atk);} e.flash=0.12; } },
@@ -532,20 +570,20 @@ const SK = {
   charge:  { cd:4.0, fn:(e,nx,nz)=>{ e.charging=0.5; e.cdx=nx; e.cdz=nz; e.flash=0.15; } },
   summon:  { cd:8.0, fn:(e)=>{ for(let i=0;i<2;i++){const a=Math.random()*6.2832; spawnAddAt(e.x+Math.cos(a)*3,e.z+Math.sin(a)*3);} showToast('☠ ลูกสมุน!',1); } },
   summon3: { cd:7.0, fn:(e)=>{ for(let i=0;i<3;i++){const a=Math.random()*6.2832; spawnAddAt(e.x+Math.cos(a)*3,e.z+Math.sin(a)*3);} showToast('☠ ลูกสมุน!',1); } },
-  shock:   { cd:4.5, fn:(e)=>{ spawnRing(e.x,e.z,0xffaa44,4.8,0.5); spawnBurst(e.x,e.z,0xffaa44,14,1.3); const dx=player.x-e.x,dz=player.z-e.z,d=Math.hypot(dx,dz); if(d<4.5) hurtPlayer(Math.round(e.atk*1.2),dx/(d||1),dz/(d||1),14,e); shake(0.32,0.22); e.flash=0.15; } },
+  shock:   { cd:4.5, fn:(e)=>{ bossAoe(e,e.x,e.z,4.5,0.72,1.2,0xffaa44,14,'fire'); spawnRing(e.x,e.z,0xffaa44,4.8,0.5); spawnBurst(e.x,e.z,0xffaa44,10,1.0); shake(0.20,0.16); e.flash=0.15; } },
   lob:     { cd:2.8, fn:(e,nx,nz)=>{ spawnEnemyShot(e.x,e.z,nx,nz,Math.round(e.atk*1.4)); e.flash=0.12; } },
   heal:    { cd:6.0, fn:(e)=>{ e.hp=Math.min(e.maxHp, e.hp+e.maxHp*0.06); spawnBurst(e.x,e.z,0x6affa0,8,0.8); } },
   shield:  { cd:7.0, fn:(e)=>{ e.shieldT=3; spawnBurst(e.x,e.z,0x8fd0ff,8,0.9); } },
   lichCross: { cd:3.2, fn:(e)=>{ const a=bossPlayerAngle(e); bossCross(e,a,1.05); bossRing(e,8,a+Math.PI/8,0.75); spawnBurst(e.x,e.z,0x8bd7ff,12,1.0); e.flash=0.16; } },
-  lichPrison:{ cd:5.6, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<6;i++){ const side=i%2?-1:1, dist=1.8+(i*0.45); bossFan(e,a+side*0.95,3,0.07,0.9); bossShot(e,a+side*0.55,0.95,Math.cos(a+side*1.57)*dist,Math.sin(a+side*1.57)*dist); } spawnObjectPulse(player.x,player.z,0x8bd7ff,3.2,0.55); e.flash=0.14; } },
-  behemothSlam:{ cd:4.4, fn:(e)=>{ spawnRing(e.x,e.z,0xffaa44,6.2,0.55); spawnBurst(e.x,e.z,0xffaa44,24,1.5); bossRing(e,18,0,0.95); const dx=player.x-e.x,dz=player.z-e.z,d=Math.hypot(dx,dz); if(d<5.7) hurtPlayer(Math.round(e.atk*1.45),dx/(d||1),dz/(d||1),19,e); shake(0.48,0.34); e.flash=0.2; } },
-  behemothQuake:{ cd:5.2, fn:(e)=>{ for(let i=0;i<3;i++){ const a=bossPlayerAngle(e)+i*0.42-0.42; const ox=Math.cos(a)*(2.3+i*1.5), oz=Math.sin(a)*(2.3+i*1.5); spawnRing(e.x+ox,e.z+oz,0xffd27a,2.5+i*0.7,0.42); bossFan(e,a,5+i*2,0.18,0.85); } shake(0.38,0.26); e.flash=0.16; } },
+  lichPrison:{ cd:5.6, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<6;i++){ const side=i%2?-1:1, dist=1.8+(i*0.45); bossFan(e,a+side*0.95,3,0.07,0.9); bossShot(e,a+side*0.55,0.95,Math.cos(a+side*1.57)*dist,Math.sin(a+side*1.57)*dist); } bossAoe(e,player.x,player.z,3.2,0.95,1.05,0x8bd7ff,12,'arcane'); spawnObjectPulse(player.x,player.z,0x8bd7ff,3.2,0.55); e.flash=0.14; } },
+  behemothSlam:{ cd:4.4, fn:(e)=>{ bossAoe(e,e.x,e.z,5.7,0.8,1.45,0xffaa44,19,'fire'); spawnRing(e.x,e.z,0xffaa44,6.2,0.55); spawnBurst(e.x,e.z,0xffaa44,18,1.3); bossRing(e,18,0,0.85); shake(0.32,0.24); e.flash=0.2; } },
+  behemothQuake:{ cd:5.2, fn:(e)=>{ for(let i=0;i<3;i++){ const a=bossPlayerAngle(e)+i*0.42-0.42; const ox=Math.cos(a)*(2.3+i*1.5), oz=Math.sin(a)*(2.3+i*1.5); bossAoe(e,e.x+ox,e.z+oz,2.4+i*0.65,0.65+i*0.16,0.92,0xffd27a,13,'fire'); spawnRing(e.x+ox,e.z+oz,0xffd27a,2.5+i*0.7,0.42); bossFan(e,a,5+i*2,0.18,0.72); } shake(0.28,0.2); e.flash=0.16; } },
   reaperScythes:{ cd:3.1, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<7;i++){ const o=(i-3)*0.17; bossShot(e,a+Math.PI*0.5+o,0.9); bossShot(e,a-Math.PI*0.5-o,0.9); } bossFan(e,a,7,0.12,1.0); spawnBurst(e.x,e.z,0xff3f66,16,1.0); e.flash=0.16; } },
-  reaperBlink:{ cd:5.0, fn:(e)=>{ const a=bossPlayerAngle(e); const side=Math.random()<0.5?-1:1; e.x=clamp(player.x-Math.cos(a)*3.2+Math.cos(a+side*1.57)*1.4,-MAP_BOUND,MAP_BOUND); e.z=clamp(player.z-Math.sin(a)*3.2+Math.sin(a+side*1.57)*1.4,-MAP_BOUND,MAP_BOUND); spawnBurst(e.x,e.z,0xff3f66,22,1.25); bossFan(e,a,9,0.13,0.95); shake(0.28,0.18); e.flash=0.22; } },
+  reaperBlink:{ cd:5.0, fn:(e)=>{ const a=bossPlayerAngle(e); const side=Math.random()<0.5?-1:1; bossAoe(e,player.x,player.z,2.8,0.62,1.05,0xff3f66,15,'void'); e.x=clamp(player.x-Math.cos(a)*3.2+Math.cos(a+side*1.57)*1.4,-MAP_BOUND,MAP_BOUND); e.z=clamp(player.z-Math.sin(a)*3.2+Math.sin(a+side*1.57)*1.4,-MAP_BOUND,MAP_BOUND); spawnBurst(e.x,e.z,0xff3f66,22,1.25); bossFan(e,a,9,0.13,0.95); shake(0.28,0.18); e.flash=0.22; } },
   wyrmBreath:{ cd:3.6, fn:(e)=>{ const a=bossPlayerAngle(e); bossFan(e,a,13,0.09,0.82); bossFan(e,a,7,0.16,1.05); spawnObjectPulse(e.x+Math.cos(a)*2.2,e.z+Math.sin(a)*2.2,0x8bd7ff,4.2,0.45); e.flash=0.16; } },
-  wyrmMeteor:{ cd:5.4, fn:(e)=>{ const base=bossPlayerAngle(e); for(let i=0;i<10;i++){ const a=base+(i-4.5)*0.18, sx=e.x+Math.cos(a+Math.PI*0.5)*(i-4.5)*0.55, sz=e.z+Math.sin(a+Math.PI*0.5)*(i-4.5)*0.55; spawnEnemyShot(sx,sz,Math.cos(a),Math.sin(a),Math.round(e.atk*(i%3===0?1.15:0.88))); } bossRing(e,12,gameTime*0.7,0.72); spawnBurst(e.x,e.z,0x55ddff,18,1.1); e.flash=0.16; } },
+  wyrmMeteor:{ cd:5.4, fn:(e)=>{ const base=bossPlayerAngle(e); for(let i=0;i<10;i++){ const a=base+(i-4.5)*0.18, sx=e.x+Math.cos(a+Math.PI*0.5)*(i-4.5)*0.55, sz=e.z+Math.sin(a+Math.PI*0.5)*(i-4.5)*0.55; spawnEnemyShot(sx,sz,Math.cos(a),Math.sin(a),Math.round(e.atk*(i%3===0?1.15:0.88))); if(i%3===0) bossAoe(e,sx+Math.cos(a)*3.4,sz+Math.sin(a)*3.4,2.1,0.9+i*0.03,1.15,0x55ddff,12,'arcane'); } bossRing(e,12,gameTime*0.7,0.72); spawnBurst(e.x,e.z,0x55ddff,18,1.1); e.flash=0.16; } },
   overlordStar:{ cd:3.8, fn:(e)=>{ const a=gameTime*0.9; bossRing(e,20,a,0.8); bossCross(e,a+Math.PI/8,1.0); bossFan(e,bossPlayerAngle(e),9,0.11,1.05); spawnObjectPulse(e.x,e.z,0x9a55ff,e.r*3.4,0.48); e.flash=0.2; } },
-  overlordJudgment:{ cd:6.2, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<4;i++) bossFan(e,a+i*Math.PI*0.5,7,0.12,0.9); bossRing(e,28,a+Math.PI/28,0.78); if((e.finalPhase||3)<=2) for(let i=0;i<2;i++){ const q=a+(i?1:-1)*1.2; spawnAddAt(e.x+Math.cos(q)*5,e.z+Math.sin(q)*5); } spawnBurst(e.x,e.z,0xff3355,32,1.35); shake(0.42,0.3); e.flash=0.24; } },
+  overlordJudgment:{ cd:6.2, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<4;i++) bossFan(e,a+i*Math.PI*0.5,7,0.12,0.9); bossRing(e,28,a+Math.PI/28,0.78); bossAoe(e,player.x,player.z,3.7,0.78,1.25,0xff3355,16,'void'); for(let i=0;i<4;i++){ const q=a+i*Math.PI*0.5; bossAoe(e,e.x+Math.cos(q)*5.2,e.z+Math.sin(q)*5.2,2.7,0.96,1.0,0x9a55ff,13,'void'); } if((e.finalPhase||3)<=2) for(let i=0;i<2;i++){ const q=a+(i?1:-1)*1.2; spawnAddAt(e.x+Math.cos(q)*5,e.z+Math.sin(q)*5); } spawnBurst(e.x,e.z,0xff3355,32,1.35); shake(0.42,0.3); e.flash=0.24; } },
 };
 const BOSS_SKILLS = {
   boss_lich:     ['lichCross','lichPrison','summon'],
@@ -563,12 +601,14 @@ const MB_SKILLS = {
   miniboss_warden:        ['shield','ring'],
 };
 function setupFinalBoss(e){
+  e.maxHp=Math.round(e.maxHp*3.0);
   e.finalPhase=3;
   e.phaseHp=e.maxHp/3;
   e.hp=e.maxHp;
   e.phaseInvuln=0;
   e.phaseSummonDone={};
   e.finalPulseT=1.2;
+  e.damageTakenMul=0.42;
   e.spd=42*SPD_SCALE*BOSS_SPEED_MUL;
   e.atk=Math.round(e.atk*1.18);
 }
@@ -982,6 +1022,8 @@ function restart(){
   for (const sh of enemyShots){ scene.remove(sh.mesh); freeObj(sh.mesh); } enemyShots.length=0;
   for (const p of particles){ scene.remove(p.mesh); freeObj(p.mesh); } particles.length=0;
   for (const r of rings){ scene.remove(r.mesh); freeObj(r.mesh); } rings.length=0;
+  for (const a of bossAoEs){ scene.remove(a.mesh); freeObj(a.mesh); if(a.core){ scene.remove(a.core); freeObj(a.core); } } bossAoEs.length=0;
+  for (const f of bossImpactFx){ scene.remove(f.mesh); freeObj(f.mesh); } bossImpactFx.length=0;
   for (const w of novaWaves){ scene.remove(w.mesh); freeObj(w.mesh); } novaWaves.length=0;
   for (const f of slashFx){ scene.remove(f.mesh); freeObj(f.mesh); } slashFx.length=0;
   for (const tr of trails){ scene.remove(tr.mesh); freeObj(tr.mesh); } trails.length=0;

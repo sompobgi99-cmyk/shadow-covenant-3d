@@ -134,6 +134,8 @@ function spawnTrail(x,z,color,scale,life){
   trails.push({ mesh:m, life:life||0.16, max:life||0.16, core, glow });
 }
 const rings = [];
+const bossAoEs = [];
+const bossImpactFx = [];
 function spawnRing(x, z, color, maxR, life){
   const geo=new THREE.PlaneGeometry(2,2); geo.rotateX(-Math.PI/2);
   const m=new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
