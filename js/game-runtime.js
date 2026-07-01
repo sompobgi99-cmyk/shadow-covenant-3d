@@ -1,5 +1,5 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
-const APP_VERSION = '20260701-it-stab-melee';
+const APP_VERSION = '20260701-it-size-passive';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
@@ -1431,7 +1431,7 @@ const CHARACTERS = {
   assassin:    { name:'Assassin',    sheet:'assassin',    weapon:'dagger', portrait:'assassin',
                  stats:{ maxHp:65, spd:5.9, critChance:0.12 }, passive:{ desc:'+2% crit chance / lv', apply:p=>{ p.critChance += 0.02; } } },
   it_support:  { name:'IT Support',  sheet:'it_support', weapon:'toolstab', portrait:'it_support',
-                 stats:{ maxHp:78, spd:5.5, magnet:3.6, critChance:0.07 }, passive:{ desc:'+2% attack recovery / lv', apply:p=>{ p.rateMul *= 1.02; } } },
+                 stats:{ maxHp:78, spd:5.5, magnet:3.6, critChance:0.07 }, passive:{ desc:'+3% skill size / lv', apply:p=>{ p.projScale *= 1.03; } } },
 };
 Object.assign(CHARACTERS.paladin, {
   bio:'นักรบศักดิ์สิทธิ์ที่ให้อภัยทุกคน ยกเว้นตอน cooldown พร้อม',
