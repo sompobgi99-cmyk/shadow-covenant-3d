@@ -22,8 +22,8 @@ const WEAPON_TYPES = {
             dmg:20, rate:1.15, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25, shape:'lightning' },
   dagger: { name:'Throwing Knives', icon:'wpn_dagger', desc:'Fast single-hit daggers at nearby foes', mode:'aim',
             dmg:11, rate:2.4, range:10, count:2, pierce:0, speed:26, life:0.9, color:0xdde7ff, shape:'dagger' },
-  toolstab:{ name:'Multi-Tool Screwdriver', icon:'wpn_screwdriver', desc:'Short thrusts pierce every enemy in line', mode:'aim',
-            dmg:16, rate:2.45, range:7.2, count:1, pierce:99, speed:34, life:0.34, color:0x64d7ff, shape:'screwdriver' },
+  toolstab:{ name:'Multi-Tool Screwdriver', icon:'wpn_screwdriver', desc:'Quick melee thrusts pierce every enemy in line', mode:'stab',
+            dmg:18, rate:2.55, range:3.0, count:1, pierce:99, speed:0, life:0.16, color:0x64d7ff, shape:'screwdriver', width:0.36 },
   bladewhirl:{ name:'Blade Wave',   icon:'wpn_bladewhirl',     desc:'Fires curved sword waves', mode:'slash',
             dmg:12, rate:1.8, range:3.6, count:1, pierce:1, speed:8, life:0.38, color:0xff5566, arc:0.45, shape:'crescent', evolveTo:'bladewhirlX', evolveTome:'swiftness' },
   soulspiral:{ name:'Soul Spiral',  icon:'wpn_soulspiral',  desc:'Rotating soul bolts',       mode:'spiral',
@@ -322,6 +322,19 @@ function fireSlash(s){
     spawnProjectile(Math.cos(a),Math.sin(a),s);
   }
 }
+function fireStab(s){
+  sfx('shoot');
+  const target=nearestEnemies(player.x, player.z, s.range+2.2, 1)[0];
+  let dx=player.ldx, dz=player.ldz;
+  if (target){ dx=target.x-player.x; dz=target.z-player.z; }
+  if (!dx && !dz){ dx=player.face||1; dz=0; }
+  const len=Math.hypot(dx,dz)||1, base=Math.atan2(dz/len,dx/len);
+  const spread=s.count>1 ? 0.26 : 0;
+  for(let i=0;i<s.count;i++){
+    const a=base+(s.count>1?(i/(s.count-1)-0.5)*spread:0);
+    spawnStabProjectile(Math.cos(a),Math.sin(a),s);
+  }
+}
 function fireSmite(s){
   sfx('shoot');
   const t=nearestEnemies(player.x, player.z, s.range||11, 1)[0];
@@ -348,7 +361,7 @@ function fireSmite(s){
     spawnBurst(tx,tz,s.color,8,0.8);
   }
 }
-const WFIRE = { aim:fireAim, spread:fireSpread, nova:fireNova, spiral:fireSpiral, slash:fireSlash, smite:fireSmite };
+const WFIRE = { aim:fireAim, spread:fireSpread, nova:fireNova, spiral:fireSpiral, slash:fireSlash, stab:fireStab, smite:fireSmite };
 function updateOrbit(w, s, dt){
   const b = WEAPON_TYPES[w.key] || WEAPON_TYPES.orbit;
   syncOrbitGuard(w,s);

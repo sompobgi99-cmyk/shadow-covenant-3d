@@ -175,6 +175,29 @@ function update(dt) {
   // projectiles
   for (const p of projectiles) {
     if (!p.alive) continue;
+    if (p.stab){
+      const reach=p.range||3, width=p.width||0.35;
+      p.x = player.x + p.dx*reach*0.55;
+      p.z = player.z + p.dz*reach*0.55;
+      p.life -= dt;
+      if (p.mesh && p.mesh.material) p.mesh.material.opacity=Math.max(0,p.life/(p.maxLife||0.16));
+      const sx=player.x+p.dx*0.45, sz=player.z+p.dz*0.45;
+      forEachNearbyEnemy(player.x,player.z,reach+2,e=>{
+        if (!e.alive || p.hit.has(e)) return;
+        const ex=e.x-sx, ez=e.z-sz;
+        const along=ex*p.dx+ez*p.dz;
+        if (along<0 || along>reach) return;
+        const sideX=ex-p.dx*along, sideZ=ez-p.dz*along;
+        const radius=e.r+width;
+        if (sideX*sideX+sideZ*sideZ < radius*radius){
+          p.hit.add(e);
+          dealEnemyDamage(e, p.dmg, p.color, p.dx, p.dz, 2.2);
+          if (p.hit.size > p.pierce){ p.alive=false; return false; }
+        }
+      });
+      if (p.life<=0) p.alive=false;
+      continue;
+    }
     p.x += p.dx*p.speed*dt; p.z += p.dz*p.speed*dt; p.life-=dt;
     if(p.spin && p.mesh.material) p.mesh.material.rotation+=p.spin*dt;
     if (!p.noTrail && frameN&1) spawnTrail(p.x, p.z, p.color||0xffffff, (p.scale||1)*0.9);

@@ -149,6 +149,25 @@ function spawnProjectile(dx,dz,s){
   scene.add(m);
   projectiles.push({ x:player.x, z:player.z, dx, dz, dmg:s.dmg, pierce:s.pierce, speed:s.speed, life:s.life, scale:sc, color:s.color, hitRadius, noTrail, spin, alive:true, hit:new Set(), mesh:m });
 }
+function spawnStabProjectile(dx,dz,s){
+  const sc=player.projScale||1;
+  const range=Math.max(1.4,s.range||2.8);
+  const width=(s.width||0.35)*sc;
+  const mat=new THREE.SpriteMaterial({
+    map:getPixelProjectileTexture(s.shape||'screwdriver',s.color), color:0xffffff,
+    transparent:true, opacity:1, alphaTest:0.08, depthWrite:false
+  });
+  mat.rotation=-Math.atan2(dz,dx);
+  const m=new THREE.Sprite(mat);
+  m.scale.set(range, Math.max(0.28,width*1.25), 1);
+  scene.add(m);
+  projectiles.push({
+    x:player.x+dx*range*0.55, z:player.z+dz*range*0.55,
+    dx, dz, dmg:s.dmg, pierce:s.pierce, speed:0, life:s.life||0.16, maxLife:s.life||0.16,
+    scale:sc, color:s.color, hitRadius:width, range, width, noTrail:true, spin:0,
+    stab:true, alive:true, hit:new Set(), mesh:m
+  });
+}
 function killEnemy(e){
   e.alive=false; kills++;
   sfx('kill');
