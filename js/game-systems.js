@@ -115,7 +115,7 @@ function spawnProjectile(dx,dz,s){
       map:getCrescentTexture(), color:0xffffff, transparent:true, opacity:1,
       alphaTest:0.12, blending:THREE.NormalBlending, depthWrite:false
     });
-    mat.rotation=-Math.atan2(dz,dx)-Math.PI/2;
+    mat.rotation=-Math.atan2(dz,dx);
     m=new THREE.Sprite(mat);
     m.scale.set(2.6*sc,1.3*sc,1);
     hitRadius=0.85; noTrail=true;
