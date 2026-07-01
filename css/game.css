@@ -3,8 +3,16 @@
   body.touch{ touch-action:none; -webkit-user-select:none; user-select:none; }
   #vig{ position:absolute; inset:0; pointer-events:none; box-shadow:inset 0 0 230px rgba(8,3,16,.62); z-index:5; }
   #dmg{ position:absolute; inset:0; pointer-events:none; z-index:5; overflow:hidden; }
-  .dn{ position:absolute; transform:translate(-50%,-50%); font-family:monospace; font-weight:bold; font-size:13px; text-shadow:0 1px 2px #000; }
-  .dn.crit{ font-size:17px; text-shadow:0 1px 2px #000,0 0 8px rgba(255,216,106,.72); }
+  .dn{ position:absolute; transform:translate(-50%,-50%); font-family:monospace; font-weight:900; font-size:15px; letter-spacing:0;
+       color:#fff0b8; -webkit-text-stroke:1px #231016; text-shadow:2px 2px 0 #000,0 0 4px rgba(255,236,160,.5);
+       pointer-events:none; will-change:transform,opacity; }
+  .dn.crit{ font-size:22px; color:#ffcf3d; -webkit-text-stroke:1.5px #5c160b;
+            text-shadow:2px 2px 0 #000,0 0 8px rgba(255,216,106,.8),0 0 14px rgba(255,92,36,.45); }
+  .dn.crit::before{ content:"CRIT "; display:block; margin-bottom:-3px; color:#ff6a38; font-size:10px; line-height:1;
+                    -webkit-text-stroke:1px #3a0808; text-shadow:1px 1px 0 #000,0 0 6px rgba(255,100,40,.65); }
+  .dn.playerhit{ font-size:18px; color:#ff536d; -webkit-text-stroke:1.4px #26030b;
+                 text-shadow:2px 2px 0 #000,0 0 8px rgba(255,62,92,.58); }
+  .dn.guard{ color:#9ee7ff; -webkit-text-stroke:1px #10224a; text-shadow:2px 2px 0 #000,0 0 9px rgba(120,210,255,.78); }
   #weapons{ position:absolute; left:14px; bottom:14px; display:flex; gap:6px; z-index:4; }
   .wslot{ width:36px; height:36px; background:rgba(20,14,30,.72); border:1px solid #5a4a8a; border-radius:5px; position:relative; }
   .wslot img{ width:28px; height:28px; image-rendering:pixelated; display:block; margin:2px auto 0; }

@@ -182,6 +182,8 @@ function trySkullGuard(amt, src){
   const color=best.key==='orbitX'?0xff335f:0xff7aa0;
   spawnRing(player.x, player.z, color, 2.4, 0.25);
   spawnBurst(player.x, player.z, color, best.key==='orbitX'?14:9, 0.85);
+  sfx('guard');
+  spawnDmg(player.x, player.z, Math.round(amt*block), color, false, 'guard');
   if(src && src.alive && best.key==='orbitX'){
     dealEnemyDamage(src, Math.max(1, Math.round(bestStats.dmg*1.4)), color, src.x-player.x, src.z-player.z, 2.2, true);
   }
@@ -224,6 +226,7 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc){
   }
   e.flash = 0.08;
   spawnDmg(e.x, e.z, d, color, crit.crit && d > 0);
+  if(d>0) sfx(crit.crit?'crit':'hit');
   if (kbCap){ const kd=Math.hypot(kx,kz)||1, kb=Math.min(kbCap, d*0.045/Math.max(0.5,e.r))*(player.knockbackMul||0);
     e.kx += kx/kd*kb; e.kz += kz/kd*kb; }
   spawnBurst(e.x, e.z, color, 3, 0.5);

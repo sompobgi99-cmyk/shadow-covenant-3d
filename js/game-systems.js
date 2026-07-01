@@ -702,6 +702,7 @@ function hurtPlayer(amt,dx,dz,force,src){
   const r=Math.max(1, Math.round(amt*100/(100+player.def*5)));
   damageTaken += r;
   player.hp-=r; player.flash=0.12; player.invuln=0.4;
+  spawnDmg(player.x, player.z, r, 0xff536d, false, 'playerhit');
   player.hpBarUntil=gameTime+3;
   // Mirror (reflect) + Spiky Shield (thorns) strike the attacker back
   if(src && src.alive && (player.thorns||player.reflect)){

@@ -1,10 +1,27 @@
 // ---- Sound Effects (Web Audio API, procedural, no external files) ----
 let audioCtx = null;
+const sfxLast = {};
 function initAudio() {
   if (audioCtx) return;
   try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
 }
 function resumeAudio() { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }
+function sfxAllowed(type, gap){
+  const now = audioCtx ? audioCtx.currentTime : 0;
+  if (sfxLast[type] && now - sfxLast[type] < gap) return false;
+  sfxLast[type] = now;
+  return true;
+}
+function noiseHit(t, dur, freq, q, vol){
+  const len = Math.max(1, Math.floor(audioCtx.sampleRate*dur));
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i=0;i<len;i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 2);
+  const s = audioCtx.createBufferSource(); s.buffer = buf;
+  const f = audioCtx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(freq, t); f.Q.setValueAtTime(q, t);
+  const g = audioCtx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t+dur);
+  s.connect(f); f.connect(g); g.connect(audioCtx.destination); s.start(t);
+}
 function sfx(type) {
   if (!audioCtx) return;
   const t = audioCtx.currentTime;
@@ -17,10 +34,21 @@ function sfx(type) {
     g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.08);
     o.connect(g); o.start(t); o.stop(t+0.08);
   } else if (type === 'hit') {
+    if(!sfxAllowed('hit',0.035)) return;
+    noiseHit(t, 0.055, 1550, 5.5, 0.11);
     const o = audioCtx.createOscillator(); o.type = 'triangle';
-    o.frequency.setValueAtTime(300, t); o.frequency.exponentialRampToValueAtTime(80, t+0.05);
-    g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.06);
-    o.connect(g); o.start(t); o.stop(t+0.06);
+    o.frequency.setValueAtTime(420, t); o.frequency.exponentialRampToValueAtTime(120, t+0.05);
+    g.gain.setValueAtTime(0.075, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.065);
+    o.connect(g); o.start(t); o.stop(t+0.07);
+  } else if (type === 'crit') {
+    if(!sfxAllowed('crit',0.08)) return;
+    noiseHit(t, 0.06, 2600, 7, 0.12);
+    [880,1320].forEach((f,i)=>{
+      const o = audioCtx.createOscillator(); o.type = 'square';
+      o.frequency.setValueAtTime(f, t+i*0.018); o.frequency.exponentialRampToValueAtTime(f*0.56, t+i*0.018+0.07);
+      const gg = audioCtx.createGain(); gg.gain.setValueAtTime(0.055, t+i*0.018); gg.gain.exponentialRampToValueAtTime(0.001, t+i*0.018+0.09);
+      o.connect(gg); gg.connect(audioCtx.destination); o.start(t+i*0.018); o.stop(t+i*0.018+0.095);
+    });
   } else if (type === 'kill') {
     const o = audioCtx.createOscillator(); o.type = 'sawtooth';
     o.frequency.setValueAtTime(600, t); o.frequency.exponentialRampToValueAtTime(100, t+0.15);
@@ -52,10 +80,21 @@ function sfx(type) {
     g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.15);
     s.connect(f); f.connect(g); s.start(t);
   } else if (type === 'hurt') {
+    if(!sfxAllowed('hurt',0.12)) return;
+    noiseHit(t, 0.09, 620, 3.2, 0.16);
     const o = audioCtx.createOscillator(); o.type = 'square';
-    o.frequency.setValueAtTime(150, t); o.frequency.setValueAtTime(80, t+0.1);
-    g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.2);
-    o.connect(g); o.start(t); o.stop(t+0.2);
+    o.frequency.setValueAtTime(190, t); o.frequency.exponentialRampToValueAtTime(72, t+0.16);
+    g.gain.setValueAtTime(0.13, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.18);
+    o.connect(g); o.start(t); o.stop(t+0.19);
+  } else if (type === 'guard') {
+    if(!sfxAllowed('guard',0.08)) return;
+    noiseHit(t, 0.045, 3200, 8, 0.08);
+    [760,1520].forEach((f,i)=>{
+      const o = audioCtx.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(f, t+i*0.01); o.frequency.exponentialRampToValueAtTime(f*1.25, t+i*0.01+0.08);
+      const gg = audioCtx.createGain(); gg.gain.setValueAtTime(0.06, t+i*0.01); gg.gain.exponentialRampToValueAtTime(0.001, t+i*0.01+0.12);
+      o.connect(gg); gg.connect(audioCtx.destination); o.start(t+i*0.01); o.stop(t+i*0.01+0.13);
+    });
   } else if (type === 'boss') {
     const o = audioCtx.createOscillator(); o.type = 'sawtooth';
     o.frequency.setValueAtTime(40, t); o.frequency.linearRampToValueAtTime(80, t+1.5);

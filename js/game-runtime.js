@@ -45,12 +45,17 @@ const PARTICLE_GEO = new THREE.BoxGeometry(0.14,0.14,0.14);
 const trails=[]; const TRAIL_GEO=new THREE.BoxGeometry(0.14,0.14,0.14);
 const dmgNums=[];
 const damageScreenPos=new THREE.Vector3();
-function spawnDmg(x,z,amount,color,crit){
-  if (dmgNums.length>32) return;
-  const el=document.createElement('div'); el.className='dn'+(crit?' crit':''); el.textContent=(crit?'✦ ':'')+Math.round(amount);
-  el.style.color=crit?'#ffd86a':'#'+('000000'+((color||0xffffff)>>>0).toString(16)).slice(-6);
+function spawnDmg(x,z,amount,color,crit,kind){
+  if (dmgNums.length>36) return;
+  const cls=['dn'];
+  if(crit) cls.push('crit');
+  if(kind) cls.push(kind);
+  const el=document.createElement('div');
+  el.className=cls.join(' ');
+  el.textContent=Math.round(amount);
+  el.style.color=crit?'#ffd86a':(kind==='playerhit'?'#ff536d':kind==='guard'?'#9ee7ff':'#'+('000000'+((color||0xffffff)>>>0).toString(16)).slice(-6));
   document.getElementById('dmg').appendChild(el);
-  dmgNums.push({ el, x, z, t:0, life:crit?0.78:0.65, ox:(Math.random()-0.5)*0.7 });
+  dmgNums.push({ el, x, z, t:0, life:crit?0.86:(kind==='playerhit'?0.76:0.65), ox:(Math.random()-0.5)*0.7, crit:!!crit, kind:kind||'' });
 }
 let weaponSig=null;
 function updateWeaponHUD(){
@@ -108,10 +113,15 @@ function updateObjective(){
 function updateDamageNumbers(dt){
   for (let i=dmgNums.length-1;i>=0;i--){ const d=dmgNums[i]; d.t+=dt;
     if (d.t>=d.life){ d.el.remove(); dmgNums.splice(i,1); continue; }
-    damageScreenPos.set(d.x+d.ox, 1.6+d.t*2.4, d.z).project(camera);
+    const p=d.t/d.life;
+    const jump=d.crit?2.9:(d.kind==='playerhit'?2.1:2.4);
+    damageScreenPos.set(d.x+d.ox, 1.6+d.t*jump, d.z).project(camera);
     d.el.style.left=((damageScreenPos.x*0.5+0.5)*innerWidth)+'px';
     d.el.style.top=((-damageScreenPos.y*0.5+0.5)*innerHeight)+'px';
-    d.el.style.opacity=String(Math.max(0,1-d.t/d.life));
+    d.el.style.opacity=String(Math.max(0,1-p));
+    const punch=d.crit ? 1+Math.max(0,1-p*5)*0.55 : d.kind==='playerhit' ? 1+Math.max(0,1-p*6)*0.28 : 1+Math.max(0,1-p*7)*0.18;
+    const wobble=d.crit ? Math.sin(p*Math.PI*5)*3 : 0;
+    d.el.style.transform='translate(-50%,-50%) scale('+punch.toFixed(3)+') rotate('+wobble.toFixed(2)+'deg)';
   }
 }
 function spawnTrail(x,z,color,scale,life){
