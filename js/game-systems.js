@@ -452,6 +452,8 @@ function activateMagnetPillar(o){
 function shopRerollCost(o){
   return Math.round(40*Math.pow(1.6,(o&&o.shopRerolls)||0));   // each reroll ramps steeply
 }
+const SHOP_BETRAY_AFTER = 3;
+const SHOP_BETRAY_CHANCE = 0.15;
 function shopBuyMul(){ return Math.pow(1.18, shopPurchases); }   // every purchase this run raises all shop prices
 function rollShopStock(o){
   o.shopOffers=[];
@@ -501,15 +503,52 @@ function rerollShop(){
 function buyOffer(i){
   const o=shopOffers[i];
   if(!o||o.sold||player.gold<o.price) return;
+  const merchant=currentShopMerchant;
   player.gold-=o.price;
   sfx('buy');
   o.apply();
   if(o.isItem) player.itemCounts[o.item.name]=(player.itemCounts[o.item.name]||0)+1;
   o.sold=true;
   shopPurchases++;          // each buy raises prices on remaining/future stock
+  if(tryMerchantBetrayal(merchant)) return;
   buildShop();
 }
 function closeShop(){ document.getElementById('shop').style.display='none'; currentShopMerchant=null; paused=false; }
+function tryMerchantBetrayal(m){
+  if(!m || m.used || m.betrayed || shopPurchases < SHOP_BETRAY_AFTER) return false;
+  if(Math.random() >= SHOP_BETRAY_CHANCE) return false;
+  m.betrayed=true;
+  m.used=true;
+  document.getElementById('shop').style.display='none';
+  currentShopMerchant=null;
+  paused=false;
+  scene.remove(m.spr); if(m.glow) scene.remove(m.glow); if(m.beacon) scene.remove(m.beacon);
+  spawnMerchantBoss(m.x,m.z);
+  showToast('The merchant reveals its true form!',2.4);
+  return true;
+}
+function spawnMerchantBoss(x,z){
+  const choices=bossPool().filter(b=>!b.final);
+  const t=choices.length?choices[(Math.random()*choices.length)|0]:BOSS_TYPES[0];
+  const H=t.h*0.86;
+  const { spr, anim } = entitySprite(t.sprite, H);
+  const sh=makeShadow(H*0.34); scene.add(spr); scene.add(sh);
+  const hp=Math.round(t.hp*bossHpScale()*0.45);
+  const e={ x:clamp(x,-MAP_BOUND,MAP_BOUND), z:clamp(z,-MAP_BOUND,MAP_BOUND),
+    hp, maxHp:hp, atk:Math.round(t.atk*atkTimeScale()*0.78), spd:58*SPD_SCALE*BOSS_SPEED_MUL,
+    xp:220, r:H*0.33, name:'False Merchant '+t.name, alive:true, cd:0, flash:0,
+    isBoss:true, isStageBoss:false, elite:true, behavior:'chase', kx:0,kz:0, atkCd:0, chargeCd:0,
+    charging:0, patternCd:1.8, patternFlip:0, summonCd:5.5, bw:spr.scale.x, bh:spr.scale.y,
+    born:gameTime, face:1, anim, spr, sh };
+  assignSkills(e, BOSS_SKILLS[t.sprite] || ['ring','fan','charge']);
+  e.aura=makeBossAura(0xffd86a,e.r*1.8,false);
+  e.tint=0xfff0b8;
+  enemies.push(e);
+  spawnObjectPulse(e.x,e.z,0xffd86a,H*1.7,0.75);
+  spawnBurst(e.x,e.z,0xffd86a,24,1.2);
+  shake(0.35,0.25);
+  sfx('boss');
+}
 // ---- Boss/Miniboss skill system ----
 function bossShot(e, a, dmgMul=1, ox=0, oz=0){
   spawnEnemyShot(e.x+ox,e.z+oz,Math.cos(a),Math.sin(a),Math.round(e.atk*dmgMul));

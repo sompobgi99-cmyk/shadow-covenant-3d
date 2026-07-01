@@ -1,5 +1,5 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
-const APP_VERSION = '20260701-covenant-warder';
+const APP_VERSION = '20260701-merchant-betrayal';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
