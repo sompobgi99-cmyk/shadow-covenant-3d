@@ -84,17 +84,19 @@ const I18N={
   }
 };
 Object.assign(I18N.th,{
-  'common.items':'ไอเทม','common.relic':'Relic','common.weapon':'อาวุธ','common.passive':'สกิลติดตัว','common.emptyWeapon':'ช่องอาวุธว่าง','common.emptyTome':'ช่อง Tome ว่าง','common.stackUnlimited':'stack ได้ไม่จำกัด','common.moreItems':'มีไอเทมอีก {count} stack เปิด Pause เพื่อดูทั้งหมด',
+  'common.items':'ไอเทม','common.relic':'Relic','common.weapon':'อาวุธ','common.passive':'สกิลติดตัว','common.emptyWeapon':'ช่องอาวุธว่าง','common.emptyTome':'ช่อง Tome ว่าง','common.stackUnlimited':'stack ได้ไม่จำกัด','common.moreItems':'มีไอเทมอีก {count} stack เปิด Pause เพื่อดูทั้งหมด','common.locked':'ล็อก','common.unlocked':'ปลดล็อกแล้ว',
   'common.basic':'พื้นฐาน','common.evolved':'ร่างวิวัฒน์','common.from':'จาก {name}','common.damage':'ดาเมจ','common.rate':'ความถี่','common.count':'จำนวน','common.ready':'พร้อม','common.almost':'ใกล้พร้อม','common.evoPair':'คู่วิวัฒน์','common.evolve':'วิวัฒน์','common.chooseEvolve':'เลือกตอนนี้เพื่อวิวัฒน์อาวุธนี้','common.pairWith':'จับคู่กับ {name}','common.requires':'ต้องมี {weapon} Lv8 + {tome} x3. Ancient Anvil ทำให้ครั้งแรกใช้ x2',
-  'common.ban':'แบน','common.new':'ใหม่','common.score':'คะแนน','common.useLast':'ใช้ชุดล่าสุด x{mult}','common.noLast':'ไม่มีชุดล่าสุด',
+  'common.ban':'แบน','common.new':'ใหม่','common.score':'คะแนน','common.useLast':'ใช้ชุดล่าสุด x{mult}','common.noLast':'ไม่มีชุดล่าสุด','common.tomeUpgrade':'อัปเกรด Tome',
+  'pause.resume':'▶ เล่นต่อ','pause.quit':'⌂ ออกไปหน้าแรก','pause.hint':'กด P / Esc หรือปุ่มเล่นต่อเพื่อกลับเข้าเกม',
   'rarity.common':'Common','rarity.uncommon':'Uncommon','rarity.rare':'Rare','rarity.legendary':'Legendary',
   'items.summaryTitle':'ไอเทมซ้อนทับได้','items.summaryDesc':'เก็บซ้ำหรือซื้อซ้ำได้เรื่อย ๆ ผลของไอเทมจะคูณหรือบวกต่อจาก stack เดิม เลือกของให้เข้ากับอาวุธหลักของรัน','items.unlockedCount':'{unlocked}/{total} ปลดล็อกแล้ว','items.lockedHint':'ของที่ล็อกจะแสดงเงื่อนไขไว้ในการ์ด',
   'items.commonNote':'ของพื้นฐานที่ช่วยตั้งตัวช่วงต้นเกม','items.uncommonNote':'เริ่มกำหนดทิศทางบิลด์และคอมโบ','items.rareNote':'ของแรงที่เปลี่ยนจังหวะเล่นชัดเจน','items.legendaryNote':'ของระดับรันเปลี่ยนชีวิต แต่หาไม่ง่าย'
 });
 Object.assign(I18N.en,{
-  'common.items':'Items','common.relic':'Relic','common.weapon':'Weapon','common.passive':'Passive','common.emptyWeapon':'Empty weapon slot','common.emptyTome':'Empty Tome slot','common.stackUnlimited':'unlimited stacks','common.moreItems':'{count} more item stacks. Pause to view all.',
+  'common.items':'Items','common.relic':'Relic','common.weapon':'Weapon','common.passive':'Passive','common.emptyWeapon':'Empty weapon slot','common.emptyTome':'Empty Tome slot','common.stackUnlimited':'unlimited stacks','common.moreItems':'{count} more item stacks. Pause to view all.','common.locked':'Locked','common.unlocked':'Unlocked',
   'common.basic':'Base','common.evolved':'Evolved','common.from':'from {name}','common.damage':'DMG','common.rate':'Rate','common.count':'Count','common.ready':'Ready','common.almost':'Almost ready','common.evoPair':'Evolution pair','common.evolve':'Evolve','common.chooseEvolve':'Choose this now to evolve the weapon','common.pairWith':'Pairs with {name}','common.requires':'Requires {weapon} Lv8 + {tome} x3. Ancient Anvil makes the first evolve use x2.',
-  'common.ban':'Ban','common.new':'NEW','common.score':'Score','common.useLast':'Use last loadout x{mult}','common.noLast':'No last loadout',
+  'common.ban':'Ban','common.new':'NEW','common.score':'Score','common.useLast':'Use last loadout x{mult}','common.noLast':'No last loadout','common.tomeUpgrade':'Tome upgrade',
+  'pause.resume':'▶ Resume','pause.quit':'⌂ Title Screen','pause.hint':'Press P / Esc or Resume to continue',
   'rarity.common':'Common','rarity.uncommon':'Uncommon','rarity.rare':'Rare','rarity.legendary':'Legendary',
   'items.summaryTitle':'Items Stack Forever','items.summaryDesc':'Picking up or buying the same item again keeps stacking its effect. Choose items that match your main weapon and run plan.','items.unlockedCount':'{unlocked}/{total} unlocked','items.lockedHint':'Locked items show their unlock requirement on the card.',
   'items.commonNote':'Basic tools that help stabilize the early game','items.uncommonNote':'Build-shaping upgrades and combo starters','items.rareNote':'Strong items that noticeably change the run rhythm','items.legendaryNote':'Run-changing prizes, but they are intentionally rare'
@@ -135,8 +137,10 @@ const WEAPON_I18N={}, TOME_I18N={}, ITEM_I18N={}, CHAR_I18N={}, MONSTER_I18N={},
 function i18nField(table, id, field, fallback){
   const row = table && id!=null && table[id];
   if(row){ const lang=gameLang();
-    const v=(row[lang]&&row[lang][field]) || (row.th&&row.th[field]) || (row.en&&row.en[field]);
-    if(v!=null && v!=='') return v;
+    const direct=row[lang]&&row[lang][field];
+    if(direct!=null && direct!=='') return direct;
+    if(lang==='en' && row.en && row.en[field]!=null && row.en[field]!=='') return row.en[field];
+    if(lang!=='th' && row.th && row.th[field]!=null && row.th[field]!=='') return row.th[field];
   }
   return fallback!=null ? fallback : '';
 }
@@ -278,6 +282,7 @@ function applyStaticI18n(){
   set('.authpanel h2','auth.chooseTitle'); set('.authpanel .authsub','auth.chooseSub');
   const g=document.querySelector('#googlechoice .mode-name'); if(g) g.textContent=tr('auth.google'); const gd=document.querySelector('#googlechoice .mode-desc'); if(gd) gd.textContent=tr('auth.googleDesc');
   const q=document.querySelector('#guestchoice .mode-name'); if(q) q.textContent=tr('auth.guest'); const qd=document.querySelector('#guestchoice .mode-desc'); if(qd) qd.textContent=tr('auth.guestDesc');
+  set('#resumebtn','pause.resume'); set('#quitbtn','pause.quit'); set('#pause small','pause.hint');
   document.querySelectorAll('.langtoggle').forEach(langBox=>{ const span=langBox.querySelector('span'); if(span) span.textContent=tr('lang.label'); langBox.querySelector('[data-lang="th"]').textContent=tr('lang.th'); langBox.querySelector('[data-lang="en"]').textContent=tr('lang.en'); langBox.querySelectorAll('button').forEach(btn=>btn.classList.toggle('active', btn.dataset.lang===lang)); });
 }
 window.tr=tr; window.setGameLanguage=setGameLanguage; window.gameLang=gameLang;
@@ -703,6 +708,7 @@ function togglePause(){
   if (userPaused) buildPauseInfo();
   document.getElementById('pause').style.display = userPaused ? 'flex' : 'none';
   document.getElementById('pausebtn').textContent = userPaused ? '▶' : '⏸';
+  document.body.classList.toggle('user-paused', userPaused);
 }
 // Dash trigger shared by keyboard (Space) and the mobile Dash button.
 function tryDash(){
@@ -719,6 +725,7 @@ function quitToTitle(){
   pendingRelicPortal=null; currentRelicChoices=[];
   for (const id of ['pause','shop','playersetup','select','pactselect','over','levelup','relicup']) document.getElementById(id).style.display='none';
   document.getElementById('pausebtn').textContent='⏸';
+  document.body.classList.remove('user-paused');
   document.getElementById('title').style.display='flex';
   showLeaderboard();
   updateStartFlow();
@@ -1075,6 +1082,9 @@ function guideCharacterCard(img, name, bio, weapon, passive, stats, cls){
 function guideUnitCard(img, name, desc, meta, cls){
   return '<div class="guidecard unit '+(cls||'')+'"><img src="'+escHtml(img)+'" loading="lazy"><div><b>'+escHtml(name)+'</b><p>'+escHtml(desc)+'</p>'+(meta?'<small>'+escHtml(meta)+'</small>':'')+'</div></div>';
 }
+function guideText(row, fallback){
+  return localized(row, fallback);
+}
 const ITEM_RARITY_ORDER = { common:0, uncommon:1, rare:2, legendary:3 };
 const ITEM_RARITY_TEXT = {
   common:'Common',
@@ -1118,7 +1128,7 @@ function guideItemCard(it){
   const unlocked=isItemUnlocked(it.id);
   const rarity=it.rarity||'common';
   const lock=unlocked ? tr('common.unlocked') : tr('common.locked')+': '+unlockRequirementShort('item', it.id);
-  const tags=itemGuideTags(it).map(t=>'<span>'+escHtml(t)+'</span>').join('');
+  const tags=itemGuideTags(it).map(t=>'<span>'+escHtml(itemGuideTagLabel(t))+'</span>').join('');
   return '<div class="guidecard item '+escHtml(rarity)+(unlocked?'':' locked')+'">'
     +'<div class="itemicon"><img src="'+escHtml(spriteSrc(it.icon))+'" loading="lazy"><em>'+escHtml(tr('rarity.'+rarity)||rarity)+'</em></div>'
     +'<div class="itemcopy"><b>'+escHtml(unlocked?itemName(it):itemName(it)+' ('+tr('common.locked')+')')+'</b><p>'+escHtml(itemDesc(it))+'</p><div class="itemtags">'+tags+'</div><small>'+escHtml(lock)+' / '+escHtml(tr('common.stackUnlimited'))+'</small></div>'
@@ -1127,14 +1137,77 @@ function guideItemCard(it){
 function unitSpritePath(sprite){
   return spriteSrc(sprite);
 }
+function itemGuideTagLabel(tag){
+  if(gameLang()!=='th') return tag;
+  return ({Damage:'ดาเมจ',Crit:'คริติคอล',Sustain:'ฟื้นฟู',Defense:'ป้องกัน',Economy:'เศรษฐกิจ',Build:'บิลด์',Utility:'อรรถประโยชน์'})[tag] || tag;
+}
+const MONSTER_GUIDE_TEXT = {
+  'Grave Arbalist':{th:'ยิงตรงเร็ว ระยะไกล ต้องหลบเส้นกระสุน',en:'fast straight shots from long range'},
+  'Mire Hexer':{th:'ยิงกระจาย 3 นัด เหมาะกับการบีบพื้นที่',en:'fires a 3-shot spread to pressure space'},
+  'Rift Needler':{th:'ยิง fan แคบ 5 นัด กระสุนถี่และเร็ว',en:'fires a narrow 5-shot fan'},
+  'Doom Cantor':{th:'ยิงวงกระสุนหรือกระสุนช้าแรง',en:'uses bullet rings or slow heavy shots'},
+  'Covenant Warder':{th:'คุ้มกันเพื่อนใกล้ตัว 4-5 ตัวให้เป็นอมตะ ต้องฆ่ามันก่อน',en:'protects 4-5 nearby allies with immunity until killed'},
+  'Toxic Spore':{th:'ยิงพิษระยะไกลและกดพื้นที่',en:'ranged poison pressure'},
+  'Swamp Witch':{th:'ยิงเวทระยะไกลแล้วถอยคุมระยะ',en:'keeps distance and fires ranged magic'},
+  'Dark Apostle':{th:'นักเวทระยะไกลของ Map 3 ยิงแรงแต่เดินช้า',en:'slow, hard-hitting ranged caster'},
+  'Abyssal Horror':{th:'ยิงระยะไกลพร้อมตัวถึกกว่า caster ทั่วไป',en:'durable ranged horror'},
+};
 function unitBehaviorText(unit){
+  if(MONSTER_GUIDE_TEXT[unit.name]) return guideText(MONSTER_GUIDE_TEXT[unit.name], unit.name);
   if(typeof behaviorFor!=='function') return 'ไล่ล่า';
   const b=behaviorFor(unit.name);
-  return ({chase:'ไล่ล่า',shooter:'ยิงระยะไกล',charger:'พุ่งชน',exploder:'ระเบิด',warder:'ออร่าคุ้มกัน'})[b]||b;
+  const text={
+    chase:{th:'ไล่ล่าเข้าประชิด',en:'direct chaser'},
+    shooter:{th:'ยิงระยะไกลและคุมระยะ',en:'ranged attacker'},
+    charger:{th:'พุ่งชนเป็นจังหวะ',en:'charge attacker'},
+    exploder:{th:'ระเบิดเมื่อเข้าใกล้หรือตาย',en:'explodes on contact or death'},
+    warder:{th:'ออร่าคุ้มกันเพื่อนรอบตัว',en:'protective aura support'}
+  }[b];
+  return guideText(text, b);
 }
+const SKILL_GUIDE_TEXT = {
+  ring:{th:'วงกระสุนรอบตัว',en:'radial bullet ring'},
+  bigRing:{th:'วงกระสุนใหญ่',en:'large radial bullet ring'},
+  fan:{th:'ยิงกระสุนเป็นพัด',en:'fan volley'},
+  spiral:{th:'กระสุนหมุนวน',en:'spiral volley'},
+  scatter:{th:'กระสุนสุ่มรอบตัว',en:'scattered shots'},
+  charge:{th:'พุ่งชน',en:'charge attack'},
+  summon:{th:'เรียกลูกสมุน',en:'summons minions'},
+  summon3:{th:'เรียกลูกสมุนหลายตัว',en:'summons multiple minions'},
+  shock:{th:'AOE ช็อกพื้นรอบตัว',en:'point-blank shock AoE'},
+  lob:{th:'ยิงกระสุนหนัก',en:'heavy lob shot'},
+  heal:{th:'ฟื้นเลือดตัวเอง',en:'self heal'},
+  shield:{th:'กางโล่ชั่วคราว',en:'temporary shield'},
+  ancientQuake:{th:'แผ่นดินไหวเป็นแนวหน้า',en:'forward quake line'},
+  rustedGallows:{th:'พุ่งพร้อมยิงลูกศร',en:'dash with arrow shots'},
+  graveSpikes:{th:'หนามสุสานปักรอบผู้เล่น',en:'grave spikes around the player'},
+  cryptCall:{th:'เรียกลูกสมุนและยิงพัด',en:'summons adds and fires fans'},
+  mossRegrowth:{th:'ฟื้นเลือดพร้อมยิงก้อนพิษ',en:'regenerates and fires a toxic shot'},
+  ruinedBulwark:{th:'โล่ป้องกันพร้อม AOE',en:'shield plus AoE burst'},
+  lichCross:{th:'AOE กากบาทน้ำแข็ง',en:'cross-shaped arcane AoE'},
+  lichPrison:{th:'คุกเวทและวง AOE ใต้เท้า',en:'arcane prison and ground AoE'},
+  behemothSlam:{th:'ทุบพื้น AOE ใหญ่',en:'large ground slam'},
+  behemothQuake:{th:'คลื่นแผ่นดินไหวหลายชั้น',en:'layered quake waves'},
+  reaperScythes:{th:'เคียวกระสุนสองข้าง',en:'side scythe volleys'},
+  reaperBlink:{th:'วาร์ปไล่ตามพร้อม AOE',en:'blink chase with AoE'},
+  wyrmBreath:{th:'ลมหายใจมังกรเป็นพัด',en:'wide breath fan'},
+  wyrmMeteor:{th:'ฝนดาวตกและ AOE ตามแนว',en:'meteor line with AoE marks'},
+  overlordStar:{th:'ดาวกระสุนพร้อมกากบาท',en:'star ring and cross pattern'},
+  overlordJudgment:{th:'พิพากษา AOE หลายจุดและเรียกลูกสมุน',en:'multi-AoE judgment and summons'}
+};
 function skillListFor(sprite, table){
   if(!table || !table[sprite]) return 'สกิล: พื้นฐาน';
-  return 'สกิล: '+table[sprite].map(s=>s.replace(/([A-Z])/g,' $1')).join(', ');
+  return 'สกิล: '+table[sprite].map(s=>guideText(SKILL_GUIDE_TEXT[s], s.replace(/([A-Z])/g,' $1'))).join(', ');
+}
+function monsterStatMeta(e){
+  const hpMul=[1.1,1.1*1.22*2.7,1.1*1.48*4.8][e.tier||0];
+  const atkMul=[1,1.12*1.75,1.27*2.4][e.tier||0];
+  return 'ฐาน HP '+e.hp+' / ATK '+e.atk+' / SPD '+e.spd+' / XP '+e.xp+' · ตอนเล่นจริงเริ่มราว HP x'+hpMul.toFixed(1)+' / ATK x'+atkMul.toFixed(1)+' และเพิ่มตามเวลา/OT';
+}
+function bossStatMeta(e, kind){
+  const extra=e.final?' / 3 หลอด':'';
+  const scale=kind==='mini' ? 'มินิบอสจริงถูกคูณตามเวลา ด่าน และ Overtime' : 'บอสจริงถูกคูณตามเวลา ด่าน และ Overtime';
+  return 'ฐาน HP '+e.hp+' / ATK '+e.atk+(e.spd?' / SPD '+e.spd:'')+extra+' · '+scale;
 }
 function evolveGuideForTome(id){
   const pairs=Object.keys(WEAPON_TYPES).filter(key=>!WEAPON_TYPES[key].hidden && WEAPON_TYPES[key].evolveTome===id).map(weaponName);
@@ -1258,7 +1331,7 @@ function openGuide(kind){
     note='อัปเกรดติดตัว เลือกได้สูงสุด 4 ชนิดต่อรัน แต่เก็บซ้ำเพื่อเพิ่มพลังได้';
     note='อัปเกรดติดตัว เลือกได้สูงสุด 4 ชนิดต่อรัน และเก็บซ้ำเพื่อเพิ่มพลังได้';
     cards=UPGRADES.map(u=>
-      guideCard(spriteSrc(u.icon), tomeName(u), tomeDesc(u), 'Tome upgrade'+evolveGuideForTome(u.id), 'uncommon')
+      guideCard(spriteSrc(u.icon), tomeName(u), tomeDesc(u), tr('common.tomeUpgrade')+evolveGuideForTome(u.id), 'uncommon')
     ).join('');
   } else if(kind==='items') {
     title='ไอเทม';
@@ -1384,7 +1457,7 @@ function openGuide(kind){
     const mapName=t=>t.tier===0?('Map 1 · '+mn(1)):t.tier===1?('Map 2 · '+mn(2)):('Map 3 · '+mn(3));
     cards=ENEMY_TYPES.slice().sort((a,b)=>a.tier-b.tier||a.name.localeCompare(b.name)).map(e=>{
       const desc=unitBehaviorText(e)+' / '+mapName(e);
-      const meta='เลือด '+e.hp+' / โจมตี '+e.atk+' / ความเร็ว '+e.spd+' / XP '+e.xp;
+      const meta=monsterStatMeta(e);
       return guideUnitCard(unitSpritePath(e.sprite), e.name, desc, meta, 'monster');
     }).join('');
   } else if(kind==='bosses'){
@@ -1392,13 +1465,14 @@ function openGuide(kind){
     note='บอสและมินิบอส พร้อมสกิลสำคัญที่ต้องระวัง';
     const mnb=n=>(MAP_THEMES[n]&&MAP_THEMES[n].name)||('Map '+n);
     const minis=MINIBOSS_TYPES.map(e=>
-      guideUnitCard(unitSpritePath(e.sprite), e.name, 'มินิบอส / '+skillListFor(e.sprite, typeof MB_SKILLS!=='undefined'?MB_SKILLS:null), 'เลือด '+e.hp+' / โจมตี '+e.atk+' / ความเร็ว '+e.spd, 'boss')
+      guideUnitCard(unitSpritePath(e.sprite), e.name, 'มินิบอส / '+skillListFor(e.sprite, typeof MB_SKILLS!=='undefined'?MB_SKILLS:null), bossStatMeta(e,'mini'), 'boss')
     ).join('');
     const bosses=BOSS_TYPES.map(e=>{
       const where=e.final?('Map 3 · '+mnb(3)+' (บอสสุดท้าย)'):e.name==='Lich King'?('Map 1 · '+mnb(1)):e.name==='Abyssal Behemoth'?('Map 1–2 · '+mnb(1)+'/'+mnb(2)):('Map 2 · '+mnb(2));
-      return guideUnitCard(unitSpritePath(e.sprite+'_8dir'), e.name, where+' / '+skillListFor(e.sprite, typeof BOSS_SKILLS!=='undefined'?BOSS_SKILLS:null), 'เลือด '+e.hp+' / โจมตี '+e.atk+(e.final?' / เลือด 3 หลอด':''), 'boss');
+      return guideUnitCard(unitSpritePath(e.sprite+'_8dir'), e.name, where+' / '+skillListFor(e.sprite, typeof BOSS_SKILLS!=='undefined'?BOSS_SKILLS:null), bossStatMeta(e,'boss'), 'boss sheet');
     }).join('');
-    cards=minis+bosses;
+    const butcher=guideUnitCard(unitSpritePath('boss_butcher_8dir'), 'The Butcher', 'Special Hunt / สุ่ม 35% ต่อรัน ช่วงนาที 6-8 / สกิล: '+['reaperBlink','rustedGallows','fan'].map(s=>guideText(SKILL_GUIDE_TEXT[s],s)).join(', '), 'มีเวลา 20 วิให้ฆ่าเพื่อรางวัลพิเศษ · ไม่กระเด็นและไล่กดดันหนัก', 'boss sheet hunt');
+    cards=minis+bosses+butcher;
   } else {
     return openGuide('hub');
   }
@@ -1996,6 +2070,7 @@ function init() {
   document.getElementById('skipupgrade').onclick = skipUpgrade;
   document.getElementById('homebtn').onclick = quitToTitle;
   addEventListener('wheel', (e)=>{ camDist = clamp(camDist + Math.sign(e.deltaY)*1.3, 13, 18); }, { passive:true });
+  document.getElementById('resumebtn').onclick = ()=>{ if(userPaused) togglePause(); };
   document.getElementById('quitbtn').onclick = quitToTitle;
   addEventListener('keydown', (e)=>{ if(!started){ return; } keys[e.code]=true;
     resumeAudio();

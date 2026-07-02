@@ -351,6 +351,7 @@
   .guidegrid.characters{ grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
   .guidegrid.weapons{ grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); align-items:stretch; }
   .guidegrid.items{ grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); align-items:stretch; gap:11px; }
+  .guidegrid.bosses{ grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); align-items:stretch; }
   .guidegrid.pets{ grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); align-items:stretch; gap:11px; }
   .guidegrid.hub{ grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); }
   .guidesection{ grid-column:1/-1; display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
@@ -364,6 +365,12 @@
   .guidecard.jump{ cursor:pointer; text-align:left; font-family:monospace; }
   .guidecard.jump:hover{ border-color:#ffcc66; background:rgba(55,22,38,.76); transform:translateY(-1px); }
   .guidecard img{ width:42px; height:42px; object-fit:contain; image-rendering:pixelated; }
+  .guidegrid.bosses .guidecard.unit{ grid-template-columns:58px 1fr; align-items:start; min-height:136px; }
+  .guidegrid.bosses .guidecard.unit img{ width:54px; height:54px; filter:drop-shadow(0 3px 5px #000); }
+  .guidegrid.bosses .guidecard.unit.sheet img{ object-fit:cover; object-position:center top; }
+  .guidegrid.bosses .guidecard.unit b{ white-space:normal; overflow:visible; text-overflow:clip; }
+  .guidegrid.bosses .guidecard.unit p,
+  .guidegrid.bosses .guidecard.unit small{ line-height:1.25; overflow-wrap:anywhere; }
   .guidegrid.weapons .guidecard{ grid-template-columns:52px 1fr; align-items:start; min-height:112px; }
   .guidegrid.weapons .guidecard img{ width:48px; height:48px; }
   .guidegrid.weapons .guidecard b{ white-space:normal; overflow:visible; text-overflow:clip; }
@@ -542,6 +549,8 @@
     .guidegrid.weapons{ grid-template-columns:1fr; }
     .guidegrid.weapons .guidecard{ min-height:0; }
     .guidegrid.items{ grid-template-columns:1fr; }
+    .guidegrid.bosses{ grid-template-columns:1fr; }
+    .guidegrid.bosses .guidecard.unit{ min-height:0; }
     .itemsummary{ grid-template-columns:repeat(2,minmax(0,1fr)); padding:8px; }
     .itemsummary .itemhint{ grid-column:1/-1; }
     .guidecard.item{ grid-template-columns:52px 1fr; min-height:0; padding:8px; }
@@ -562,7 +571,8 @@
   }
   #pausebtn{ position:absolute; top:12px; left:50%; transform:translateX(-50%); pointer-events:auto; cursor:pointer;
              background:rgba(20,14,30,.82); color:#cdbff0; border:1px solid #5a4a8a; border-radius:6px;
-             font-family:monospace; font-size:16px; line-height:1; padding:5px 11px; }
+             font-family:monospace; font-size:16px; line-height:1; padding:5px 11px; z-index:7; }
+  body.user-paused #pausebtn{ border-color:#ffcc66; color:#fff8e8; background:rgba(65,28,48,.92); }
   #pausebtn:hover{ border-color:#ffcc00; color:#fff; }
   #updatebtn{ display:none; position:absolute; top:48px; left:50%; transform:translateX(-50%); z-index:7; pointer-events:auto; cursor:pointer;
               background:#982a42; color:#fff8e8; border:2px solid #e5b55a; border-radius:5px;
@@ -572,6 +582,10 @@
   #pause{ position:absolute; inset:0; background:rgba(5,2,8,.7); display:none; flex-direction:column;
           align-items:center; justify-content:center; gap:10px; pointer-events:auto; z-index:6; }
   #pause h2{ color:#cdbff0; font-size:32px; text-shadow:0 1px 2px #000; } #pause small{ color:#9a8fc0; }
+  .pauseactions{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center; pointer-events:auto; }
+  .pauseactions button{ min-height:38px; min-width:132px; padding:8px 16px; border-radius:6px; cursor:pointer;
+    background:#351121; color:#ffe08a; border:1px solid #8a4a5a; font-family:monospace; font-size:14px; font-weight:bold; }
+  .pauseactions button:hover{ color:#fff8e8; border-color:#ffcc66; background:#552034; }
   #c { display: block; width: 100vw; height: 100vh; }
   #hud { position: fixed; inset: 0; pointer-events: none; color: #fff; }
   #topleft { position: absolute; top: 12px; left: 12px; width: 240px; }
@@ -697,6 +711,8 @@
     #pauseinfo{ max-width:94vw; }
     #pauseinfo .piwslot{ width:66px; padding:4px; }
     #pauseinfo .piwslot img{ width:28px; height:28px; }
+    .pauseactions{ width:100%; padding:0 8px; }
+    .pauseactions button{ flex:1; min-width:132px; min-height:44px; font-size:13px; }
     #itemhud{ left:max(8px,env(safe-area-inset-left)); bottom:calc(262px + env(safe-area-inset-bottom)); max-width:min(150px,46vw); gap:4px; }
     .islot{ width:24px; height:24px; }
     .islot img{ width:20px; height:20px; margin-top:1px; }
