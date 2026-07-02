@@ -284,20 +284,22 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc, meta){
   if (e.shieldT > 0) d *= 0.4;                                           // Warden shield
   if (e.damageTakenMul != null) d *= Math.max(0.05, e.damageTakenMul);    // boss armor/resistance
   d = Math.round(d);
+  const immune = !!(e.final && e.finalPhase && e.phaseInvuln>0);
+  if (!immune && dmg > 0 && d < 1) d = 1;
   if(e.final && e.finalPhase){
-    if(e.phaseInvuln>0) d = 0;
+    if(immune) d = 0;
     const floor = (e.finalPhase>1 || e.phaseInvuln>0) ? 1 : -Infinity;
     e.hp = Math.max(floor, e.hp - d);
   } else {
     e.hp -= d;
     if(e.hp<=0 && isDeathWarded(e)){
       e.hp=1;
-      spawnDmg(e.x,e.z,1,0x9a55ff,false,'guard');
+      spawnDmg(e.x,e.z,'WARD',0x9a55ff,false,'guard');
       spawnBurst(e.x,e.z,0x9a55ff,5,0.55);
     }
   }
   e.flash = 0.08;
-  spawnDmg(e.x, e.z, d, color, crit.crit && d > 0);
+  spawnDmg(e.x, e.z, immune ? 'IMMUNE' : d, color, crit.crit && d > 0, immune ? 'immune' : '');
   recordRunDamage(d, meta);
   if(d>0) sfx(crit.crit?'crit':'hit');
   if(d>0 && crit.crit && player._executionCoin && Math.random()<Math.min(0.60,0.15*player._executionCoin)){

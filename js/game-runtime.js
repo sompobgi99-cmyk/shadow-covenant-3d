@@ -289,7 +289,7 @@ window.tr=tr; window.setGameLanguage=setGameLanguage; window.gameLang=gameLang;
 
 function spawnDmg(x,z,amount,color,crit,kind){
   if(document.body.classList.contains('touch')){
-    const important = crit || kind==='playerhit' || kind==='guard';
+    const important = crit || kind==='playerhit' || kind==='guard' || kind==='immune';
     if(document.body.classList.contains('hud-min') && !important) return;
     if(document.body.classList.contains('hud-compact') && !important && Math.random()<0.6) return;
   }
@@ -299,8 +299,8 @@ function spawnDmg(x,z,amount,color,crit,kind){
   if(kind) cls.push(kind);
   const el=document.createElement('div');
   el.className=cls.join(' ');
-  el.textContent=Math.round(amount);
-  el.style.color=crit?'#ffd86a':(kind==='playerhit'?'#ff536d':kind==='guard'?'#9ee7ff':'#'+('000000'+((color||0xffffff)>>>0).toString(16)).slice(-6));
+  el.textContent=typeof amount==='string' ? amount : Math.round(amount);
+  el.style.color=crit?'#ffd86a':(kind==='playerhit'?'#ff536d':kind==='guard'?'#9ee7ff':kind==='immune'?'#d7c5ff':'#'+('000000'+((color||0xffffff)>>>0).toString(16)).slice(-6));
   document.getElementById('dmg').appendChild(el);
   dmgNums.push({ el, x, z, t:0, life:crit?0.86:(kind==='playerhit'?0.76:0.65), ox:(Math.random()-0.5)*0.7, crit:!!crit, kind:kind||'' });
 }

@@ -167,7 +167,7 @@ function update(dt) {
       e.flash=Math.max(e.flash,0.04);
       if(e.hp<=0 && isDeathWarded(e)){
         e.hp=1;
-        spawnDmg(e.x,e.z,1,0x9a55ff,false,'guard');
+        spawnDmg(e.x,e.z,'WARD',0x9a55ff,false,'guard');
         spawnBurst(e.x,e.z,0x9a55ff,4,0.45);
       }
       if(e.hp<=0){ killEnemy(e); continue; }
