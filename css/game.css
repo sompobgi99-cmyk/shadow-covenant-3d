@@ -728,10 +728,17 @@
     .tslot img{ width:18px; height:18px; }
     #prompt,#altar{ bottom:calc(58px + env(safe-area-inset-bottom)); font-size:11px; }
     #select,#playersetup,#shop,#levelup,#relicup,#pause,#over{ padding:calc(10px + env(safe-area-inset-top)) 14px calc(10px + env(safe-area-inset-bottom)); overflow:auto; }
-    #selcards{ max-width:760px; }
+    #select,#shop,#levelup,#relicup{ justify-content:flex-start; }
+    #select h2,#shop h2{ font-size:17px; margin-top:0; line-height:1.12; }
+    #select .sub{ font-size:10px; margin-top:-7px; }
+    #selcards{ width:100%; max-width:760px; padding-bottom:8px; align-content:flex-start;
+      display:grid; grid-template-columns:repeat(auto-fill,124px); justify-content:center; gap:7px; }
     #shopcards,#cards,#reliccards{ max-width:720px; }
-    .ccard{ width:124px; min-height:164px; padding:6px 5px; }
+    .ccard{ width:124px; min-height:150px; padding:6px 5px; }
     .ccard img{ width:40px; height:52px; object-fit:contain; }
+    .ccard .cp{ font-size:8px; line-height:1.14; }
+    .ccard .cbio{ display:none; }
+    .ccard .unlock{ display:none; }
     .card{ min-height:114px; padding:7px 6px; }
   }
 
