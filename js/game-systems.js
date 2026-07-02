@@ -762,12 +762,12 @@ function spawnButcher(){
     done:()=>{
       const { spr, anim } = entitySprite(spriteKey,H);
       const sh=makeShadow(H*0.36); scene.add(spr); scene.add(sh);
-      const hp=Math.round(base.hp*bossHpScale()*0.78);
+      const hp=Math.round(base.hp*bossHpScale()*0.62);
       const e={ x:point.x, z:point.z, hp, maxHp:hp,
-        atk:Math.round(base.atk*atkTimeScale()*stageAtkMul()*otPowerMul()*1.18),
-        spd:74*SPD_SCALE*BOSS_SPEED_MUL, xp:520, r:H*0.32, name:'The Butcher',
+        atk:Math.round(base.atk*atkTimeScale()*stageAtkMul()*otPowerMul()*1.0),
+        spd:64*SPD_SCALE*BOSS_SPEED_MUL, xp:520, r:H*0.32, name:'The Butcher',
         alive:true, cd:0, flash:0, isBoss:true, isStageBoss:false, elite:true, butcher:true,
-        behavior:'butcher', kx:0,kz:0, atkCd:0, chargeCd:0.45, charging:0, knockImmune:true,
+        behavior:'butcher', kx:0,kz:0, atkCd:0, chargeCd:0.75, charging:0, knockImmune:true,
         butcherUntil:gameTime+20, bw:spr.scale.x,bh:spr.scale.y,born:gameTime,face:1,anim,spr,sh,tint:0xffc4a8 };
       assignSkills(e,['reaperBlink','rustedGallows','fan'].filter(n=>SK[n]));
       if(!e.skills || !e.skills.length) assignSkills(e,['fan','charge']);

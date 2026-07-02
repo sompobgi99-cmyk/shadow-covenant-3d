@@ -15,6 +15,14 @@ const ACHIEVEMENT_IDS = new Set([
   "map3_reached",
   "void_cleared",
 ]);
+const PET_IDS = new Set([
+  "lumo_wisp",
+  "lantern_bunny",
+  "tiny_gargoyle",
+  "storm_pup",
+  "grave_kitten",
+  "mini_mimic",
+]);
 
 const jsonHeaders = {
   "Content-Type": "application/json; charset=utf-8",
@@ -88,11 +96,43 @@ function mergeDone(a: Record<string, string>, b: Record<string, string>) {
   return out;
 }
 
+function cleanCoins(value: unknown) {
+  const n = Math.floor(Number(value || 0));
+  return Number.isFinite(n) && n > 0 ? Math.min(9999999, n) : 0;
+}
+
+function cleanPetState(input: unknown) {
+  const src = input && typeof input === "object" ? input as Record<string, unknown> : {};
+  const ownedSrc = src.owned && typeof src.owned === "object" ? src.owned as Record<string, unknown> : {};
+  const owned: Record<string, string> = {};
+  for (const [id, value] of Object.entries(ownedSrc)) {
+    if (!PET_IDS.has(id)) continue;
+    const t = String(value || "").slice(0, 40);
+    const parsed = Date.parse(t);
+    owned[id] = Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString();
+  }
+  const selected = PET_IDS.has(String(src.selected || "")) && owned[String(src.selected || "")] ? String(src.selected || "") : "";
+  return { owned, selected };
+}
+
+function mergePets(a: ReturnType<typeof cleanPetState>, b: ReturnType<typeof cleanPetState>) {
+  const owned = { ...a.owned };
+  let added = false;
+  for (const [id, at] of Object.entries(b.owned)) {
+    if (!owned[id]) added = true;
+    if (!owned[id] || Date.parse(at) < Date.parse(owned[id])) owned[id] = at;
+  }
+  const selected = b.selected && owned[b.selected] ? b.selected : a.selected && owned[a.selected] ? a.selected : "";
+  return { pets: { owned, selected }, added };
+}
+
 async function readProgress(store: ReturnType<typeof getStore>, userId: string) {
   const data = await store.get(progressKey(userId), { type: "json" });
-  const obj = data && typeof data === "object" ? data as { done?: unknown; updated_at?: string } : {};
+  const obj = data && typeof data === "object" ? data as { done?: unknown; soulCoins?: unknown; pets?: unknown; updated_at?: string } : {};
   return {
     done: cleanDone(obj.done),
+    soulCoins: cleanCoins(obj.soulCoins),
+    pets: cleanPetState(obj.pets),
     updated_at: obj.updated_at || "",
   };
 }
@@ -104,13 +144,13 @@ export default async (req: Request) => {
 
   if (req.method === "GET") {
     const progress = await readProgress(store, auth.userId);
-    return json({ ok: true, done: progress.done, updated_at: progress.updated_at });
+    return json({ ok: true, done: progress.done, soulCoins: progress.soulCoins, pets: progress.pets, updated_at: progress.updated_at });
   }
 
   if (req.method === "POST" || req.method === "PUT") {
     const contentLength = Number.parseInt(req.headers.get("content-length") || "0", 10);
     if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) return json({ error: "Payload too large" }, 413);
-    let body: { done?: unknown } = {};
+    let body: { done?: unknown; soulCoins?: unknown; pets?: unknown } = {};
     try {
       body = await req.json();
     } catch {
@@ -118,9 +158,13 @@ export default async (req: Request) => {
     }
     const existing = await readProgress(store, auth.userId);
     const merged = mergeDone(existing.done, cleanDone(body.done));
-    const payload = { done: merged, updated_at: new Date().toISOString() };
+    const incomingPets = cleanPetState(body.pets);
+    const petMerge = mergePets(existing.pets, incomingPets);
+    const incomingCoins = Object.prototype.hasOwnProperty.call(body, "soulCoins") ? cleanCoins(body.soulCoins) : existing.soulCoins;
+    const soulCoins = petMerge.added && incomingCoins < existing.soulCoins ? incomingCoins : Math.max(existing.soulCoins, incomingCoins);
+    const payload = { done: merged, soulCoins, pets: petMerge.pets, updated_at: new Date().toISOString() };
     await store.setJSON(progressKey(auth.userId), payload);
-    return json({ ok: true, done: payload.done, updated_at: payload.updated_at });
+    return json({ ok: true, done: payload.done, soulCoins: payload.soulCoins, pets: payload.pets, updated_at: payload.updated_at });
   }
 
   return json({ error: "Method not allowed" }, 405);

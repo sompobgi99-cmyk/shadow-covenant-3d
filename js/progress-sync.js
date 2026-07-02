@@ -23,22 +23,32 @@
   }
 
   function localPayload(){
+    if(typeof exportPlayerProgress === 'function') return exportPlayerProgress();
     if(typeof exportAchievementProgress === 'function') return exportAchievementProgress();
     try {
       const raw = localStorage.getItem('sc3_achievements_v1');
       const parsed = raw ? JSON.parse(raw) : {};
-      return { done: parsed && parsed.done ? parsed.done : {} };
+      return {
+        done: parsed && parsed.done ? parsed.done : {},
+        soulCoins: Math.max(0, parseInt(localStorage.getItem('sc3_soul_coins_v1')||'0', 10) || 0),
+        pets: JSON.parse(localStorage.getItem('sc3_pets_v1') || '{"owned":{},"selected":""}'),
+      };
     } catch (_) {
-      return { done:{} };
+      return { done:{}, soulCoins:0, pets:{ owned:{}, selected:'' } };
     }
   }
 
-  function applyRemote(done){
-    if(typeof importAchievementProgress === 'function') return importAchievementProgress(done||{}, { silent:true });
+  function applyRemote(progress){
+    progress = progress || {};
+    if(typeof importPlayerProgress === 'function') {
+      const result = importPlayerProgress(progress, { silent:true }) || {};
+      return result.imported || [];
+    }
+    if(typeof importAchievementProgress === 'function') return importAchievementProgress(progress.done||{}, { silent:true });
     try {
       const current = localPayload();
       const merged = { done:{ ...(current.done||{}) } };
-      for(const [id, at] of Object.entries(done||{})) if(!merged.done[id]) merged.done[id] = at;
+      for(const [id, at] of Object.entries(progress.done||{})) if(!merged.done[id]) merged.done[id] = at;
       localStorage.setItem('sc3_achievements_v1', JSON.stringify(merged));
       return [];
     } catch (_) {
@@ -59,7 +69,7 @@
       if(remoteRes.status === 401) throw new Error('Login expired');
       if(!remoteRes.ok) throw new Error('Progress load failed: '+remoteRes.status);
       const remote = await remoteRes.json();
-      const imported = applyRemote(remote.done || {});
+      const imported = applyRemote(remote);
       const payload = localPayload();
       const saveRes = await fetch(ONLINE_PROGRESS.apiEndpoint, {
         method:'POST',
@@ -68,7 +78,7 @@
       });
       if(!saveRes.ok) throw new Error('Progress save failed: '+saveRes.status);
       const saved = await saveRes.json();
-      applyRemote(saved.done || {});
+      applyRemote(saved);
       state.loaded = true;
       state.lastSyncAt = new Date().toISOString();
       if(imported && imported.length && typeof showToast === 'function') showToast('Cloud unlocks synced: '+imported.length, 2.4);

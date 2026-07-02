@@ -638,7 +638,7 @@ let relocationCursor = 0;
 let mbTimer = 0;
 let nextMinibossAt = 180;
 const MINIBOSS_INTERVAL = 55;
-const BUTCHER_RUN_CHANCE = 0.35;
+const BUTCHER_RUN_CHANCE = 0.20;
 let butcherRunEligible = Math.random() < BUTCHER_RUN_CHANCE;
 let butcherAppeared = false;
 let nextButcherAt = butcherRunEligible ? 360 + Math.random()*120 : Infinity;
@@ -1471,7 +1471,7 @@ function openGuide(kind){
       const where=e.final?('Map 3 · '+mnb(3)+' (บอสสุดท้าย)'):e.name==='Lich King'?('Map 1 · '+mnb(1)):e.name==='Abyssal Behemoth'?('Map 1–2 · '+mnb(1)+'/'+mnb(2)):('Map 2 · '+mnb(2));
       return guideUnitCard(unitSpritePath(e.sprite+'_8dir'), e.name, where+' / '+skillListFor(e.sprite, typeof BOSS_SKILLS!=='undefined'?BOSS_SKILLS:null), bossStatMeta(e,'boss'), 'boss sheet');
     }).join('');
-    const butcher=guideUnitCard(unitSpritePath('boss_butcher_8dir'), 'The Butcher', 'Special Hunt / สุ่ม 35% ต่อรัน ช่วงนาที 6-8 / สกิล: '+['reaperBlink','rustedGallows','fan'].map(s=>guideText(SKILL_GUIDE_TEXT[s],s)).join(', '), 'มีเวลา 20 วิให้ฆ่าเพื่อรางวัลพิเศษ · ไม่กระเด็นและไล่กดดันหนัก', 'boss sheet hunt');
+    const butcher=guideUnitCard(unitSpritePath('boss_butcher_8dir'), 'The Butcher', 'Special Hunt / สุ่ม 20% ต่อรัน ช่วงนาที 6-8 / สกิล: '+['reaperBlink','rustedGallows','fan'].map(s=>guideText(SKILL_GUIDE_TEXT[s],s)).join(', '), 'มีเวลา 20 วิให้ฆ่าเพื่อรางวัลพิเศษ · ไม่กระเด็น แต่เลือดและความเร็วถูกลดลงแล้ว', 'boss sheet hunt');
     cards=minis+bosses+butcher;
   } else {
     return openGuide('hub');
@@ -2804,6 +2804,7 @@ function addSoulCoins(amount, reason){
   if(!amount) return 0;
   const total=setSoulCoins(soulCoins()+amount);
   if(reason) showToast('Soul Coins +'+amount+' · '+reason, 3.2);
+  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('coins');
   return total;
 }
 function isPetOwned(id){ return !!(loadPetState().owned||{})[id]; }
@@ -2821,6 +2822,7 @@ function buyPet(id){
   state.owned[p.id]=new Date().toISOString();
   state.selected=p.id;
   savePetState(state);
+  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet');
   showToast('ซื้อ Pet: '+p.name,2.8);
   openGuide('pets');
   return true;
@@ -2830,6 +2832,7 @@ function selectPet(id){
   if(id && !state.owned[id]){ showToast('ยังไม่ได้ซื้อ Pet ตัวนี้',2); return false; }
   state.selected=id||'';
   savePetState(state);
+  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet');
   const p=petById(id);
   const quips={
     lumo_wisp:'วิบวับพร้อมลุย',
@@ -3073,6 +3076,13 @@ function exportAchievementProgress(){
   const state=loadAchievementState();
   return { done:{ ...(state.done||{}) } };
 }
+function exportPlayerProgress(){
+  return {
+    done:{ ...(loadAchievementState().done||{}) },
+    soulCoins:soulCoins(),
+    pets:loadPetState()
+  };
+}
 function importAchievementProgress(done, opts){
   opts=opts||{};
   const state=loadAchievementState();
@@ -3091,6 +3101,32 @@ function importAchievementProgress(done, opts){
     }
   }
   return imported;
+}
+function importPlayerProgress(progress, opts){
+  progress=progress||{};
+  const imported=importAchievementProgress(progress.done||{}, opts);
+  const remoteCoins=Math.max(0, Math.floor(Number(progress.soulCoins||0)));
+  let coinsChanged=false, petsChanged=false;
+  if(Number.isFinite(remoteCoins) && remoteCoins>soulCoins()){
+    setSoulCoins(remoteCoins);
+    coinsChanged=true;
+  }
+  if(progress.pets && typeof progress.pets==='object'){
+    const local=loadPetState();
+    const remoteOwned=(progress.pets.owned && typeof progress.pets.owned==='object') ? progress.pets.owned : {};
+    for(const [id, at] of Object.entries(remoteOwned)){
+      if(!petById(id) || local.owned[id]) continue;
+      const parsed=Date.parse(at);
+      local.owned[id]=Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString();
+      petsChanged=true;
+    }
+    if(progress.pets.selected && local.owned[progress.pets.selected] && local.selected!==progress.pets.selected){
+      local.selected=progress.pets.selected;
+      petsChanged=true;
+    }
+    if(petsChanged) savePetState(local);
+  }
+  return { imported, coinsChanged, petsChanged };
 }
 function hasAchievement(id){
   return !!(loadAchievementState().done||{})[id];
@@ -3188,10 +3224,13 @@ function onAchievementProgressSynced(){
     const head=body && body.querySelector('.guidehead h2');
     const title=head ? head.textContent : '';
     if(title===tr('ach.title') || title==='Achievements') openGuide('achievements');
+    if(title===tr('pets.title') || title==='Pets') openGuide('pets');
   }
 }
 window.exportAchievementProgress = exportAchievementProgress;
 window.importAchievementProgress = importAchievementProgress;
+window.exportPlayerProgress = exportPlayerProgress;
+window.importPlayerProgress = importPlayerProgress;
 window.onAchievementProgressSynced = onAchievementProgressSynced;
 
 function dirIndex(mx, mz){ return ((Math.round(Math.atan2(mx, mz)/(Math.PI/4)))%8+8)%8; }
