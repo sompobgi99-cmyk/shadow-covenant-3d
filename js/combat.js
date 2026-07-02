@@ -262,7 +262,10 @@ function hitMul(e){
   if ((e.isBoss||e.elite) && player._executionSeal) m *= 1.25;
   if ((e.butcher||e.mimic) && player._butcherToken) m *= 1 + 0.25*player._butcherToken;
   if (player._beefy)   m *= 1 + 0.20*player._beefy*Math.floor(player.maxHp/100);
-  if (player._goggles) m *= 1 + 0.60*player._goggles*(1-player.hp/player.maxHp);
+  if (player._goggles) {
+    const missingHp = Math.max(0, Math.min(1, 1 - player.hp / Math.max(1, player.maxHp)));
+    m *= 1 + 0.60 * player._goggles * missingHp;
+  }
   if (player._brass){ const dx=e.x-player.x, dz=e.z-player.z; if (dx*dx+dz*dz < 9) m *= 1 + 0.20*player._brass; }
   if (player._eagle && e.airborne) m *= 1 + 0.66*player._eagle;
   if (player._creditCard) m *= 1 + 0.025*player._creditCard*chestsOpened;
@@ -284,6 +287,7 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc, meta){
   if (e.shieldT > 0) d *= 0.4;                                           // Warden shield
   if (e.damageTakenMul != null) d *= Math.max(0.05, e.damageTakenMul);    // boss armor/resistance
   d = Math.round(d);
+  if (!Number.isFinite(d) || d < 0) d = 0;
   const immune = !!(e.final && e.finalPhase && e.phaseInvuln>0);
   if (!immune && dmg > 0 && d < 1) d = 1;
   if(e.final && e.finalPhase){
