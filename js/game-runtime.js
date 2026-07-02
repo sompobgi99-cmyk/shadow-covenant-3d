@@ -234,11 +234,11 @@ Object.assign(CHAR_I18N,{
   striker:{en:{bio:'A tournament forward who turned match pressure into a cursed pact.',passive:'Move speed +0.5%, projectile/object speed +1.5% / Lv'}}
 });
 Object.assign(PACT_I18N,{
-  blood_moon:{en:{title:'Blood Moon',desc:'Normal monsters have +50% HP',unlock:'Finish your first run, win or lose'}},
-  glass_soul:{en:{title:'Glass Soul',desc:'Player max HP -25%',unlock:'Survive at least 5 minutes'}},
-  cursed_economy:{en:{title:'Cursed Economy',desc:'Gold gain x0.6, shop/chest prices x1.3',unlock:'Buy from the Merchant once, or end a run with 300 gold'}},
-  no_mercy:{en:{title:'No Mercy',desc:'Regeneration and healing are reduced by 50%',unlock:'End a run below 25% HP, or heal during a run'}},
-  ravenous_horde:{en:{title:'Ravenous Horde',desc:'Monsters spawn faster and in denser packs',unlock:'Kill 300 enemies in one run, or reach Map 2'}}
+  blood_moon:{en:{title:'Blood Moon',desc:'Normal monsters have +50% HP',unlock:'Clear Map 3 by killing the final boss and entering the portal'}},
+  glass_soul:{en:{title:'Glass Soul',desc:'Player max HP -25%',unlock:'Clear Map 3 by killing the final boss and entering the portal'}},
+  cursed_economy:{en:{title:'Cursed Economy',desc:'Gold gain x0.6, shop/chest prices x1.3',unlock:'Clear Map 3 by killing the final boss and entering the portal'}},
+  no_mercy:{en:{title:'No Mercy',desc:'Regeneration and healing are reduced by 50%',unlock:'Clear Map 3 by killing the final boss and entering the portal'}},
+  ravenous_horde:{en:{title:'Ravenous Horde',desc:'Monsters spawn faster and in denser packs',unlock:'Clear Map 3 by killing the final boss and entering the portal'}}
 });
 function pactName(p){ return i18nField(PACT_I18N,p&&p.id,'name',p&&p.name); }
 function pactTitle(p){ return i18nField(PACT_I18N,p&&p.id,'title',p&&p.title); }
@@ -670,8 +670,8 @@ const CHEST_BASE=[40,100,220];
 const PLAYER_NAME_KEY='sc3_player_name';
 const PLAYER_COUNTRY_KEY='sc3_player_country';
 const AUTH_PENDING_MODE_KEY='sc3_pending_start_mode';
-const PACT_UNLOCK_STORAGE_KEY='sc3_pact_unlocks_v1';
-const PACT_LAST_STORAGE_KEY='sc3_last_pacts_v1';
+const PACT_UNLOCK_STORAGE_KEY='sc3_pact_unlocks_v2';
+const PACT_LAST_STORAGE_KEY='sc3_last_pacts_v2';
 const SOUL_COINS_STORAGE_KEY='sc3_soul_coins_v1';
 const PET_STATE_STORAGE_KEY='sc3_pets_v1';
 let playerName = localStorage.getItem(PLAYER_NAME_KEY) || 'Player';
@@ -2851,15 +2851,15 @@ let lastAchievementUnlocks = [];
 
 const PACTS = [
   { id:'blood_moon', name:'Blood Moon', title:'จันทร์โลหิต', desc:'มอนสเตอร์ปกติมีเลือด +50%', bonus:0.20, tier:'silver',
-    unlock:'จบรันแรกไม่ว่าจะชนะหรือตาย', test:c=>c.finished },
+    unlock:'Clear Map 3 by killing the final boss and entering the portal', test:c=>c.victoryClear },
   { id:'glass_soul', name:'Glass Soul', title:'วิญญาณแก้ว', desc:'เลือดสูงสุดผู้เล่น -25%', bonus:0.25, tier:'gold',
-    unlock:'อยู่รอดอย่างน้อย 5 นาที', test:c=>c.time>=300 },
+    unlock:'Clear Map 3 by killing the final boss and entering the portal', test:c=>c.victoryClear },
   { id:'cursed_economy', name:'Cursed Economy', title:'เศรษฐกิจต้องสาป', desc:'ทองที่ได้รับ x0.6, ร้าน/หีบแพงขึ้น x1.3', bonus:0.15, tier:'bronze',
-    unlock:'ซื้อของจาก Merchant 1 ครั้ง หรือจบรันพร้อมทอง 300', test:c=>c.shops>=1 || c.gold>=300 },
+    unlock:'Clear Map 3 by killing the final boss and entering the portal', test:c=>c.victoryClear },
   { id:'no_mercy', name:'No Mercy', title:'ไร้ความเมตตา', desc:'การฟื้นเลือดและฮีลลดลง 50%', bonus:0.20, tier:'silver',
-    unlock:'จบรันด้วย HP ต่ำกว่า 25% หรือมีการฮีลในรัน', test:c=>c.lowHp || c.healed },
+    unlock:'Clear Map 3 by killing the final boss and entering the portal', test:c=>c.victoryClear },
   { id:'ravenous_horde', name:'Ravenous Horde', title:'ฝูงกระหายเลือด', desc:'มอนสเตอร์เกิดถี่ขึ้นและจำนวนหนาแน่นขึ้น', bonus:0.25, tier:'gold',
-    unlock:'ฆ่า 300 ตัวในรันเดียว หรือเข้าสู่ Map 2', test:c=>c.kills>=300 || c.stage>=2 || c.won }
+    unlock:'Clear Map 3 by killing the final boss and entering the portal', test:c=>c.victoryClear }
 ];
 const PACT_CAP = 2.5;
 let pactUnlockStateCache = null;
@@ -2926,6 +2926,7 @@ function pactContext(){
     kills:kills||0,
     stage:mapStage||1,
     won:!!won,
+    victoryClear:!!(won && mapStage>=3 && finalBossKilledAt!=null),
     shops:shopPurchases||0,
     gold:player?player.gold:0,
     lowHp:!!(player && player.maxHp && player.hp/player.maxHp<0.25),
