@@ -283,6 +283,11 @@ function applyStaticI18n(){
 window.tr=tr; window.setGameLanguage=setGameLanguage; window.gameLang=gameLang;
 
 function spawnDmg(x,z,amount,color,crit,kind){
+  if(document.body.classList.contains('touch')){
+    const important = crit || kind==='playerhit' || kind==='guard';
+    if(document.body.classList.contains('hud-min') && !important) return;
+    if(document.body.classList.contains('hud-compact') && !important && Math.random()<0.6) return;
+  }
   if (dmgNums.length>36) return;
   const cls=['dn'];
   if(crit) cls.push('crit');
@@ -383,28 +388,7 @@ function startVersionCheck(){
 }
 let objSig='';
 function updateObjective(){
-  const el=document.getElementById('objective'); if(!el) return;
-  if(!started || gameOver || won){ el.style.display='none'; objSig=''; return; }
-  el.style.display='block';
-  // 3 steps map directly to altar.state: idle -> boss -> portal
-  let cur=1; if(altar){ if(altar.state==='boss') cur=2; else if(altar.state==='portal') cur=3; }
-  const bossName = boss ? boss.name : 'บอส';
-  const finalStage = mapStage>=3;
-  const deadlineLeft = finalStage && finalBossKilledAt==null ? Math.max(0, Math.ceil(RUN_TARGET-stageTime())) : null;
-  const steps=[
-    'ไปแท่นบูชา · กด F เรียกบอส',
-    'กำจัด '+bossName,
-    finalStage ? 'เข้าวาป — ชนะ!' : 'เข้าวาปไปด่านต่อไป'
-  ];
-  const sig=mapStage+'|'+cur+'|'+bossName+'|'+deadlineLeft;
-  if(sig===objSig) return; objSig=sig;
-  let html='<div class="qhead">🎯 ด่าน '+mapStage+'/3</div>';
-  if(deadlineLeft!=null) html+='<div class="qstep active">TIME LIMIT '+fmt(deadlineLeft)+'</div>';
-  steps.forEach((s,idx)=>{ const n=idx+1, cls=n<cur?'done':(n===cur?'active':'');
-    const mark=n<cur?'✓':(n===cur?'▶':'○');
-    html+='<div class="qstep '+cls+'">'+mark+' '+s+'</div>';
-  });
-  el.innerHTML=html;
+  objSig='';
 }
 function updateDamageNumbers(dt){
   for (let i=dmgNums.length-1;i>=0;i--){ const d=dmgNums[i]; d.t+=dt;
@@ -637,7 +621,9 @@ function overtimeLevel(){
   return ot<=0 ? 0 : Math.floor(ot/30)+1;
 }
 function otPowerMul(){ const level=overtimeLevel(); return level ? Math.pow(overtimeBase(), level) : 1; }
-function overtimeEnemyCap(){ return overtimeLevel() ? Math.min(520, 320 + (overtimeLevel()-1)*50) : 320; }
+// Unified enemy cap on ALL platforms so leaderboard scoring conditions are identical (fair single board).
+// (Mobile still saves FPS via bloom-off + fewer particles — those are visual only, no score impact.)
+function overtimeEnemyCap(){ return overtimeLevel() ? Math.min(340, 220 + (overtimeLevel()-1)*40) : 220; }
 let globalPickupMagnet = 0;
 let waveTimer = 0, waveInterval = 3.2, enemiesPerWave = 2, maxEnemies = 18;
 let nextHordeAt = 240, hordeRemaining = 0, hordeSpawnTimer = 0, hordeNumber = 0, hordeSpawned = 0, hordeWarned = false;

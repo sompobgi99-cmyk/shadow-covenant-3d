@@ -60,18 +60,11 @@
   .wslot.empty, .tslot.empty{ display:flex; align-items:center; justify-content:center; font-weight:bold; opacity:.45; background:rgba(20,14,30,.4); border-style:dashed; }
   .wslot.empty{ color:#7a6aaa; font-size:18px; }
   .tslot.empty{ color:#5fae9e; font-size:16px; }
-  #objective{ position:absolute; top:132px; right:14px; z-index:5; width:232px; padding:8px 10px;
-    background:rgba(14,10,24,.66); border:1px solid #4a3a7a; border-radius:7px; font-size:12px; line-height:1.5;
-    color:#cdbff0; backdrop-filter:blur(2px); pointer-events:none; }
-  #objective .qhead{ font-weight:bold; color:#ffd86a; margin-bottom:4px; letter-spacing:.3px; }
-  #objective .qstep{ color:#8a7fb0; }
-  #objective .qstep.done{ color:#6fae8a; }
-  #objective .qstep.active{ color:#fff; font-weight:bold; text-shadow:0 0 6px rgba(255,216,106,.5); }
   /* ---- mobile touch controls (hidden unless touch device + in active play) ---- */
-  #mjoy, #mdash, #mf{ display:none; }
-  body.touch.playing #mjoy{ display:block; position:fixed; left:max(14px,env(safe-area-inset-left)); bottom:max(16px,env(safe-area-inset-bottom)); width:112px; height:112px;
-    border-radius:50%; background:radial-gradient(circle,rgba(70,54,112,.42),rgba(20,14,30,.28)); border:2px solid rgba(196,180,255,.48); z-index:60; touch-action:none;
-    box-shadow:0 0 0 1px rgba(0,0,0,.45),0 10px 32px rgba(0,0,0,.34),inset 0 0 28px rgba(180,150,255,.12); }
+  #mjoy, #mdash, #mf, #mhud{ display:none; }
+  body.touch #mjoy.active{ display:block; position:fixed; transform:translate(-50%,-50%); width:118px; height:118px; pointer-events:none;
+    border-radius:50%; background:radial-gradient(circle,rgba(70,54,112,.42),rgba(20,14,30,.24)); border:2px solid rgba(196,180,255,.46); z-index:60;
+    box-shadow:0 0 0 1px rgba(0,0,0,.4),0 10px 32px rgba(0,0,0,.32),inset 0 0 28px rgba(180,150,255,.12); }
   #mjoyknob{ position:absolute; left:50%; top:50%; width:46px; height:46px; margin:-23px 0 0 -23px; border-radius:50%;
     background:radial-gradient(circle,#f0e9ff,rgba(160,140,220,.62)); border:2px solid rgba(240,235,255,.82);
     box-shadow:0 5px 16px rgba(0,0,0,.32),0 0 18px rgba(160,130,255,.22); }
@@ -82,6 +75,30 @@
   body.touch.playing #mf{ right:max(16px,env(safe-area-inset-right)); bottom:calc(max(16px,env(safe-area-inset-bottom)) + 70px); }
   body.touch.playing #mdash{ right:calc(max(16px,env(safe-area-inset-right)) + 66px); bottom:max(22px,env(safe-area-inset-bottom)); }
   body.touch.playing #mdash:active, body.touch.playing #mf:active{ background:radial-gradient(circle,rgba(153,111,230,.78),rgba(61,34,95,.68)); transform:scale(.96); }
+  body.touch.playing #mhud{ display:flex; align-items:center; justify-content:center; position:fixed;
+    top:calc(7px + env(safe-area-inset-top)); left:calc(50% + 42px); min-width:48px; height:32px; padding:0 9px;
+    border-radius:7px; background:rgba(20,14,30,.78); border:1px solid rgba(196,180,255,.55); color:#ffe08a;
+    font-family:monospace; font-size:11px; font-weight:bold; z-index:61; touch-action:none; -webkit-user-select:none; user-select:none;
+    text-shadow:0 1px 2px #000; box-shadow:0 0 0 1px rgba(0,0,0,.36),0 7px 18px rgba(0,0,0,.24); }
+  body.touch.playing #mhud:active{ background:rgba(85,38,92,.82); transform:scale(.96); }
+  body.touch.hud-compact #itemhud{ display:none!important; }
+  body.touch.hud-compact #topright #biome,
+  body.touch.hud-compact #topright #charname,
+  body.touch.hud-compact #topright #enemies,
+  body.touch.hud-compact #topright #fps{ display:none!important; }
+  body.touch.hud-compact #dmg .dn:not(.crit):not(.playerhit):not(.guard){ opacity:.38; }
+  body.touch.hud-min #itemhud,
+  body.touch.hud-min #weapons,
+  body.touch.hud-min #tomes,
+  body.touch.hud-min #gold,
+  body.touch.hud-min #dash{ display:none!important; }
+  body.touch.hud-min #topright #biome,
+  body.touch.hud-min #topright #charname,
+  body.touch.hud-min #topright #kills,
+  body.touch.hud-min #topright #enemies,
+  body.touch.hud-min #topright #fps{ display:none!important; }
+  body.touch.hud-min #topleft{ width:min(132px,38vw); opacity:.9; }
+  body.touch.hud-min #dmg .dn:not(.crit):not(.playerhit):not(.guard){ display:none!important; }
   #pauseinfo{ display:flex; flex-direction:column; align-items:center; gap:8px; margin:4px 0 2px; }
   #pauseinfo .piw{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
   #pauseinfo .piwslot{ width:92px; background:#1c1430; border:1px solid #5a4a8a; border-radius:6px; padding:6px; text-align:center; }
@@ -427,6 +444,8 @@
   .titleversion{ position:absolute; z-index:1; right:20px; bottom:18px; color:rgba(220,210,220,.48); font-size:10px; }
   #leaderboard{ position:absolute; z-index:1; right:clamp(20px,4vw,64px); top:50%; transform:translateY(-50%);
                 width:min(380px,31vw); pointer-events:none; }
+  body.touch #title #leaderboard{ display:none; }
+  body.touch.rank-open #title #leaderboard{ display:block; }
   .rankpanel{ background:linear-gradient(180deg,rgba(16,10,18,.86),rgba(8,6,12,.72));
               border:1px solid rgba(229,181,90,.68); border-radius:8px; padding:14px;
               box-shadow:0 0 0 2px rgba(53,17,33,.75),0 18px 45px rgba(0,0,0,.38),0 0 26px rgba(181,42,67,.18);
@@ -507,7 +526,7 @@
     #titleauthbar{ width:100%; max-width:360px; }
     #titleauthbar span{ flex:1; }
     .titlemenu{ width:100%; max-width:360px; }
-    .titlemenu.compact{ grid-template-columns:repeat(2,minmax(0,1fr)); max-width:360px; }
+    .titlemenu.compact{ grid-template-columns:repeat(3,minmax(0,1fr)); max-width:360px; }
     .titlemenu button{ flex:1; min-width:92px; }
     .titlemenu.compact button{ min-width:0; }
     #authbar{ width:100%; max-width:360px; gap:6px; font-size:10px; }
@@ -564,9 +583,6 @@
   #gold { color: #ffcc33; font-weight: bold; font-size: 15px; margin-top: 6px; text-shadow: 0 1px 2px #000; }
   #topright { position: absolute; top: 12px; right: 14px; text-align: right; font-size: 14px; text-shadow: 0 1px 2px #000; }
   #topright .t { color: #ffcc00; font-size: 20px; font-weight: bold; }
-  @media (max-width:760px){
-    #objective{ top:132px; right:10px; width:min(220px,44vw); font-size:10px; line-height:1.35; padding:6px 8px; }
-  }
   #toast { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); background: rgba(10,5,15,.85);
            border: 2px solid #ffcc00; color: #ffcc00; font-weight: bold; padding: 8px 18px; display: none; }
   #over { position: absolute; inset: 0; background: rgba(5,2,8,.75); display: none; flex-direction: column;
@@ -645,8 +661,6 @@
     #bossbar{ top:calc(38px + env(safe-area-inset-top)); width:68%; height:13px; }
     #bossbar span{ font-size:8px; line-height:11px; }
     #toast{ top:calc(56px + env(safe-area-inset-top)); max-width:82vw; text-align:center; font-size:12px; padding:6px 10px; }
-    #objective{ top:calc(82px + env(safe-area-inset-top)); right:max(7px,env(safe-area-inset-right)); width:min(170px,44vw); max-height:94px; overflow:hidden; font-size:8px; line-height:1.3; padding:5px 7px; }
-    #objective .qstep:nth-child(n+4){ display:none; }
     #prompt{ bottom:calc(134px + env(safe-area-inset-bottom)); width:76vw; text-align:center; font-size:12px; }
     #altar{ bottom:calc(132px + env(safe-area-inset-bottom)); font-size:11px; width:84vw; text-align:center; }
     #weapons{ left:max(8px,env(safe-area-inset-left)); bottom:calc(134px + env(safe-area-inset-bottom)); gap:3px; max-width:132px; flex-wrap:wrap; }
@@ -701,7 +715,7 @@
   @media (max-height:520px) and (orientation:landscape){
     #dash{ display:none; }
     #topleft{ top:calc(10px + env(safe-area-inset-top)); left:max(10px,env(safe-area-inset-left)); width:190px; }
-    body.touch.playing #mjoy{ width:102px; height:102px; left:max(12px,env(safe-area-inset-left)); bottom:max(10px,env(safe-area-inset-bottom)); }
+    body.touch #mjoy.active{ width:104px; height:104px; }
     body.touch.playing #mdash, body.touch.playing #mf{ width:54px; height:54px; }
     body.touch.playing #mf{ right:max(14px,env(safe-area-inset-right)); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 62px); }
     body.touch.playing #mdash{ right:calc(max(14px,env(safe-area-inset-right)) + 60px); bottom:max(14px,env(safe-area-inset-bottom)); }
@@ -712,7 +726,6 @@
     .wslot img{ width:20px; height:20px; }
     .tslot{ width:23px; height:23px; }
     .tslot img{ width:18px; height:18px; }
-    #objective{ top:calc(112px + env(safe-area-inset-top)); max-height:78px; font-size:9px; }
     #prompt,#altar{ bottom:calc(58px + env(safe-area-inset-bottom)); font-size:11px; }
     #select,#playersetup,#shop,#levelup,#relicup,#pause,#over{ padding:calc(10px + env(safe-area-inset-top)) 14px calc(10px + env(safe-area-inset-bottom)); overflow:auto; }
     #selcards{ max-width:760px; }
