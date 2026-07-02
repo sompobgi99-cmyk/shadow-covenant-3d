@@ -86,7 +86,7 @@ const I18N={
 Object.assign(I18N.th,{
   'common.items':'ไอเทม','common.relic':'Relic','common.weapon':'อาวุธ','common.passive':'สกิลติดตัว','common.emptyWeapon':'ช่องอาวุธว่าง','common.emptyTome':'ช่อง Tome ว่าง','common.stackUnlimited':'stack ได้ไม่จำกัด','common.moreItems':'มีไอเทมอีก {count} stack เปิด Pause เพื่อดูทั้งหมด','common.locked':'ล็อก','common.unlocked':'ปลดล็อกแล้ว',
   'common.basic':'พื้นฐาน','common.evolved':'ร่างวิวัฒน์','common.from':'จาก {name}','common.damage':'ดาเมจ','common.rate':'ความถี่','common.count':'จำนวน','common.ready':'พร้อม','common.almost':'ใกล้พร้อม','common.evoPair':'คู่วิวัฒน์','common.evolve':'วิวัฒน์','common.chooseEvolve':'เลือกตอนนี้เพื่อวิวัฒน์อาวุธนี้','common.pairWith':'จับคู่กับ {name}','common.requires':'ต้องมี {weapon} Lv8 + {tome} x3. Ancient Anvil ทำให้ครั้งแรกใช้ x2',
-  'common.ban':'แบน','common.new':'ใหม่','common.score':'คะแนน','common.useLast':'ใช้ชุดล่าสุด x{mult}','common.noLast':'ไม่มีชุดล่าสุด','common.tomeUpgrade':'อัปเกรด Tome',
+  'common.ban':'แบน','common.bansLeft':'แบนเหลือ {count}','common.banHint':'แบนจะลบตัวเลือกนี้ออกจากรันนี้','common.new':'ใหม่','common.score':'คะแนน','common.useLast':'ใช้ชุดล่าสุด x{mult}','common.noLast':'ไม่มีชุดล่าสุด','common.tomeUpgrade':'อัปเกรด Tome',
   'pause.resume':'▶ เล่นต่อ','pause.quit':'⌂ ออกไปหน้าแรก','pause.hint':'กด P / Esc หรือปุ่มเล่นต่อเพื่อกลับเข้าเกม',
   'rarity.common':'Common','rarity.uncommon':'Uncommon','rarity.rare':'Rare','rarity.legendary':'Legendary',
   'items.summaryTitle':'ไอเทมซ้อนทับได้','items.summaryDesc':'เก็บซ้ำหรือซื้อซ้ำได้เรื่อย ๆ ผลของไอเทมจะคูณหรือบวกต่อจาก stack เดิม เลือกของให้เข้ากับอาวุธหลักของรัน','items.unlockedCount':'{unlocked}/{total} ปลดล็อกแล้ว','items.lockedHint':'ของที่ล็อกจะแสดงเงื่อนไขไว้ในการ์ด',
@@ -95,7 +95,7 @@ Object.assign(I18N.th,{
 Object.assign(I18N.en,{
   'common.items':'Items','common.relic':'Relic','common.weapon':'Weapon','common.passive':'Passive','common.emptyWeapon':'Empty weapon slot','common.emptyTome':'Empty Tome slot','common.stackUnlimited':'unlimited stacks','common.moreItems':'{count} more item stacks. Pause to view all.','common.locked':'Locked','common.unlocked':'Unlocked',
   'common.basic':'Base','common.evolved':'Evolved','common.from':'from {name}','common.damage':'DMG','common.rate':'Rate','common.count':'Count','common.ready':'Ready','common.almost':'Almost ready','common.evoPair':'Evolution pair','common.evolve':'Evolve','common.chooseEvolve':'Choose this now to evolve the weapon','common.pairWith':'Pairs with {name}','common.requires':'Requires {weapon} Lv8 + {tome} x3. Ancient Anvil makes the first evolve use x2.',
-  'common.ban':'Ban','common.new':'NEW','common.score':'Score','common.useLast':'Use last loadout x{mult}','common.noLast':'No last loadout','common.tomeUpgrade':'Tome upgrade',
+  'common.ban':'Ban','common.bansLeft':'Bans left {count}','common.banHint':'Ban removes this choice for this run','common.new':'NEW','common.score':'Score','common.useLast':'Use last loadout x{mult}','common.noLast':'No last loadout','common.tomeUpgrade':'Tome upgrade',
   'pause.resume':'▶ Resume','pause.quit':'⌂ Title Screen','pause.hint':'Press P / Esc or Resume to continue',
   'rarity.common':'Common','rarity.uncommon':'Uncommon','rarity.rare':'Rare','rarity.legendary':'Legendary',
   'items.summaryTitle':'Items Stack Forever','items.summaryDesc':'Picking up or buying the same item again keeps stacking its effect. Choose items that match your main weapon and run plan.','items.unlockedCount':'{unlocked}/{total} unlocked','items.lockedHint':'Locked items show their unlock requirement on the card.',
@@ -646,6 +646,7 @@ let butcherActive = false;
 let butcherKills = 0;
 const RUN_TARGET = 600;            // 10:00 clear target
 let mapStage = 1;
+let stageTransitioning = false;
 let won = false, altar = null, boss = null;
 let finalBossKilledAt = null;
 let started = false;   // false until a character is chosen
@@ -1656,7 +1657,10 @@ function isBannedChoice(u){
   return !!(u && player.bannedChoices && player.bannedChoices[u.id]);
 }
 function canBanChoice(u){
-  if(!u || !player.bansRemaining || isBannedChoice(u) || u.id.startsWith('evo_')) return false;
+  return !!(player && player.bansRemaining && isBanEligibleChoice(u));
+}
+function isBanEligibleChoice(u){
+  if(!u || isBannedChoice(u) || u.id.startsWith('evo_')) return false;
   if(u.id.startsWith('w_')){
     const key=u.id.slice(2);
     return !player.weapons.some(w=>w.key===key);
@@ -1698,10 +1702,14 @@ function localizedChoiceDesc(u){
   return tomeDesc(u);
 }
 function choiceCard(u,i){
-  const ban=canBanChoice(u) ? '<button class="banbtn" data-ban="'+i+'">'+escHtml(tr('common.ban'))+' '+player.bansRemaining+'</button>' : '';
+  const ban=isBanEligibleChoice(u)
+    ? (canBanChoice(u)
+    ? '<button class="banbtn" type="button" data-ban="'+i+'" title="'+escHtml(tr('common.banHint'))+'" aria-label="'+escHtml(tr('common.ban')+' '+localizedChoiceName(u)+' · '+tr('common.bansLeft',{count:player.bansRemaining}))+'"><span>'+escHtml(tr('common.ban'))+'</span><b>'+player.bansRemaining+'</b></button>'
+    : '<button class="banbtn disabled" type="button" disabled><span>'+escHtml(tr('common.ban'))+'</span><b>0</b></button>')
+    : '';
   const hint=evolveHintForChoice(u);
   const badge=hint ? '<div class="evobadge '+hint.state+'">'+escHtml(hint.label)+'</div><div class="evohint">'+escHtml(hint.text)+'</div>' : '';
-  return '<img src="'+escHtml(spriteSrc(u.icon))+'">'+badge+'<div class="nm">'+escHtml(localizedChoiceName(u))+'</div><div class="ds">'+escHtml(localizedChoiceDesc(u))+'</div><div class="key">[ '+(i+1)+' ]</div>'+ban;
+  return '<img src="'+escHtml(spriteSrc(u.icon))+'">'+badge+'<div class="nm">'+escHtml(localizedChoiceName(u))+'</div><div class="ds">'+escHtml(localizedChoiceDesc(u))+'</div><div class="choiceactions"><div class="key">[ '+(i+1)+' ]</div>'+ban+'</div>';
 }
 function openUpgradeChoice(){
   // Once 4 distinct tomes are taken, only offer those (level them up), no new tome types.
@@ -1711,6 +1719,8 @@ function openUpgradeChoice(){
   for(let i=0;i<3 && pool.length;i++) pick.push(pool.splice((Math.random()*pool.length)|0,1)[0]);
   currentChoices=pick;
   const c=document.getElementById('cards'); c.innerHTML='';
+  const actions=document.getElementById('levelactions');
+  if(actions) actions.setAttribute('data-bans', tr('common.bansLeft',{count:player.bansRemaining||0}));
   pick.forEach((u,i)=>{ const hint=evolveHintForChoice(u); const d=document.createElement('div'); d.className='card'+(hint?' evochoice ev-'+hint.state:'');
     d.innerHTML=choiceCard(u,i);
     d.onclick=()=>pickUpgrade(i); c.appendChild(d); });
@@ -2039,7 +2049,6 @@ function init() {
     updateStartFlow();
     if(!selectedStartMode) openAuthChoice(false);
   });
-  initAudio(); resumeAudio(); startTitleBGM();
   { const gb=document.getElementById('guestchoice'); if(gb) gb.onclick = chooseGuestStart; }
   { const gp=document.getElementById('googlechoice'); if(gp) gp.onclick = chooseGoogleStart; }
   { const gi=document.getElementById('startmode_guest'); if(gi) gi.onchange = ()=>selectStartMode('guest'); }
@@ -2375,7 +2384,7 @@ function buildStageScenery(stage){
   clearStageScenery();
   if(stage<2) return;
   ensureStagePropTextures();
-  if(stage===2) scatterBreakables(2, 38);
+  if(stage===2) scatterBreakables(2, 26);
   const options=stage>=3 ? [
     {key:'map3_shard', h:2.5, solid:0.42, weight:0.10},
     {key:'map3_obelisk', h:2.9, solid:0.42, weight:0.09},
@@ -2420,8 +2429,8 @@ function buildStageScenery(stage){
     return true;
   };
   let placed=0;
-  const clusterCount=stage>=3 ? 18 : 22;
-  const clusterSize=stage>=3 ? 5 : 6;
+  const clusterCount=stage>=3 ? 18 : 15;
+  const clusterSize=stage>=3 ? 5 : 4;
   for(let i=0;i<clusterCount;i++){
     const angle=(i/clusterCount)*Math.PI*2+Math.random()*0.35;
     const dist=(stage>=3 ? 23 : 15)+Math.random()*(stage>=3 ? 43 : 48);
@@ -2431,7 +2440,7 @@ function buildStageScenery(stage){
       if(addProp(cx+Math.cos(a)*d, cz+Math.sin(a)*d, pick())) placed++;
     }
   }
-  const ringCount=stage>=3 ? 38 : 42;
+  const ringCount=stage>=3 ? 38 : 28;
   for(let i=0;i<ringCount;i++){
     const angle=(i/ringCount)*Math.PI*2+Math.random()*0.08;
     const dist=(stage>=3 ? 28 : 20)+(i%3)*10+Math.random()*4;
@@ -2447,8 +2456,8 @@ function buildStageScenery(stage){
     }
   }
   let guard=0;
-  const target=stage>=3 ? 175 : 215;
-  while(placed<target && guard++<1800){
+  const target=stage>=3 ? 175 : 140;
+  while(placed<target && guard++<1100){
     const x=(Math.random()*2-1)*MAP_BOUND*0.92, z=(Math.random()*2-1)*MAP_BOUND*0.92;
     const choice=pick();
     if(addProp(x,z,choice)) placed++;

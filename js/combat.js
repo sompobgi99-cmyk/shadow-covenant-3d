@@ -484,12 +484,12 @@ function updateWeapon(w, dt){
 function weaponChoices(){
   const out = [];
   const tomeLbl = id => { const u = (typeof UPGRADES!=='undefined') ? UPGRADES.find(x=>x.id===id) : null; return u ? (typeof tomeName==='function'?tomeName(u):u.name) : id; };
+  const evolveLabel = typeof tr === 'function' ? tr('common.evolve') : 'Evolve';
+  const newLabel = typeof tr === 'function' ? tr('common.new') : 'NEW';
   for (const key in WEAPON_TYPES){
     const t = WEAPON_TYPES[key]; if (t.hidden) continue;
     const need = t.evolveTo ? evolveTomeNeed(player.weapons.find(x=>x.key===key)) : 3;
-    const evolveLabel = typeof tr === 'function' ? tr('common.evolve') : 'Evolve';
-    const newLabel = typeof tr === 'function' ? tr('common.new') : 'NEW';
-    const hint = t.evolveTo ? ' · ★'+evolveLabel+': '+tomeLbl(t.evolveTome)+' ×'+need+' @Lv8' : '';
+    const hint = t.evolveTo ? ' · ★'+evolveLabel+': '+tomeLbl(t.evolveTome)+' x'+need+' @Lv8' : '';
     const w = player.weapons.find(x=>x.key===key);
     if (w){ if (w.lvl < 8) out.push({ id:'w_'+key, name:weaponName(key)+' Lv'+(w.lvl+1), desc:weaponDesc(key)+hint, icon:t.icon, apply:()=>{ w.lvl++; } }); }
     else if (player.weapons.length < MAX_WEAPONS && (typeof isWeaponUnlocked!=='function' || isWeaponUnlocked(key))){ out.push({ id:'w_'+key, name:newLabel+': '+weaponName(key), desc:weaponDesc(key)+hint, icon:t.icon, apply:()=>{ player.weapons.push(makeWeapon(key)); } }); }

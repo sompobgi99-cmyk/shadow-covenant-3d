@@ -308,7 +308,7 @@ function makeBorder(){
 function makeAltar(){
   let x,z,tries=0;
   do { x=(Math.random()*2-1)*MAP_BOUND*0.8; z=(Math.random()*2-1)*MAP_BOUND*0.8; tries++; }
-  while (Math.hypot(x,z)<14 && tries<40);
+  while ((Math.hypot(x,z)<14 || blocked(x,z)) && tries<80);
   const g=new THREE.Group();
   const ped=new THREE.Mesh(new THREE.CylinderGeometry(1.0,1.35,1.3,8), new THREE.MeshBasicMaterial({color:0x39324a}));
   ped.position.y=0.65; g.add(ped);
@@ -439,36 +439,47 @@ function clearCombatActors(){
   boss=null; weaponSig=null; enemyGrid.clear();
 }
 function transitionToStage(stage){
-  if(stage<=mapStage) return;
-  clearCombatActors();
-  clearWorldObjects();
-  removeAltar();
-  mapStage=stage;
-  stageStartTime=gameTime;   // reset the per-stage clock (timer/OT/spawn density restart)
-  finalBossKilledAt=null;
-  overtimeWarnStage=0;
-  finalBossWarnStage=0;
-  globalPickupMagnet=0;
-  resetEventState(false);
-  clearWorldScenery();
-  applyMapTheme();
-  buildStageScenery(stage);
-  player.x=0; player.z=0; player.kx=0; player.kz=0; player.knockX=0; player.knockZ=0;
-  player.hp=Math.min(healCap(player), player.hp+scaledHeal(Math.round(player.maxHp*0.35)));
-  waveTimer=0; waveInterval=stage>=3?1.9:2.4; enemiesPerWave=stage>=3?6:4; maxEnemies=stage>=3?66:44;
-  hordeRemaining=0; hordeSpawnTimer=0; hordeWarned=false; nextHordeAt=Math.max(nextHordeAt, gameTime+(stage>=3?75:90));
-  nextMinibossAt=gameTime+(stage>=3?35:45); mbTimer=0; relocationCursor=0;
-  makeAltar();
-  makeWorldObjects();
-  for(let i=0;i<(stage>=3?14:10);i++) spawnEnemy();
-  spawnObjectPulse(player.x,player.z,stage>=3?0x9a55ff:0xff5638,9,0.8);
-  spawnBurst(player.x,player.z,stage>=3?0x7ce7ff:0xff5a3a,28,1.2);
-  shake(0.35,0.24);
-  showToast((MAP_THEMES[stage] && MAP_THEMES[stage].name) || 'New Map',3);
-  if(stage>=3 && altar){
-    altar.x=0; altar.z=8;
-    altar.group.position.set(altar.x,groundHeight(altar.x,altar.z),altar.z);
-    summonBoss();
+  if(stage<=mapStage || stageTransitioning) return;
+  stageTransitioning=true;
+  try {
+    const relic=document.getElementById('relicup'); if(relic) relic.style.display='none';
+    const level=document.getElementById('levelup'); if(level) level.style.display='none';
+    pendingRelicPortal=null; paused=false; userPaused=false;
+    clearCombatActors();
+    clearWorldObjects();
+    removeAltar();
+    mapStage=stage;
+    stageStartTime=gameTime;   // reset the per-stage clock (timer/OT/spawn density restart)
+    finalBossKilledAt=null;
+    overtimeWarnStage=0;
+    finalBossWarnStage=0;
+    globalPickupMagnet=0;
+    resetEventState(false);
+    clearWorldScenery();
+    applyMapTheme();
+    buildStageScenery(stage);
+    player.x=0; player.z=0; player.kx=0; player.kz=0; player.knockX=0; player.knockZ=0;
+    player.hp=Math.min(healCap(player), player.hp+scaledHeal(Math.round(player.maxHp*0.35)));
+    waveTimer=0; waveInterval=stage>=3?1.9:2.4; enemiesPerWave=stage>=3?6:4; maxEnemies=stage>=3?66:44;
+    hordeRemaining=0; hordeSpawnTimer=0; hordeWarned=false; nextHordeAt=Math.max(nextHordeAt, gameTime+(stage>=3?75:90));
+    nextMinibossAt=gameTime+(stage>=3?35:45); mbTimer=0; relocationCursor=0;
+    makeAltar();
+    makeWorldObjects();
+    for(let i=0;i<(stage>=3?14:8);i++) spawnEnemy();
+    spawnObjectPulse(player.x,player.z,stage>=3?0x9a55ff:0xff5638,9,0.8);
+    spawnBurst(player.x,player.z,stage>=3?0x7ce7ff:0xff5a3a,28,1.2);
+    shake(0.35,0.24);
+    showToast((MAP_THEMES[stage] && MAP_THEMES[stage].name) || 'New Map',3);
+    if(stage>=3 && altar){
+      altar.x=0; altar.z=8;
+      altar.group.position.set(altar.x,groundHeight(altar.x,altar.z),altar.z);
+      summonBoss();
+    }
+  } catch(err) {
+    console.error('transitionToStage failed', err);
+    showToast('Map transition failed - please try again', 3);
+  } finally {
+    stageTransitioning=false;
   }
 }
 const SPECIAL_SPAWN_DELAY_MS = 500;

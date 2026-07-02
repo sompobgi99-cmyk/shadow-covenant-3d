@@ -5,7 +5,12 @@ function initAudio() {
   if (audioCtx) return;
   try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
 }
-function resumeAudio() { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }
+function resumeAudio() {
+  if (audioCtx && audioCtx.state === 'suspended') {
+    const p = audioCtx.resume();
+    if (p && p.catch) p.catch(()=>{});
+  }
+}
 function sfxAllowed(type, gap){
   const now = audioCtx ? audioCtx.currentTime : 0;
   if (sfxLast[type] && now - sfxLast[type] < gap) return false;
@@ -130,7 +135,7 @@ function sfx(type) {
 // ---- Title BGM (procedural ambient, loop) ----
 let titleBgm = null;
 function startTitleBGM() {
-  if (!audioCtx || titleBgm) return;
+  if (!audioCtx || audioCtx.state !== 'running' || titleBgm) return;
   const now = audioCtx.currentTime;
   const masterGain = audioCtx.createGain();
   masterGain.gain.setValueAtTime(0.06, now);
