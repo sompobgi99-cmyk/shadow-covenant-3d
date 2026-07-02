@@ -1,4 +1,7 @@
 const $ = id => document.getElementById(id);
+// Touch device -> lighter graphics/perf profile (bloom off, fewer enemies/particles) for smooth mobile play.
+const IS_MOBILE = (typeof window!=='undefined') && (('ontouchstart' in window) || (navigator.maxTouchPoints||0) > 0);
+const MOBILE_ENEMY_CAP = 170;
 const SP = 'assets/sprites/';
 const MANIFEST = {
   player: 'hero.png',

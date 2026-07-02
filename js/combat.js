@@ -68,6 +68,7 @@ const WEAPON_TYPES = {
   bouncebombX:{ name:'Chain Detonator', icon:'wpn_bouncebomb_evolved', desc:'ร่างวิวัฒน์: ระเบิดลูกโซ่ขนาดใหญ่ระหว่างเป้าหมาย', mode:'aim', hidden:true,
             dmg:27, rate:1.25, range:12, count:2, pierce:0, speed:15, life:2.0, color:0xffbd5f, shape:'bomb', bounces:3, bounceRadius:10, bounceDmgMul:0.86, impactRadius:1.8, impactDmgMul:0.55 },
 };
+const GLOBAL_WEAPON_DMG_MUL = 1.14;
 // ---- Items (pickup from enemy drops, stack unlimited) ----
 const DROP_RATES = { common: 0.12, uncommon: 0.06, rare: 0.025, legendary: 0.005 };
 const ITEMS = [
@@ -187,7 +188,7 @@ const RARITY_GLOW = { common:0x44ff44, uncommon:0x44aaff, rare:0xff44ff, legenda
 function wstats(key, lvl){
   const b = WEAPON_TYPES[key], s = Object.assign({}, b), k = lvl-1;
   s.sourceKey = key;
-  s.dmg = Math.round(b.dmg * (1 + 0.15*k) * (player.dmgMul||1) * (1+(player.pickupDmgBoost||0)));
+  s.dmg = Math.round(b.dmg * GLOBAL_WEAPON_DMG_MUL * (1 + 0.15*k) * (player.dmgMul||1) * (1+(player.pickupDmgBoost||0)));
   const bonus=player.countBonus||0;
   if (b.mode === 'orbit'){
     s.count = b.count + Math.floor(k/2) + bonus;

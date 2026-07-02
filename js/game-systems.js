@@ -1464,8 +1464,8 @@ let shakeT = 0, shakeMag = 0;
 let camDist = 13;   // camera zoom
 const cameraTarget=new THREE.Vector3();
 function shake(duration, magnitude){
-  shakeT = Math.max(shakeT, duration);
-  shakeMag = Math.max(shakeMag, magnitude);
+  shakeT = Math.max(shakeT, Math.min(duration * 0.72, 0.28));
+  shakeMag = Math.max(shakeMag, Math.min(magnitude * 0.58, 0.16));
 }
 function updateCamera(dt) {
   const ang = 50*Math.PI/180, D = camDist;

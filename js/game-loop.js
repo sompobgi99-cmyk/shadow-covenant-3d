@@ -453,6 +453,7 @@ function update(dt) {
 
   const profile=progressionProfile();
   maxEnemies=Math.min(overtimeEnemyCap(),profile.cap+(hordeRemaining>0?Math.round(45*otPowerMul()):0));
+  if (IS_MOBILE) maxEnemies=Math.min(maxEnemies, MOBILE_ENEMY_CAP);   // keep FPS smooth on phones
   waveInterval=profile.interval;
   enemiesPerWave=profile.batch;
 

@@ -466,7 +466,8 @@ function spawnObjectPulse(x, z, color, maxR, life){
   rings.push({ mesh:m, maxR:maxR||5, life:life||0.5, max:life||0.5 });
 }
 function spawnBurst(x, z, color, n, scl){
-  const count=Math.min(n||7,Math.max(0,120-particles.length));
+  const budget=IS_MOBILE?60:120;   // fewer particles on phones
+  const count=Math.min(IS_MOBILE?Math.ceil((n||7)*0.55):(n||7), Math.max(0,budget-particles.length));
   for (let i=0;i<count;i++){ const a=Math.random()*Math.PI*2, sp=2+Math.random()*4;
     const m=new THREE.Mesh(PARTICLE_GEO, new THREE.MeshBasicMaterial({ color, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending }));
     m.scale.setScalar(scl||1); scene.add(m);
@@ -2028,7 +2029,9 @@ function init() {
   addEventListener('keyup', (e)=>{ keys[e.code]=false; });
 
   clock = new THREE.Clock();
-  try {
+  if (IS_MOBILE) {
+    composer = null;   // mobile: skip bloom post-processing for FPS
+  } else try {
     composer = new THREE.EffectComposer(renderer);
     composer.addPass(new THREE.RenderPass(scene, camera));
     const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.55, 0.28, 0.88);
