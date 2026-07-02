@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check js/game-data.js && node --check js/online-leaderboard.js && node --check js/run-telemetry.js && node --check js/audio.js && node --check js/combat.js && node --check js/game-runtime.js && node --check js/game-loop.js && node --check js/game-systems.js && node --check js/mobile-controls.js && node --check netlify/functions/leaderboard.mts",
+    "dev": "node scripts/dev-server.mjs",
+    "check": "node --check js/game-data.js && node --check js/online-leaderboard.js && node --check js/auth.js && node --check js/progress-sync.js && node --check js/run-telemetry.js && node --check js/audio.js && node --check js/combat.js && node --check js/game-runtime.js && node --check js/game-loop.js && node --check js/game-systems.js && node --check js/mobile-controls.js && node --check netlify/functions/auth-config.mts && node --check netlify/functions/leaderboard.mts && node --check netlify/functions/player-progress.mts",
     "audit": "node scripts/audit.mjs",
     "verify": "npm run check && npm run audit",
     "pixellab:balance": "node scripts/pixellab.mjs balance",

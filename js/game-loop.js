@@ -1,5 +1,11 @@
 // ---------- loop ----------
 let frameN=0;
+const PLAYER_CONTACT_KNOCKBACK_MUL = 1.4;
+function monsterContactKnockback(e){
+  if(e && e.butcher) return 18 * PLAYER_CONTACT_KNOCKBACK_MUL;
+  const base = e && e.isBoss ? 13 : e && e.elite ? 11 : 8.5;
+  return base * PLAYER_CONTACT_KNOCKBACK_MUL;
+}
 function rotateProjectileToVelocity(p){
   if(p && p.orient && p.mesh && p.mesh.material) p.mesh.material.rotation=-Math.atan2(p.dz,p.dx);
 }
@@ -28,6 +34,23 @@ function projectileImpactSplash(p, e){
       dealEnemyDamage(t, dmg, p.color, dx, dz, 2.4, true, { weapon:p.sourceKey });
   });
 }
+function projectileHitFlash(p, e){
+  if(!p || !e) return;
+  const color=p.color||0xffffff;
+  const shape=p.shape||'orb';
+  if(shape==='shield'){
+    spawnRing(e.x, e.z, color, 1.25, 0.16);
+    spawnBurst(e.x, e.z, color, 5, 0.38);
+  } else if(shape==='bone_boomerang'){
+    spawnBurst(e.x, e.z, color, 4, 0.34);
+  } else if(shape==='doom'||shape==='soul'){
+    spawnBurst(e.x, e.z, color, 5, 0.42);
+  } else if(shape==='shard'){
+    spawnBurst(e.x, e.z, color, 3, 0.28);
+  } else if(shape==='football'){
+    spawnRing(e.x, e.z, color, 0.75, 0.13);
+  }
+}
 function tryProjectileRicochet(p, fromEnemy){
   if(!p || (p.bouncesLeft||0)<=0) return false;
   const target=ricochetTarget(p, fromEnemy);
@@ -38,8 +61,9 @@ function tryProjectileRicochet(p, fromEnemy){
   p.bouncesLeft--;
   p.life=Math.max(p.life, Math.min(0.9, Math.max(0.28, len/Math.max(1,p.speed)+0.16)));
   rotateProjectileToVelocity(p);
-  spawnRing(fromEnemy.x, fromEnemy.z, p.color||0xffffff, 1.15, 0.18);
-  spawnBurst(fromEnemy.x, fromEnemy.z, p.color||0xffffff, 4, 0.42);
+  const shape=p.shape||'orb';
+  spawnRing(fromEnemy.x, fromEnemy.z, p.color||0xffffff, shape==='shield'?1.45:1.15, 0.18);
+  spawnBurst(fromEnemy.x, fromEnemy.z, p.color||0xffffff, shape==='shield'?6:4, shape==='shield'?0.5:0.42);
   return true;
 }
 function frame() {
@@ -104,11 +128,12 @@ function update(dt) {
   }
   if (player.invuln>0) player.invuln-=dt;
   if (player.flash>0) player.flash-=dt;
-  if (player.regen) player.hp = Math.min(healCap(player), player.hp + player.regen*dt);
+  if (player.regen) player.hp = Math.min(healCap(player), player.hp + scaledHeal(player.regen*dt));
+  if (typeof updatePetFollower === 'function') updatePetFollower(dt);
 
   // standing-still item effects (Idle Juice tracked via stillT, Campfire heal)
   if (player.moving) player.stillT = 0; else player.stillT = (player.stillT||0) + dt;
-  if (player._campfire && !player.moving){ const before=player.hp; player.hp = Math.min(healCap(player), player.hp + 2*player._campfire*dt); const healed=player.hp-before; if(healed>0) recordRunItem('campfire',{ heal:healed }); }
+  if (player._campfire && !player.moving){ const before=player.hp; player.hp = Math.min(healCap(player), player.hp + scaledHeal(2*player._campfire*dt)); const healed=player.hp-before; if(healed>0) recordRunItem('campfire',{ heal:healed }); }
   // Energy Core: pulsing damage aura
   if (player._energyCore){
     player._energyTick = (player._energyTick||0) - dt;
@@ -126,6 +151,7 @@ function update(dt) {
 
   // weapons — each on its own cooldown / orbit
   for (const w of player.weapons) updateWeapon(w, dt);
+  for (const b of breakables) if(b.flash>0) b.flash=Math.max(0,b.flash-dt);
 
   // enemies chase
   const speedMul=enemySpeedMul();
@@ -149,6 +175,17 @@ function update(dt) {
     if (e.slowT>0) e.slowT-=dt;
     if (e.wardT>0) e.wardT-=dt;
     if (e.behavior==='warder') updateWarderAura(e,dt);
+    if(e.isBoss && e.hp>0 && e.hp<bossRegenCap(e)){
+      const heal=bossRegenRate(e)*dt;
+      if(heal>0){
+        e.hp=Math.min(bossRegenCap(e), e.hp+heal);
+        e.regenFxT=(e.regenFxT||0)-dt;
+        if(e.regenFxT<=0){
+          e.regenFxT=e.isStageBoss?2.1:2.8;
+          spawnObjectPulse(e.x,e.z,e.isStageBoss?0x86ffb0:0x65d68a,Math.max(1.8,e.r*1.8),0.32);
+        }
+      }
+    }
     const dx=player.x-e.x, dz=player.z-e.z, d=Math.hypot(dx,dz)||1;
     const nx=dx/d, nz=dz/d;
     let spd = e.spd;
@@ -156,6 +193,17 @@ function update(dt) {
       e.chargeCd -= dt;
       if (e.charging>0){ e.charging-=dt; spd = e.spd*2.5; }
       else if (e.chargeCd<=0 && d<15 && d>5){ e.charging=0.5; const ja=(Math.random()-0.5)*0.5, jc=Math.cos(ja), js=Math.sin(ja); e.cdx=nx*jc-nz*js; e.cdz=nx*js+nz*jc; e.chargeCd=2.8+Math.random()*1.6; }
+    } else if (e.behavior==='butcher'){
+      e.chargeCd -= dt;
+      if (e.butcherUntil && gameTime>=e.butcherUntil){ expireButcher(e); continue; }
+      if (e.charging>0){ e.charging-=dt; spd = e.spd*3.05; }
+      else if (e.chargeCd<=0 && d<20 && d>2.4){
+        e.charging=0.34;
+        const ja=(Math.random()-0.5)*0.22, jc=Math.cos(ja), js=Math.sin(ja);
+        e.cdx=nx*jc-nz*js; e.cdz=nx*js+nz*jc;
+        e.chargeCd=1.05+Math.random()*0.5;
+        spawnObjectPulse(e.x,e.z,0xff263f,e.r*2.4,0.24);
+      }
     } else if (e.behavior==='shooter'){
       e.atkCd -= dt;
       if (d < 10) spd = -e.spd*0.6;        // kite away when too close
@@ -195,8 +243,8 @@ function update(dt) {
     if (e.flash>0) e.flash-=dt;
     if (e.skills) runSkills(e, dt, nx, nz, d);
     if (d < e.r+0.75 && e.cd<=0){
-      hurtPlayer(e.atk,nx,nz,e.isBoss?13:e.elite?11:8.5,e,e.isBoss?'boss contact':e.elite?'miniboss contact':'monster contact');
-      e.cd=e.isBoss?1.15:1.35;
+      hurtPlayer(e.atk,nx,nz,monsterContactKnockback(e),e,e.isBoss?'boss contact':e.elite?'miniboss contact':'monster contact');
+      e.cd=e.butcher?0.48:e.isBoss?1.15:1.35;
       e.kx-=nx*1.2; e.kz-=nz*1.2;
     }
   }
@@ -240,17 +288,30 @@ function update(dt) {
         if (sideX*sideX+sideZ*sideZ < radius*radius){
           p.hit.add(e);
           dealEnemyDamage(e, p.dmg, p.color, p.dx, p.dz, 2.2, false, { weapon:p.sourceKey });
+          spawnBurst(e.x, e.z, p.color||0x64d7ff, 3, 0.32);
           if (p.hit.size > p.pierce){ p.alive=false; return false; }
         }
       });
+      if (hitBreakablesAt(sx+p.dx*reach*0.55, sz+p.dz*reach*0.55, width+0.25, p.dmg, p.color, p.pierce>=99?0:1) && p.pierce<=0) p.alive=false;
       if (p.life<=0) p.alive=false;
       continue;
     }
     p.x += p.dx*p.speed*dt; p.z += p.dz*p.speed*dt; p.life-=dt;
     if(p.spin && p.mesh.material) p.mesh.material.rotation+=p.spin*dt;
-    if (!p.noTrail && frameN&1) spawnTrail(p.x, p.z, p.color||0xffffff, (p.scale||1)*0.9);
+    if (!p.noTrail && frameN%(p.trailEvery||2)===0) spawnTrail(p.x-p.dx*0.12, p.z-p.dz*0.12, p.color||0xffffff, (p.trailScale||((p.scale||1)*0.9)));
     if (p.life<=0){ p.alive=false; continue; }
-    if (blocked(p.x, p.z)){ p.alive=false; continue; }   // hit scenery -> stop
+    if (blocked(p.x, p.z)){ if(!p.noTrail) spawnBurst(p.x,p.z,p.color||0xffffff,3,0.34); p.alive=false; continue; }   // hit scenery -> stop
+    if(!p.breakHit) p.breakHit=new Set();
+    for(const b of breakables){
+      if(!b.alive || p.breakHit.has(b)) continue;
+      const radius=b.r+(p.hitRadius||0.4)*(p.scale||1);
+      if((p.x-b.x)*(p.x-b.x)+(p.z-b.z)*(p.z-b.z)<radius*radius){
+        p.breakHit.add(b);
+        damageBreakable(b,p.dmg,p.color);
+        if (p.pierce<=0){ p.alive=false; break; }
+      }
+    }
+    if(!p.alive) continue;
     const hitRange=3+(p.hitRadius||0.4)*(p.scale||1);
     forEachNearbyEnemy(p.x,p.z,hitRange,e=>{
       if (!e.alive || p.hit.has(e)) return;
@@ -259,6 +320,7 @@ function update(dt) {
       if (dx*dx+dz*dz < radius*radius) {
         p.hit.add(e);
         dealEnemyDamage(e, p.dmg, p.color, p.dx, p.dz, 4.5, false, { weapon:p.sourceKey });
+        projectileHitFlash(p, e);
         projectileImpactSplash(p, e);
         if (p.hit.size > p.pierce){
           if(tryProjectileRicochet(p, e)) return false;
@@ -323,15 +385,23 @@ function update(dt) {
     r.mesh.scale.set(rad,rad,rad); r.mesh.material.opacity=0.85*(1-t); }
   for (let i=bossAoEs.length-1;i>=0;i--){ const a=bossAoEs[i]; a.t+=dt;
     const p=Math.min(1,a.t/a.delay);
-    const pulse=0.86+Math.sin(gameTime*18)*0.08;
-    const rad=a.radius*(0.38+0.62*p)*pulse;
+    const pulse=(a.danger?0.92:0.86)+Math.sin(gameTime*(a.danger?22:18))*(a.danger?0.10:0.08);
+    const rad=a.radius*((a.danger?0.54:0.38)+(a.danger?0.46:0.62)*p)*pulse;
     a.mesh.scale.set(rad,rad,rad);
     a.mesh.position.y=groundHeight(a.x,a.z)+0.16;
-    a.mesh.material.opacity=0.18+0.42*p;
+    a.mesh.material.opacity=a.danger ? (0.30+0.38*p+Math.max(0,Math.sin(gameTime*24))*0.08) : (0.18+0.42*p);
     if(a.core){
-      a.core.scale.set(a.radius*(0.18+0.82*p),a.radius*(0.18+0.82*p),a.radius*(0.18+0.82*p));
+      const cr=a.radius*((a.danger?0.32:0.18)+(a.danger?0.68:0.82)*p);
+      a.core.scale.set(cr,cr,cr);
       a.core.position.y=groundHeight(a.x,a.z)+0.18;
-      a.core.material.opacity=0.10+0.26*p;
+      a.core.material.opacity=a.danger ? (0.18+0.32*p) : (0.10+0.26*p);
+    }
+    if(a.mark){
+      const mr=a.radius*(0.62+0.38*p)*(0.96+Math.sin(gameTime*16)*0.04);
+      a.mark.scale.set(mr,mr,mr);
+      a.mark.rotation.z+=(a.markSpin||0)*dt;
+      a.mark.position.y=groundHeight(a.x,a.z)+0.205;
+      a.mark.material.opacity=0.34+0.32*p+Math.max(0,Math.sin(gameTime*18))*0.08;
     }
     if(a.t<a.delay) continue;
     const dx=player.x-a.x, dz=player.z-a.z, dist=Math.hypot(dx,dz);
@@ -341,8 +411,7 @@ function update(dt) {
     spawnObjectPulse(a.x,a.z,a.color,a.radius*1.45,0.42);
     spawnBurst(a.x,a.z,a.color,Math.min(34,10+Math.round(a.radius*4)),1.1);
     shake(0.24+Math.min(0.25,a.radius*0.035),0.18);
-    scene.remove(a.mesh); freeObj(a.mesh);
-    if(a.core){ scene.remove(a.core); freeObj(a.core); }
+    removeBossAoeVisual(a);
     bossAoEs.splice(i,1);
   }
   for (let i=bossImpactFx.length-1;i>=0;i--){ const f=bossImpactFx[i]; f.t+=dt;
@@ -365,6 +434,7 @@ function update(dt) {
     forEachNearbyEnemy(w.x,w.z,w.r+1,e=>{ if(!e.alive||w.hit.has(e)) return;
       const dd=Math.hypot(e.x-w.x, e.z-w.z);
       if (Math.abs(dd-w.r) < e.r+0.6){ w.hit.add(e); dealEnemyDamage(e, w.dmg, w.color, e.x-w.x, e.z-w.z, 4, false, { weapon:w.sourceKey }); } });
+    hitBreakablesAt(w.x,w.z,w.r+0.35,w.dmg,w.color);
     if (w.r>=w.maxR){ scene.remove(w.mesh); freeObj(w.mesh); novaWaves.splice(i,1); } }
   for (let i=slashFx.length-1;i>=0;i--){ const f=slashFx[i]; f.life-=dt;
     if (f.life<=0){ scene.remove(f.mesh); freeObj(f.mesh); slashFx.splice(i,1); continue; }
@@ -376,7 +446,7 @@ function update(dt) {
     }
     if (f.mesh.material) f.mesh.material.opacity=(f.sweep?0.85:(f.fade||0.72))*(f.life/f.max);
     else if (f.mesh.children) for (const ch of f.mesh.children) if(ch.material) ch.material.opacity=(f.fade||0.72)*(f.life/f.max); }
-  cull(enemies); cull(projectiles); cull(pickups); cull(enemyShots);
+  cull(enemies); cull(projectiles); cull(pickups); cull(enemyShots); cull(breakables);
   for (let i=afterimages.length-1;i>=0;i--){ const a=afterimages[i]; a.life-=dt;
     if (a.life<=0){ scene.remove(a.spr); freeObj(a.spr); afterimages.splice(i,1); }
     else a.spr.material.opacity = 0.55*(a.life/a.max); }
@@ -429,6 +499,10 @@ function update(dt) {
     mbTimer=0;
     nextMinibossAt+=MINIBOSS_INTERVAL;
   }
+  if(butcherRunEligible && !butcherAppeared && gameTime>=nextButcherAt && !butcherActive && enemies.length<maxEnemies+8){
+    if(!(boss&&boss.alive)) spawnButcher();
+    else scheduleNextButcher(25);
+  }
 
   // enter portal -> win
   if (altar && altar.state==='portal' && Math.hypot(player.x-altar.x, player.z-altar.z) < 2.6) {
@@ -447,7 +521,11 @@ function finalizeScore(){
   if (damageTaken <= 0) score = Math.round(score * 2);
   if (kills >= 500) score += 1000;
   if (player.items.length >= 10) score += 500;
+  if (typeof pactMultiplier === 'number' && pactMultiplier > 1) score = Math.round(score * pactMultiplier);
   lastScoreEntry = saveScore();
+  if (typeof awardRunSoulCoins === 'function') awardRunSoulCoins();
+  if (typeof evaluatePactUnlocks === 'function') evaluatePactUnlocks();
+  evaluateRunAchievements();
 }
 
 function updateEnemyRelocation(){

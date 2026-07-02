@@ -7,35 +7,35 @@ const PICKUP_MAGNET = 3.0, PICKUP_COLLECT = 0.7;
 // ---- Weapons (active; multiple, gained/leveled via the level-up choices) ----
 const WEAPON_TYPES = {
   bolt:   { name:'Void Bolt',      icon:'wpn_bolt',     desc:'ยิงกระสุนติดตามศัตรูที่ใกล้ที่สุด',  mode:'aim',
-            dmg:14, rate:1.8, range:11, count:1, pierce:1, speed:16, life:1.3, color:0xb98aff, shape:'orb', evolveTo:'boltX', evolveTome:'might' },
+            dmg:12, rate:1.6, range:11, count:1, pierce:1, speed:16, life:1.3, color:0xb98aff, shape:'orb', evolveTo:'boltX', evolveTome:'might' },
   spread: { name:'Hex Spread',     icon:'wpn_spread', desc:'ยิงเศษเวทกระจายเป็นพัดไปด้านหน้า',    mode:'spread',
-            dmg:9, rate:1.3, range:9, count:2, pierce:0, speed:15, life:0.9, color:0x66ccff, arc:0.38, shape:'shard', evolveTo:'spreadX', evolveTome:'multishot' },
+            dmg:8, rate:1.2, range:9, count:2, pierce:0, speed:15, life:0.9, color:0x66ccff, arc:0.38, shape:'shard', evolveTo:'spreadX', evolveTome:'multishot' },
   nova:   { name:'Nova Burst',     icon:'wpn_nova',  desc:'ระเบิดวงแหวนรอบตัว',    mode:'nova',
-            dmg:14, rate:0.85, range:0, count:1, pierce:99, speed:12, life:0.6, color:0xffaa44, radius:2.8, evolveTo:'novaX', evolveTome:'celerity' },
+            dmg:17, rate:0.85, range:0, count:1, pierce:99, speed:12, life:0.6, color:0xffaa44, radius:2.8, evolveTo:'novaX', evolveTome:'celerity' },
   orbit:  { name:'Orbiting Skull', icon:'wpn_orbit', desc:'กะโหลกวนรอบตัว โจมตีและช่วยกันดาเมจ',     mode:'orbit',
-            dmg:6, count:2, color:0xff6688, orbitR:2.0, orbitSpd:3.2, tick:0.40, guardBlock:0.50, guardRecover:5.0, evolveTo:'orbitX', evolveTome:'precision' },
+            dmg:8, count:2, color:0xff6688, orbitR:2.0, orbitSpd:3.2, tick:0.40, guardBlock:0.50, guardRecover:5.0, evolveTo:'orbitX', evolveTome:'precision' },
   arrow:  { name:"Hunter's Arrow",  icon:'wpn_arrow', desc:'ลูกธนูระยะไกลที่ยิงทะลุศัตรู',       mode:'aim',
-            dmg:16, rate:1.2, range:15, count:1, pierce:3, speed:24, life:1.6, color:0x8ef06a, shape:'arrow', evolveTo:'arrowX', evolveTome:'velocity' },
+            dmg:14, rate:1.05, range:15, count:1, pierce:3, speed:24, life:1.6, color:0x8ef06a, shape:'arrow', evolveTo:'arrowX', evolveTome:'velocity' },
   smite:  { name:'Holy Smite',      icon:'wpn_smite',  desc:'พลังศักดิ์สิทธิ์โจมตีจากด้านบน',  mode:'smite',
-            dmg:22, rate:0.9, range:10, count:1, pierce:2, speed:14, life:1.4, color:0xfff2c0, radius:1.6, evolveTo:'smiteX', evolveTome:'growth' },
+            dmg:19, rate:0.82, range:10, count:1, pierce:2, speed:14, life:1.4, color:0xfff2c0, radius:1.6, evolveTo:'smiteX', evolveTome:'growth' },
   lightning:{ name:'Lightning Strike', icon:'wpn_lightning', desc:'เรียกสายฟ้าฟาดเป้าหมายทีละตัว', mode:'smite',
-            dmg:20, rate:1.15, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25, shape:'lightning', evolveTo:'lightningX', evolveTome:'focus' },
+            dmg:18, rate:1.02, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25, shape:'lightning', evolveTo:'lightningX', evolveTome:'focus' },
   dagger: { name:'Throwing Knives', icon:'wpn_dagger', desc:'ปามีดเร็วใส่ศัตรูใกล้ตัว', mode:'aim',
-            dmg:11, rate:2.4, range:10, count:2, pierce:0, speed:26, life:0.9, color:0xdde7ff, shape:'dagger', evolveTo:'daggerX', evolveTome:'execution' },
+            dmg:10, rate:2.2, range:10, count:2, pierce:0, speed:26, life:0.9, color:0xdde7ff, shape:'dagger', evolveTo:'daggerX', evolveTome:'execution' },
   toolstab:{ name:'Multi-Tool Screwdriver', icon:'wpn_screwdriver', desc:'แทงระยะประชิดอย่างรวดเร็ว ทะลุศัตรูทั้งแนว', mode:'stab',
-            dmg:18, rate:2.55, range:3.0, count:1, pierce:99, speed:0, life:0.16, color:0x64d7ff, shape:'screwdriver', width:0.36, evolveTo:'toolstabX', evolveTome:'growth' },
+            dmg:22, rate:2.55, range:3.0, count:1, pierce:99, speed:0, life:0.16, color:0x64d7ff, shape:'screwdriver', width:0.36, evolveTo:'toolstabX', evolveTome:'growth' },
   bladewhirl:{ name:'Blade Wave',   icon:'wpn_bladewhirl',     desc:'ปล่อยคลื่นดาบโค้งระยะสั้น', mode:'slash',
-            dmg:12, rate:1.8, range:3.6, count:1, pierce:1, speed:8, life:0.38, color:0xff5566, arc:0.45, shape:'crescent', evolveTo:'bladewhirlX', evolveTome:'swiftness' },
+            dmg:15, rate:1.8, range:3.6, count:1, pierce:1, speed:8, life:0.38, color:0xff5566, arc:0.45, shape:'crescent', evolveTo:'bladewhirlX', evolveTome:'swiftness' },
   soulspiral:{ name:'Soul Spiral',  icon:'wpn_soulspiral',  desc:'ยิงวิญญาณหมุนวนรอบทิศ',       mode:'spiral',
-            dmg:8, rate:2.4, range:0, count:2, pierce:1, speed:13, life:1.4, color:0xb06aff, shape:'soul', evolveTo:'soulspiralX', evolveTome:'duration' },
+            dmg:9, rate:2.4, range:0, count:2, pierce:1, speed:13, life:1.4, color:0xb06aff, shape:'soul', evolveTo:'soulspiralX', evolveTome:'duration' },
   football:{ name:'Cursed Football', icon:'wpn_football', desc:'ลูกบอลเด้งหาเป้าหมายใหม่ต่อเนื่อง', mode:'aim',
-            dmg:13, rate:1.45, range:12, count:1, pierce:0, speed:21, life:1.45, color:0xf2f0d8, shape:'football', bounces:2, bounceRadius:9, bounceDmgMul:0.88, evolveTo:'footballX', evolveTome:'ricochet' },
+            dmg:11, rate:1.30, range:12, count:1, pierce:0, speed:21, life:1.45, color:0xf2f0d8, shape:'football', bounces:2, bounceRadius:9, bounceDmgMul:0.88, evolveTo:'footballX', evolveTome:'ricochet' },
   shieldtoss:{ name:'Shield Toss', icon:'wpn_shieldtoss', desc:'ขว้างโล่หนัก ทะลุก่อนเด้งกลับหาเป้าหมาย', mode:'aim',
-            dmg:18, rate:1.05, range:11, count:1, pierce:1, speed:18, life:1.55, color:0x9fd8ff, shape:'shield', bounces:1, bounceRadius:8, bounceDmgMul:0.90, evolveTo:'shieldtossX', evolveTome:'fortitude' },
+            dmg:16, rate:0.95, range:11, count:1, pierce:1, speed:18, life:1.55, color:0x9fd8ff, shape:'shield', bounces:1, bounceRadius:8, bounceDmgMul:0.90, evolveTo:'shieldtossX', evolveTome:'fortitude' },
   boneboomerang:{ name:'Bone Boomerang', icon:'wpn_boneboomerang', desc:'กระดูกคู่โค้งเด้งระหว่างศัตรู', mode:'spread',
-            dmg:12, rate:1.65, range:10, count:2, pierce:0, speed:17, life:1.35, color:0xe8dcc4, arc:0.36, shape:'bone_boomerang', bounces:1, bounceRadius:8, bounceDmgMul:0.86, evolveTo:'boneboomerangX', evolveTome:'duration' },
+            dmg:11, rate:1.50, range:10, count:2, pierce:0, speed:17, life:1.35, color:0xe8dcc4, arc:0.36, shape:'bone_boomerang', bounces:1, bounceRadius:8, bounceDmgMul:0.86, evolveTo:'boneboomerangX', evolveTome:'duration' },
   bouncebomb:{ name:'Bouncing Bomb', icon:'wpn_bouncebomb', desc:'ระเบิดแตกตอนชนแล้วเด้งต่อไปยังเป้าหมายอื่น', mode:'aim',
-            dmg:15, rate:1.0, range:10, count:1, pierce:0, speed:13, life:1.75, color:0xff9a4a, shape:'bomb', bounces:2, bounceRadius:8, bounceDmgMul:0.82, impactRadius:1.25, impactDmgMul:0.42, evolveTo:'bouncebombX', evolveTome:'impact' },
+            dmg:13, rate:0.90, range:10, count:1, pierce:0, speed:13, life:1.75, color:0xff9a4a, shape:'bomb', bounces:2, bounceRadius:8, bounceDmgMul:0.82, impactRadius:1.25, impactDmgMul:0.42, evolveTo:'bouncebombX', evolveTome:'impact' },
   // evolved forms (hidden from the acquire pool)
   boltX:  { name:'Doom Bolt',      icon:'wpn_bolt_evolved',     desc:'ร่างวิวัฒน์: ยิงกระสุนทะลุเป็นชุด', mode:'aim', hidden:true,
             dmg:28, rate:2.4, range:13, count:2, pierce:4, speed:20, life:1.6, color:0xff66ff, shape:'doom' },
@@ -96,10 +96,14 @@ const ITEMS = [
     apply:p=>{ p._wrench=(p._wrench||0)+1; } },
   { id:'slip_ring',   name:'Slippery Ring',  desc:'หลบหลีก +15%',            rarity:'common', icon:'item_slip_ring',
     apply:p=>{ p.evade=(p.evade||0)+0.15; } },
-  { id:'lucky_charm', name:'Lucky Charm',    desc:'โอกาสคริติคอล +4%',         rarity:'common', icon:'item_clover',
+  { id:'lucky_charm', name:'Lucky Charm',    desc:'โอกาสคริติคอล +4%',         rarity:'common', icon:'item_lucky_charm',
     apply:p=>{ p.critChance+=0.04; } },
-  { id:'dash_boots',  name:'Dash Boots',     desc:'คูลดาวน์พุ่งหลบ -10%',      rarity:'common', icon:'item_turbo_socks',
+  { id:'dash_boots',  name:'Dash Boots',     desc:'คูลดาวน์พุ่งหลบ -10%',      rarity:'common', icon:'item_dash_boots',
     apply:p=>{ p.dashCdMul*=0.90; } },
+  { id:'magnet_coil', name:'Magnet Coil',    desc:'ระยะดูดของ +18%', rarity:'common', icon:'item_magnet_coil',
+    apply:p=>{ p.magnet*=1.18; } },
+  { id:'swift_oil',   name:'Swift Oil',      desc:'ความเร็วกระสุน/วัตถุโจมตี +10%', rarity:'common', icon:'item_swift_oil',
+    apply:p=>{ p.projSpeedMul*=1.10; } },
   // ═══════════════ 🔵 Uncommon ═══════════════
   { id:'backpack',    name:'Backpack',       desc:'จำนวนกระสุน/วัตถุโจมตีทุกอาวุธ +1', rarity:'uncommon', icon:'item_backpack',
     apply:p=>{ p.countBonus+=1; } },
@@ -121,10 +125,16 @@ const ITEMS = [
     apply:p=>{ p.thunderChance=(p.thunderChance||0)+0.10; } },
   { id:'credit_card', name:'Credit Card',    desc:'เปิดหีบแล้วดาเมจ +2.5%', rarity:'uncommon', icon:'item_credit_card',
     apply:p=>{ p._creditCard=(p._creditCard||0)+1; } },
-  { id:'sharpening_stone',name:'Sharpening Stone',desc:'ดาเมจคริติคอล +10%',   rarity:'uncommon', icon:'item_eagle_claw',
+  { id:'sharpening_stone',name:'Sharpening Stone',desc:'ดาเมจคริติคอล +10%',   rarity:'uncommon', icon:'item_sharpening_stone',
     apply:p=>{ p.critDmg+=0.10; } },
-  { id:'blink_feather',name:'Blink Feather', desc:'ระยะพุ่งหลบ +15%',      rarity:'uncommon', icon:'item_slip_ring',
+  { id:'blink_feather',name:'Blink Feather', desc:'ระยะพุ่งหลบ +15%',      rarity:'uncommon', icon:'item_blink_feather',
     apply:p=>{ p.dashDistMul*=1.15; } },
+  { id:'runic_lens',  name:'Runic Lens',     desc:'ขนาดสกิล +10%', rarity:'uncommon', icon:'item_runic_lens',
+    apply:p=>{ p.projScale*=1.10; } },
+  { id:'stopwatch',   name:'Stopwatch',      desc:'อายุกระสุน/วัตถุโจมตี +12%, ระยะเวลา AoE +6%', rarity:'uncommon', icon:'item_stopwatch',
+    apply:p=>{ p.lifeMul*=1.12; p.areaLifeMul*=1.06; } },
+  { id:'ricochet_charm',name:'Ricochet Charm',desc:'เด้งเพิ่ม +1 ครั้งสำหรับอาวุธที่รองรับ', rarity:'uncommon', icon:'item_ricochet_charm',
+    apply:p=>{ p.ricochetBonus=(p.ricochetBonus||0)+1; } },
   // ═══════════════ 🟣 Rare ═══════════════
   { id:'beefy_ring',  name:'Beefy Ring',     desc:'ดาเมจ +20% ต่อเลือดสูงสุด 100', rarity:'rare', icon:'item_beefy_ring',
     apply:p=>{ p._beefy=(p._beefy||0)+1; } },
@@ -142,10 +152,14 @@ const ITEMS = [
     apply:p=>{ p.lifesteal+=2; } },
   { id:'eagle_claw',  name:'Eagle Claw',     desc:'ดาเมจต่อศัตรูบิน +66%',    rarity:'rare', icon:'item_eagle_claw',
     apply:p=>{ p._eagle=(p._eagle||0)+1; } },
-  { id:'execution_coin',name:'Execution Coin',desc:'ดาเมจคริติคอล +8%, คริติคอลอาจให้ทอง', rarity:'rare', icon:'item_gold_glove',
+  { id:'execution_coin',name:'Execution Coin',desc:'ดาเมจคริติคอล +8%, คริติคอลอาจให้ทอง', rarity:'rare', icon:'item_execution_coin',
     apply:p=>{ p.critDmg+=0.08; p._executionCoin=(p._executionCoin||0)+1; } },
-  { id:'phase_cloak', name:'Phase Cloak',    desc:'อมตะหลังพุ่งหลบ +0.12 วิ, หลบหลีก +5%', rarity:'rare', icon:'item_mirror',
+  { id:'phase_cloak', name:'Phase Cloak',    desc:'อมตะหลังพุ่งหลบ +0.12 วิ, หลบหลีก +5%', rarity:'rare', icon:'item_phase_cloak',
     apply:p=>{ p.dashInvulnBonus=(p.dashInvulnBonus||0)+0.12; p.evade=(p.evade||0)+0.05; } },
+  { id:'battle_banner',name:'Battle Banner', desc:'บัฟ Haste/Might จากพื้นอยู่นานขึ้น +35%', rarity:'rare', icon:'item_battle_banner',
+    apply:p=>{ p.buffDurationMul*=1.35; } },
+  { id:'butcher_token',name:'Butcher Token', desc:'ดาเมจต่อ The Butcher และ Mimic +25%', rarity:'rare', icon:'item_butcher_token',
+    apply:p=>{ p._butcherToken=(p._butcherToken||0)+1; } },
   // ═══════════════ 🟡 Legendary ═══════════════
   { id:'big_bonk',    name:'Big Bonk',       desc:'โอกาส 2% ทำดาเมจ 20 เท่า',  rarity:'legendary', icon:'item_big_bonk',
     apply:p=>{ p.bonkChance=(p.bonkChance||0)+0.02; } },
@@ -163,8 +177,10 @@ const ITEMS = [
     apply:p=>{ p.blastChance=(p.blastChance||0)+0.08; p.knockbackMul=(p.knockbackMul||0)+0.5; } },
   { id:'dragonfire',  name:'Dragonfire',     desc:'โจมตีมีโอกาส 15% ติดไฟและเผาต่อเนื่อง', rarity:'legendary', icon:'item_dragonfire',
     apply:p=>{ p.fireChance=(p.fireChance||0)+0.15; } },
-  { id:'glass_needle',name:'Glass Needle',   desc:'โอกาสคริติคอล +20%, ดาเมจคริติคอล +60%, เลือดสูงสุด -15%', rarity:'legendary', icon:'item_big_bonk',
+  { id:'glass_needle',name:'Glass Needle',   desc:'โอกาสคริติคอล +20%, ดาเมจคริติคอล +60%, เลือดสูงสุด -15%', rarity:'legendary', icon:'item_glass_needle',
     apply:p=>{ p.critChance+=0.20; p.critDmg+=0.60; p.maxHp=Math.max(1,Math.round(p.maxHp*0.85)); p.hp=Math.min(p.hp,p.maxHp); } },
+  { id:'royal_jelly', name:'Royal Jelly',    desc:'Luck +20%, ทอง +20%, XP +10%', rarity:'legendary', icon:'item_royal_jelly',
+    apply:p=>{ p.luck=(p.luck||0)+0.20; p.goldMul*=1.20; p.xpMul*=1.10; } },
 ];
 const RARITY_COLORS = { common:0x7ecf5a, uncommon:0x5a9ecf, rare:0xcf5acf, legendary:0xcfc05a };
 const RARITY_GLOW = { common:0x44ff44, uncommon:0x44aaff, rare:0xff44ff, legendary:0xffdd44 };
@@ -243,6 +259,7 @@ function hitMul(e){
   let m = 1;
   if ((e.isBoss||e.elite) && player._bossBuster) m *= 1 + 0.15*player._bossBuster;
   if ((e.isBoss||e.elite) && player._executionSeal) m *= 1.25;
+  if ((e.butcher||e.mimic) && player._butcherToken) m *= 1 + 0.25*player._butcherToken;
   if (player._beefy)   m *= 1 + 0.20*player._beefy*Math.floor(player.maxHp/100);
   if (player._goggles) m *= 1 + 0.60*player._goggles*(1-player.hp/player.maxHp);
   if (player._brass){ const dx=e.x-player.x, dz=e.z-player.z; if (dx*dx+dz*dz < 9) m *= 1 + 0.20*player._brass; }
@@ -287,7 +304,7 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc, meta){
     player.gold+=g;
     recordRunItem('execution_coin',{ procs:1 });
   }
-  if (kbCap){ const kd=Math.hypot(kx,kz)||1, kb=Math.min(kbCap, d*0.045/Math.max(0.5,e.r))*(player.knockbackMul||0);
+  if (kbCap && !e.knockImmune){ const kd=Math.hypot(kx,kz)||1, kb=Math.min(kbCap, d*0.045/Math.max(0.5,e.r))*(player.knockbackMul||0);
     e.kx += kx/kd*kb; e.kz += kz/kd*kb; }
   spawnBurst(e.x, e.z, color, 3, 0.5);
   if (!noProc) onHitProcs(e, d, color);
@@ -392,6 +409,7 @@ function fireSmite(s){
   if (!targets.length) return;
   for(const t of targets){
     const tx=t.x, tz=t.z, R=s.radius||2.4;
+    hitBreakablesAt(tx,tz,R,s.dmg,s.color);
     forEachNearbyEnemy(tx,tz,R+1,e=>{ if(!e.alive) return;
       if (Math.hypot(e.x-tx, e.z-tz) < R+e.r) dealEnemyDamage(e, s.dmg, s.color, e.x-tx, e.z-tz, 3.5, false, { weapon:s.sourceKey }); });
     const bm=new THREE.Sprite(new THREE.SpriteMaterial({
@@ -453,6 +471,7 @@ function updateOrbit(w, s, dt){
         o.hit.set(e, gameTime + (s.tick||b.tick));
         dealEnemyDamage(e, s.dmg, b.color, e.x-ox, e.z-oz, 3, false, { weapon:w.key });
       } });
+    hitBreakablesAt(ox,oz,0.55,s.dmg,b.color,1);
   }
 }
 function updateWeapon(w, dt){
@@ -463,21 +482,23 @@ function updateWeapon(w, dt){
 }
 function weaponChoices(){
   const out = [];
-  const tomeName = id => { const u = (typeof UPGRADES!=='undefined') ? UPGRADES.find(x=>x.id===id) : null; return u ? u.name : id; };
+  const tomeLbl = id => { const u = (typeof UPGRADES!=='undefined') ? UPGRADES.find(x=>x.id===id) : null; return u ? (typeof tomeName==='function'?tomeName(u):u.name) : id; };
   for (const key in WEAPON_TYPES){
     const t = WEAPON_TYPES[key]; if (t.hidden) continue;
     const need = t.evolveTo ? evolveTomeNeed(player.weapons.find(x=>x.key===key)) : 3;
-    const hint = t.evolveTo ? ' · ★Evolve: '+tomeName(t.evolveTome)+' ×'+need+' @Lv8' : '';
+    const evolveLabel = typeof tr === 'function' ? tr('common.evolve') : 'Evolve';
+    const newLabel = typeof tr === 'function' ? tr('common.new') : 'NEW';
+    const hint = t.evolveTo ? ' · ★'+evolveLabel+': '+tomeLbl(t.evolveTome)+' ×'+need+' @Lv8' : '';
     const w = player.weapons.find(x=>x.key===key);
-    if (w){ if (w.lvl < 8) out.push({ id:'w_'+key, name:t.name+' Lv'+(w.lvl+1), desc:t.desc+hint, icon:t.icon, apply:()=>{ w.lvl++; } }); }
-    else if (player.weapons.length < MAX_WEAPONS){ out.push({ id:'w_'+key, name:'NEW: '+t.name, desc:t.desc+hint, icon:t.icon, apply:()=>{ player.weapons.push(makeWeapon(key)); } }); }
+    if (w){ if (w.lvl < 8) out.push({ id:'w_'+key, name:weaponName(key)+' Lv'+(w.lvl+1), desc:weaponDesc(key)+hint, icon:t.icon, apply:()=>{ w.lvl++; } }); }
+    else if (player.weapons.length < MAX_WEAPONS && (typeof isWeaponUnlocked!=='function' || isWeaponUnlocked(key))){ out.push({ id:'w_'+key, name:newLabel+': '+weaponName(key), desc:weaponDesc(key)+hint, icon:t.icon, apply:()=>{ player.weapons.push(makeWeapon(key)); } }); }
   }
   // weapon evolutions: maxed weapon + paired tome (x3)
   for (const w of player.weapons){
     const t = WEAPON_TYPES[w.key];
     if (t && t.evolveTo && w.lvl>=8 && !w.evolved && (player.tomeCount[t.evolveTome]||0) >= evolveTomeNeed(w)){
       const ev = WEAPON_TYPES[t.evolveTo];
-      out.push({ id:'evo_'+w.key, name:'\u2605 EVOLVE: '+ev.name, desc:ev.desc, icon:ev.icon, apply:()=>{ if(player._ancientAnvil && !player._anvilUsed) player._anvilUsed=1; w.key=t.evolveTo; w.evolved=true; } });
+      out.push({ id:'evo_'+w.key, name:'\u2605 '+evolveLabel+': '+weaponName(t.evolveTo), desc:weaponDesc(t.evolveTo), icon:ev.icon, apply:()=>{ if(player._ancientAnvil && !player._anvilUsed) player._anvilUsed=1; w.key=t.evolveTo; w.evolved=true; } });
     }
   }
   return out;

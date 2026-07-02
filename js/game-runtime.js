@@ -3,6 +3,7 @@ const APP_VERSION = window.SHADOW_BUILD_VERSION || 'dev';
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
+const breakables = [];                      // destructible jars/crates for early maps
 const obstacles = [];                       // solid scenery {x,z,r}
 const worldScenery = [];                    // base map scenery that can be removed on stage changes
 const stageProps = [];                      // scenery added/removed when changing maps
@@ -45,6 +46,7 @@ const particles = [];                       // hit/death bursts
 const PARTICLE_GEO = new THREE.BoxGeometry(0.14,0.14,0.14);
 const trails=[]; const TRAIL_GEO=new THREE.BoxGeometry(0.14,0.14,0.14);
 const dmgNums=[];
+const petBubbles=[];
 const damageScreenPos=new THREE.Vector3();
 function spriteSrc(key){
   const src = SP + (MANIFEST[key] || (key + '.png'));
@@ -52,6 +54,234 @@ function spriteSrc(key){
   const v = (typeof window !== 'undefined' && window.SHADOW_BUILD_VERSION) ? window.SHADOW_BUILD_VERSION : 'local';
   return src + '?v=' + encodeURIComponent(v);
 }
+
+const LANG_STORAGE_KEY='sc3_lang_v1';
+let currentGuideKind='';
+const I18N={
+  th:{
+    'lang.th':'ไทย','lang.en':'EN','lang.label':'ภาษา',
+    'title.eyebrow':'Gothic Action Survivors','title.tagline':'ฝ่าดงอสูร สะสมอาวุธ และทำลายพันธสัญญาแห่งความมืดก่อนคืนจันทราจะกลืนกินทุกสิ่ง',
+    'title.meta.heroes':'12 นักล่า','title.meta.maps':'3 เขตต้องสาป','title.meta.minutes':'10 นาที/ด่าน',
+    'title.identity':'เลือกตัวตน','title.pets':'Pets / ร้านสัตว์เลี้ยง','title.guide':'คู่มือ / ข้อมูลเกม',
+    'auth.chooseTitle':'เลือกวิธีเข้าเกม','auth.chooseSub':'เลือกตัวตนก่อน แล้วค่อยกดเริ่มเกมจากหน้าแรก','auth.google':'Sign in with Google','auth.googleDesc':'บันทึก Ranking และ Unlock Online','auth.guest':'Play as Guest','auth.guestDesc':'เล่นทันที บันทึกในเครื่องนี้',
+    'start.needChoice':'เลือก Guest หรือ Google ก่อน','start.needChoiceStatus':'เลือกวิธีเข้าเกมก่อน','start.guestBtn':'เริ่มเกมแบบ Guest','start.guestStatus':'Guest: บันทึก unlock ในเครื่องนี้ คะแนนออนไลน์เป็น Guest','start.verifiedBtn':'เริ่มเกมแบบ Verified','start.loadingBtn':'กำลังโหลด Google Login...','start.loadingStatus':'รอระบบ Login พร้อมใช้งาน','start.notReadyBtn':'Google Login ยังไม่พร้อม','start.notReadyStatus':'ยังไม่ได้ตั้งค่า Supabase/Netlify auth สำหรับ Google Login','start.loginGoogleBtn':'Login ด้วย Google','start.loginGoogleStatus':'Google: ต้อง login ก่อนเริ่มแบบ Verified',
+    'guide.open':'เปิดคู่มือ','guide.hub.title':'คู่มือ / ข้อมูลเกม','guide.hub.note':'รวมข้อมูลหลักของระบบและสิ่งที่ปลดล็อกได้','guide.characters':'ตัวละคร','guide.characters.desc':'อาวุธเริ่มต้น สกิลติดตัว และค่าสถานะพื้นฐาน','guide.weapons':'อาวุธ','guide.weapons.desc':'อาวุธพื้นฐานและร่างวิวัฒน์','guide.tomes':'Tome','guide.tomes.desc':'อัปเกรดติดตัวและคู่สำหรับวิวัฒน์อาวุธ','guide.evolution':'วิวัฒน์อาวุธ','guide.evolution.desc':'กติกาอาวุธ Lv8 พร้อม Tome ที่ตรงกัน','guide.items':'ไอเทม','guide.items.desc':'ของดรอปที่ซ้อนทับได้และระดับความหายาก','guide.relics':'Relic','guide.relics.desc':'รางวัลหลังฆ่าบอสที่เปลี่ยนแนวเล่นของรัน','guide.monsters':'สารานุกรมมอนสเตอร์','guide.monsters.desc':'ระดับและพฤติกรรมของศัตรูทั่วไป','guide.bosses':'สารานุกรมบอส','guide.bosses.desc':'สกิลสำคัญของมินิบอสและบอส','guide.events':'อีเวนต์','guide.events.desc':'เหตุการณ์พิเศษและความปั่นระหว่างรัน','guide.maps':'แผนที่','guide.maps.desc':'ความต่างของแต่ละด่าน','guide.combat':'ระบบต่อสู้','guide.combat.desc':'Crit, knockback, pierce, guard และ overtime','guide.shrine':'Shrine','guide.shrine.desc':'เสาแม่เหล็ก, Shrine, Chest, Merchant, Altar และ Portal','guide.shop':'ร้านค้า / NPC','guide.shop.desc':'การซื้อของ reroll และโอกาสพ่อค้าทรยศ','guide.pets':'Pets','guide.pets.desc':'ซื้อสัตว์เลี้ยงด้วย Soul Coins และเลือกติดตาม 1 ตัวต่อรัน','guide.achievements':'Achievements','guide.achievements.desc':'ปลดล็อกตัวละคร อาวุธ และไอเทม พร้อม sync เมื่อใช้ Google','guide.ranking':'Ranking','guide.ranking.desc':'กติกาคะแนนและ leaderboard online',
+    'pets.title':'Pets','pets.note':'Soul Coins {coins} · ซื้อแล้ว {owned}/{total} · {selected}','pets.none':'ยังไม่ได้เลือก Pet','pets.noPet':'เล่นโดยไม่มี Pet','pets.selected':'เลือกใช้อยู่','pets.select':'เลือกใช้','pets.buy':'ซื้อ {price}','pets.price':'ราคา {price} Soul Coins','pets.notEnough':'Soul Coins ไม่พอ: ต้องมี {price}','pets.bought':'ซื้อ Pet: {name}','pets.notOwned':'ยังไม่ได้ซื้อ Pet ตัวนี้','pets.selectedToast':'เลือก Pet: {name} — {quip}','pets.noPetToast':'เล่นโดยไม่มี Pet','pets.testUnlock':'TEST: ปลดล็อก Pet ทั้งหมดแล้ว','pets.coinInfoTitle':'Soul Coins','pets.coinInfoDesc':'ได้จากการจบรันแบบจำนวนน้อย และจาก Achievement บางอันครั้งเดียว','pets.coinInfoMeta':'Pet ราคาแพงเพื่อเป็นเป้าหมายระยะยาว',
+    'ach.title':'Achievements','ach.note':'{done}/{total} สำเร็จ · Soul Coins {coins}','ach.done':'DONE','ach.locked':'LOCKED','ach.rewards':'รางวัล','ach.synced':'Achievement Synced: {name}','ach.unlocked':'Achievement Unlocked: {name}','ach.unlockedSection':'Unlocked','unlock.ready':'ปลดล็อกแล้ว',
+    'card.weapon':'อาวุธ','card.passive':'สกิลติดตัว','locked':'LOCKED'
+  },
+  en:{
+    'lang.th':'TH','lang.en':'English','lang.label':'Language',
+    'title.eyebrow':'Gothic Action Survivors','title.tagline':'Survive cursed hordes, forge broken weapons, and shatter the shadow pact before the moon devours everything.',
+    'title.meta.heroes':'12 hunters','title.meta.maps':'3 cursed zones','title.meta.minutes':'10 min / map',
+    'title.identity':'Choose identity','title.pets':'Pets / Pet Shop','title.guide':'Guide / Game Info',
+    'auth.chooseTitle':'Choose Login Method','auth.chooseSub':'Pick an identity first, then start from the title screen.','auth.google':'Sign in with Google','auth.googleDesc':'Save Ranking and Unlocks online','auth.guest':'Play as Guest','auth.guestDesc':'Play now and save on this device',
+    'start.needChoice':'Choose Guest or Google first','start.needChoiceStatus':'Choose a login method first','start.guestBtn':'Start as Guest','start.guestStatus':'Guest: unlocks are saved on this device; online score is marked Guest','start.verifiedBtn':'Start as Verified','start.loadingBtn':'Loading Google Login...','start.loadingStatus':'Waiting for login service','start.notReadyBtn':'Google Login unavailable','start.notReadyStatus':'Supabase/Netlify auth is not configured for Google Login yet','start.loginGoogleBtn':'Login with Google','start.loginGoogleStatus':'Google: login first to start as Verified',
+    'guide.open':'Open guide','guide.hub.title':'Guide / Game Info','guide.hub.note':'Core systems, unlocks, and run mechanics','guide.characters':'Characters','guide.characters.desc':'Starting weapons, passives, and base stats','guide.weapons':'Weapons','guide.weapons.desc':'Base weapons and evolved forms','guide.tomes':'Tomes','guide.tomes.desc':'Passive upgrades and weapon evolution pairs','guide.evolution':'Weapon Evolution','guide.evolution.desc':'Lv8 weapon plus the matching Tome','guide.items':'Items','guide.items.desc':'Stackable drops and rarity tiers','guide.relics':'Relics','guide.relics.desc':'Boss rewards that reshape the run','guide.monsters':'Monster Codex','guide.monsters.desc':'Enemy tiers and behavior types','guide.bosses':'Boss Codex','guide.bosses.desc':'Major miniboss and boss skills','guide.events':'Events','guide.events.desc':'Special encounters and chaotic run twists','guide.maps':'Maps','guide.maps.desc':'How each stage changes the run','guide.combat':'Combat','guide.combat.desc':'Crit, knockback, pierce, guard, and overtime','guide.shrine':'Shrines','guide.shrine.desc':'Magnet pillars, shrines, chests, merchants, altars, and portals','guide.shop':'Shop / NPC','guide.shop.desc':'Buying, rerolling, and merchant betrayal risk','guide.pets':'Pets','guide.pets.desc':'Buy pets with Soul Coins and bring one per run','guide.achievements':'Achievements','guide.achievements.desc':'Unlock characters, weapons, and items; sync with Google','guide.ranking':'Ranking','guide.ranking.desc':'Score rules and online leaderboard',
+    'pets.title':'Pets','pets.note':'Soul Coins {coins} · Owned {owned}/{total} · {selected}','pets.none':'No pet selected','pets.noPet':'Play without a Pet','pets.selected':'Selected','pets.select':'Select','pets.buy':'Buy {price}','pets.price':'Price {price} Soul Coins','pets.notEnough':'Not enough Soul Coins: need {price}','pets.bought':'Bought Pet: {name}','pets.notOwned':'You do not own this Pet yet','pets.selectedToast':'Selected Pet: {name} — {quip}','pets.noPetToast':'Playing without a Pet','pets.testUnlock':'TEST: unlocked all Pets','pets.coinInfoTitle':'Soul Coins','pets.coinInfoDesc':'Earned slowly from run rewards and one-time Achievement rewards','pets.coinInfoMeta':'Pets are long-term goals and intentionally expensive',
+    'ach.title':'Achievements','ach.note':'{done}/{total} complete · Soul Coins {coins}','ach.done':'DONE','ach.locked':'LOCKED','ach.rewards':'Rewards','ach.synced':'Achievement Synced: {name}','ach.unlocked':'Achievement Unlocked: {name}','ach.unlockedSection':'Unlocked','unlock.ready':'Unlocked',
+    'card.weapon':'Weapon','card.passive':'Passive','locked':'LOCKED'
+  }
+};
+Object.assign(I18N.th,{
+  'common.items':'ไอเทม','common.relic':'Relic','common.weapon':'อาวุธ','common.passive':'สกิลติดตัว','common.emptyWeapon':'ช่องอาวุธว่าง','common.emptyTome':'ช่อง Tome ว่าง','common.stackUnlimited':'stack ได้ไม่จำกัด','common.moreItems':'มีไอเทมอีก {count} stack เปิด Pause เพื่อดูทั้งหมด',
+  'common.basic':'พื้นฐาน','common.evolved':'ร่างวิวัฒน์','common.from':'จาก {name}','common.damage':'ดาเมจ','common.rate':'ความถี่','common.count':'จำนวน','common.ready':'พร้อม','common.almost':'ใกล้พร้อม','common.evoPair':'คู่วิวัฒน์','common.evolve':'วิวัฒน์','common.chooseEvolve':'เลือกตอนนี้เพื่อวิวัฒน์อาวุธนี้','common.pairWith':'จับคู่กับ {name}','common.requires':'ต้องมี {weapon} Lv8 + {tome} x3. Ancient Anvil ทำให้ครั้งแรกใช้ x2',
+  'common.ban':'แบน','common.new':'ใหม่','common.score':'คะแนน','common.useLast':'ใช้ชุดล่าสุด x{mult}','common.noLast':'ไม่มีชุดล่าสุด',
+  'rarity.common':'Common','rarity.uncommon':'Uncommon','rarity.rare':'Rare','rarity.legendary':'Legendary',
+  'items.summaryTitle':'ไอเทมซ้อนทับได้','items.summaryDesc':'เก็บซ้ำหรือซื้อซ้ำได้เรื่อย ๆ ผลของไอเทมจะคูณหรือบวกต่อจาก stack เดิม เลือกของให้เข้ากับอาวุธหลักของรัน','items.unlockedCount':'{unlocked}/{total} ปลดล็อกแล้ว','items.lockedHint':'ของที่ล็อกจะแสดงเงื่อนไขไว้ในการ์ด',
+  'items.commonNote':'ของพื้นฐานที่ช่วยตั้งตัวช่วงต้นเกม','items.uncommonNote':'เริ่มกำหนดทิศทางบิลด์และคอมโบ','items.rareNote':'ของแรงที่เปลี่ยนจังหวะเล่นชัดเจน','items.legendaryNote':'ของระดับรันเปลี่ยนชีวิต แต่หาไม่ง่าย'
+});
+Object.assign(I18N.en,{
+  'common.items':'Items','common.relic':'Relic','common.weapon':'Weapon','common.passive':'Passive','common.emptyWeapon':'Empty weapon slot','common.emptyTome':'Empty Tome slot','common.stackUnlimited':'unlimited stacks','common.moreItems':'{count} more item stacks. Pause to view all.',
+  'common.basic':'Base','common.evolved':'Evolved','common.from':'from {name}','common.damage':'DMG','common.rate':'Rate','common.count':'Count','common.ready':'Ready','common.almost':'Almost ready','common.evoPair':'Evolution pair','common.evolve':'Evolve','common.chooseEvolve':'Choose this now to evolve the weapon','common.pairWith':'Pairs with {name}','common.requires':'Requires {weapon} Lv8 + {tome} x3. Ancient Anvil makes the first evolve use x2.',
+  'common.ban':'Ban','common.new':'NEW','common.score':'Score','common.useLast':'Use last loadout x{mult}','common.noLast':'No last loadout',
+  'rarity.common':'Common','rarity.uncommon':'Uncommon','rarity.rare':'Rare','rarity.legendary':'Legendary',
+  'items.summaryTitle':'Items Stack Forever','items.summaryDesc':'Picking up or buying the same item again keeps stacking its effect. Choose items that match your main weapon and run plan.','items.unlockedCount':'{unlocked}/{total} unlocked','items.lockedHint':'Locked items show their unlock requirement on the card.',
+  'items.commonNote':'Basic tools that help stabilize the early game','items.uncommonNote':'Build-shaping upgrades and combo starters','items.rareNote':'Strong items that noticeably change the run rhythm','items.legendaryNote':'Run-changing prizes, but they are intentionally rare'
+});
+const PET_I18N={
+  lumo_wisp:{th:{title:'วิญญาณไฟหลงทาง',desc:'ดวงไฟตัวจิ๋วลอยตามหลัง ช่วยให้โตไวขึ้นแบบนุ่ม ๆ',quip:'วิบวับพร้อมลุย'},en:{title:'Lost flame wisp',desc:'A tiny wandering flame that trails behind you and gently boosts growth.',quip:'glowing and ready'}},
+  lantern_bunny:{th:{title:'กระต่ายโคมผี',desc:'ตัวเล็กถือโคมไฟ คอยส่องของที่ตกอยู่รอบตัว',quip:'lantern ready'},en:{title:'Ghost lantern bunny',desc:'A tiny bunny with a lantern that helps spot nearby loot.',quip:'lantern ready'}},
+  tiny_gargoyle:{th:{title:'การ์กอยล์ไซซ์พกพา',desc:'หินมีปีกจอมจริงจัง เกาะตามเหมือนบอดี้การ์ดตัวน้อย',quip:'tiny guard mode'},en:{title:'Pocket gargoyle',desc:'A serious winged stone buddy acting like a tiny bodyguard.',quip:'tiny guard mode'}},
+  storm_pup:{th:{title:'ลูกหมาป่าฟ้าผ่า',desc:'วิ่งตามพร้อมประกายไฟฟ้า ทำให้วัตถุโจมตีพุ่งไวขึ้น',quip:'tail full of sparks'},en:{title:'Storm pup',desc:'A sparking pup that helps your projectiles fly faster.',quip:'tail full of sparks'}},
+  grave_kitten:{th:{title:'แมวสุสาน',desc:'แมวดำตาเรืองแสง ข่วนโชคชะตาให้ติดคริบ่อยขึ้น',quip:'cursed meow'},en:{title:'Grave kitten',desc:'A glowing-eyed kitten that scratches fate toward more crits.',quip:'cursed meow'}},
+  mini_mimic:{th:{title:'หีบจิ๋วมีขา',desc:'หีบสมบัติที่เลือกอยู่ข้างคุณ ช่วยหาเงินและของดีขึ้นนิดหน่อย',quip:'proud little chest'},en:{title:'Mini Mimic',desc:'A small treasure chest on legs that nudges gold and luck upward.',quip:'proud little chest'}}
+};
+const ACHIEVEMENT_I18N={
+  first_hunt:{th:{name:'นักล่ามือใหม่',desc:'ฆ่ามอนสเตอร์ 120 ตัวในรันเดียว'},en:{name:'First Hunt',desc:'Kill 120 monsters in one run'}},
+  level_10:{th:{name:'เริ่มจับทางได้',desc:'ไปถึงเลเวล 15 ในรันเดียว'},en:{name:'Getting the Hang of It',desc:'Reach level 15 in one run'}},
+  map2_reached:{th:{name:'ข้ามแดนต้องสาป',desc:'เข้า Map 2 และฆ่าศัตรูอย่างน้อย 250 ตัวในรันเดียว'},en:{name:'Cross the Cursed Border',desc:'Reach Map 2 and kill at least 250 enemies in one run'}},
+  first_evolution:{th:{name:'ช่างตีอาวุธเงา',desc:'วิวัฒน์อาวุธ 1 ชิ้น และไปถึงเลเวล 25 ในรันเดียว'},en:{name:'Shadow Smith',desc:'Evolve 1 weapon and reach level 25 in one run'}},
+  swift_survivor:{th:{name:'หลบไวไม่ถามสุขภาพ',desc:'อยู่รอดอย่างน้อย 12 นาทีในรันเดียว'},en:{name:'Swift Survivor',desc:'Survive at least 12 minutes in one run'}},
+  assassin_trial:{th:{name:'งานเงียบแต่ศพเยอะ',desc:'ฆ่ามอนสเตอร์ 550 ตัวในรันเดียว'},en:{name:'Silent Work, Loud Results',desc:'Kill 550 monsters in one run'}},
+  soul_collector:{th:{name:'บัญชีวิญญาณไม่เคยว่าง',desc:'ฆ่ามอนสเตอร์ 700 ตัว หรือถือไอเทม 14 ชิ้นในรันเดียว'},en:{name:'Soul Accountant',desc:'Kill 700 monsters or hold 14 items in one run'}},
+  shop_regular:{th:{name:'ลูกค้าประจำ NPC',desc:'ซื้อของจาก Merchant 6 ครั้งในรันเดียว'},en:{name:'Merchant Regular',desc:'Buy from the Merchant 6 times in one run'}},
+  rich_striker:{th:{name:'มีงบก็ยิงชิ่งได้',desc:'จบรันพร้อมทองอย่างน้อย 800 หรือเปิดหีบ 8 ใบ'},en:{name:'Funded Footballer',desc:'End a run with at least 800 gold or open 8 chests'}},
+  map3_reached:{th:{name:'ฟ้าผ่าเข้าห้องบอส',desc:'เข้าสู่ Map 3 และฆ่าศัตรู 900 ตัว หรือถึงเลเวล 35'},en:{name:'Storm at the Boss Gate',desc:'Reach Map 3 and kill 900 enemies, or reach level 35'}},
+  butcher_hunted:{th:{name:'The Butcher Hunt',desc:'ฆ่า The Butcher ให้ทันก่อนมันหายตัว'},en:{name:'The Butcher Hunt',desc:'Kill The Butcher before it disappears'}},
+  void_cleared:{th:{name:'ปิดสัญญาเงา',desc:'เคลียร์รันสำเร็จ'},en:{name:'Close the Shadow Pact',desc:'Clear a full run'}}
+};
+function gameLang(){ const v=localStorage.getItem(LANG_STORAGE_KEY); return v==='en'?'en':'th'; }
+function tr(key, vars){ let text=(I18N[gameLang()]&&I18N[gameLang()][key]) || (I18N.th&&I18N.th[key]) || key; if(vars) for(const [k,v] of Object.entries(vars)) text=text.replaceAll('{'+k+'}', String(v)); return text; }
+function localized(map, fallback){ return (map && (map[gameLang()] || map.th || map.en)) || fallback || ''; }
+function petText(pet, field){ const row=PET_I18N[pet&&pet.id]; return localized(row && row[gameLang()] ? { [gameLang()]:row[gameLang()][field] } : row && row.th ? { th:row.th[field], en:row.en&&row.en[field] } : null, pet&&pet[field]); }
+function achievementName(a){ const row=ACHIEVEMENT_I18N[a&&a.id]; return localized(row && { th:row.th&&row.th.name, en:row.en&&row.en.name }, a&&a.name); }
+function achievementDesc(a){ const row=ACHIEVEMENT_I18N[a&&a.id]; return localized(row && { th:row.th&&row.th.desc, en:row.en&&row.en.desc }, a&&a.desc); }
+// ---- Content i18n (weapon/tome/item/character/monster/boss) ----
+// Side tables keyed by id. Proper NAMES stay English (no name entry -> falls back to data's .name).
+// Only fill the fields that need translation (mainly .desc / character story-passive-unlock).
+// TH falls back to the data's built-in Thai field; EN falls back to it too until translated.
+const WEAPON_I18N={}, TOME_I18N={}, ITEM_I18N={}, CHAR_I18N={}, MONSTER_I18N={}, BOSS_I18N={}, PACT_I18N={};
+function i18nField(table, id, field, fallback){
+  const row = table && id!=null && table[id];
+  if(row){ const lang=gameLang();
+    const v=(row[lang]&&row[lang][field]) || (row.th&&row.th[field]) || (row.en&&row.en[field]);
+    if(v!=null && v!=='') return v;
+  }
+  return fallback!=null ? fallback : '';
+}
+function weaponName(key){ const w=(typeof WEAPON_TYPES!=='undefined'&&WEAPON_TYPES[key])||{}; return i18nField(WEAPON_I18N,key,'name',w.name); }
+function weaponDesc(key){ const w=(typeof WEAPON_TYPES!=='undefined'&&WEAPON_TYPES[key])||{}; return i18nField(WEAPON_I18N,key,'desc',w.desc); }
+function tomeName(u){
+  const row = typeof u === 'string' ? ((typeof UPGRADES !== 'undefined' && UPGRADES.find(x=>x.id===u)) || { id:u, name:u }) : u;
+  return i18nField(TOME_I18N,row&&row.id,'name',row&&row.name);
+}
+function tomeDesc(u){ return i18nField(TOME_I18N,u&&u.id,'desc',u&&u.desc); }
+function itemName(it){ return i18nField(ITEM_I18N,it&&it.id,'name',it&&it.name); }
+function itemDesc(it){ return i18nField(ITEM_I18N,it&&it.id,'desc',it&&it.desc); }
+function monsterName(t){ return i18nField(MONSTER_I18N,t&&t.sprite,'name',t&&t.name); }
+function monsterDesc(t){ return i18nField(MONSTER_I18N,t&&t.sprite,'desc',t&&t.desc); }
+function bossName(t){ return i18nField(BOSS_I18N,t&&t.sprite,'name',t&&t.name); }
+function bossDesc(t){ return i18nField(BOSS_I18N,t&&t.sprite,'desc',t&&t.desc); }
+function charField(key, field, fallback){ return i18nField(CHAR_I18N,key,field,fallback); }   // name/bio/passive/unlock/...
+Object.assign(WEAPON_I18N,{
+  bolt:{en:{desc:'Fires a homing void projectile at the nearest enemy.'}},
+  spread:{en:{desc:'Shoots a fan of hex shards forward.'}},
+  nova:{en:{desc:'Bursts a circular wave around the player.'}},
+  orbit:{en:{desc:'Skulls orbit you, dealing damage and blocking incoming hits.'}},
+  arrow:{en:{desc:'A long-range arrow that pierces through enemies.'}},
+  smite:{en:{desc:'Calls holy power down from above.'}},
+  lightning:{en:{desc:'Strikes one target at a time with focused lightning.'}},
+  dagger:{en:{desc:'Throws fast knives at nearby enemies.'}},
+  toolstab:{en:{desc:'A rapid close-range screwdriver thrust that pierces an entire line.'}},
+  bladewhirl:{en:{desc:'Launches a short curved blade wave.'}},
+  soulspiral:{en:{desc:'Fires spiraling souls in all directions.'}},
+  football:{en:{desc:'A cursed football that bounces toward new targets.'}},
+  shieldtoss:{en:{desc:'Throws a heavy shield that pierces, then rebounds to another target.'}},
+  boneboomerang:{en:{desc:'Twin curved bones bounce between enemies.'}},
+  bouncebomb:{en:{desc:'A bomb that explodes on impact, then bounces to another target.'}},
+  boltX:{en:{desc:'Evolved: fires piercing volleys of doom bolts.'}},
+  spreadX:{en:{desc:'Evolved: unleashes a wider storm of hex shards.'}},
+  novaX:{en:{desc:'Evolved: larger and harder-hitting circular bursts.'}},
+  orbitX:{en:{desc:'Evolved: dual death orbits with stronger guard power.'}},
+  arrowX:{en:{desc:'Evolved: a piercing tempest volley for dense hordes.'}},
+  smiteX:{en:{desc:'Evolved: divine judgment crashes down from the sky.'}},
+  lightningX:{en:{desc:'Evolved: chain lightning calls down a storm tribunal.'}},
+  daggerX:{en:{desc:'Evolved: a storm of piercing execution knives.'}},
+  toolstabX:{en:{desc:'Evolved: wider multi-hit admin override thrusts.'}},
+  bladewhirlX:{en:{desc:'Evolved: multiple aggressive blade waves.'}},
+  soulspiralX:{en:{desc:'Evolved: a heavier soul tempest spirals outward.'}},
+  footballX:{en:{desc:'Evolved: multiple meteor shots bounce and explode.'}},
+  shieldtossX:{en:{desc:'Evolved: a stronger shield that rebounds through hordes.'}},
+  boneboomerangX:{en:{desc:'Evolved: faster bone cyclones with extra bounces.'}},
+  bouncebombX:{en:{desc:'Evolved: large chain detonations between targets.'}}
+});
+Object.assign(TOME_I18N,{
+  might:{en:{desc:'Damage +15%'}}, vitality:{en:{desc:'Max HP +25 and heal immediately'}}, celerity:{en:{desc:'Attack speed +10%'}},
+  precision:{en:{desc:'Attack range +25%'}}, multishot:{en:{desc:'Projectile/object count +1'}}, swiftness:{en:{desc:'Move speed +6%'}},
+  regen:{en:{desc:'Regenerate +0.8 HP per second'}}, magnet:{en:{desc:'Pickup magnet range +30%'}}, exp:{en:{desc:'XP gain +15%'}},
+  greed:{en:{desc:'Gold gain +20%'}}, fortitude:{en:{desc:'Armor +4'}}, lifesteal:{en:{desc:'Heal +1 when killing an enemy'}},
+  duration:{en:{desc:'Projectile/object lifetime +20%, AoE duration +10%'}}, velocity:{en:{desc:'Projectile/object speed +20%'}},
+  growth:{en:{desc:'Skill size +20%'}}, impact:{en:{desc:'Knockback +15%'}}, focus:{en:{desc:'Critical chance +6%'}},
+  execution:{en:{desc:'Critical damage +18%'}}, ricochet:{en:{desc:'Supported ricochet weapons bounce +1 extra time'}}
+});
+Object.assign(ITEM_I18N,{
+  gym_sauce:{en:{desc:'Damage +10%'}}, oats:{en:{desc:'Max HP +25'}}, turbo_socks:{en:{desc:'Move speed +15%'}},
+  time_brace:{en:{desc:'XP gain +8%'}}, gold_glove:{en:{desc:'Gold gain +15%'}}, medkit:{en:{desc:'Regenerate +0.5 HP per second'}},
+  battery:{en:{desc:'Attack speed +8%'}}, boss_buster:{en:{desc:'Damage to bosses and elites +15%'}}, ice_crystal:{en:{desc:'Attacks gain +10% freeze chance'}},
+  clover:{en:{desc:'Luck +7.5%, improving good drops'}}, wrench:{en:{desc:'Chest cost -8% per stack'}}, slip_ring:{en:{desc:'Evasion +15%'}},
+  lucky_charm:{en:{desc:'Critical chance +4%'}}, dash_boots:{en:{desc:'Dash cooldown -10%'}}, magnet_coil:{en:{desc:'Pickup magnet range +18%'}},
+  swift_oil:{en:{desc:'Projectile/object speed +10%'}}, backpack:{en:{desc:'All weapon projectile/object count +1'}},
+  beer:{en:{desc:'Damage +20%, max HP -5%'}}, brass_knuckle:{en:{desc:'Damage to nearby enemies +20%'}}, echo_shard:{en:{desc:'XP drops have +12% chance to echo'}},
+  campfire:{en:{desc:'Standing still regenerates +2 HP per second'}}, leech_crystal:{en:{desc:'Max HP +50, regeneration -50%'}},
+  demon_blood:{en:{desc:'Killing enemies increases max HP by +0.5, up to 200'}}, idle_juice:{en:{desc:'Stand still for 3 seconds to gain +100% damage'}},
+  thunder_mitts:{en:{desc:'Attacks have 10% chance to trigger lightning AoE'}}, credit_card:{en:{desc:'Opening chests increases damage by +2.5%'}},
+  sharpening_stone:{en:{desc:'Critical damage +10%'}}, blink_feather:{en:{desc:'Dash distance +15%'}}, runic_lens:{en:{desc:'Skill size +10%'}},
+  stopwatch:{en:{desc:'Projectile/object lifetime +12%, AoE duration +6%'}}, ricochet_charm:{en:{desc:'Supported ricochet weapons bounce +1 extra time'}},
+  beefy_ring:{en:{desc:'Damage +20% per 100 max HP'}}, spiky_shield:{en:{desc:'Thorns +2 per 1% armor'}}, shatter_know:{en:{desc:'XP gain +12%'}},
+  gamer_goggles:{en:{desc:'Low HP increases damage, up to +60%'}}, demon_soul:{en:{desc:'Killing enemies increases damage by +0.1%, up to 100%'}},
+  mirror:{en:{desc:'Reflect 30% damage back'}}, slurp_gloves:{en:{desc:'Lifesteal while attacking +7.5%'}}, eagle_claw:{en:{desc:'Damage to flying enemies +66%'}},
+  execution_coin:{en:{desc:'Critical damage +8%; critical hits may drop gold'}}, phase_cloak:{en:{desc:'Dash invulnerability +0.12s, evasion +5%'}},
+  battle_banner:{en:{desc:'Ground Haste/Might buffs last +35% longer'}}, butcher_token:{en:{desc:'Damage to The Butcher and Mimics +25%'}},
+  big_bonk:{en:{desc:'2% chance to deal 20x damage'}}, holy_book:{en:{desc:'Max HP +100, regeneration +50'}}, soul_harvester:{en:{desc:'Kills drop extra homing XP'}},
+  spicy_meatball:{en:{desc:'Attacks have 25% chance to explode for 65% damage'}}, chonkplate:{en:{desc:'Overheal +75%, lifesteal +20%'}},
+  energy_core:{en:{desc:'Pulses an energy aura that damages nearby enemies'}}, power_gloves:{en:{desc:'8% chance to explode with knockback'}},
+  dragonfire:{en:{desc:'Attacks have 15% chance to burn enemies over time'}}, glass_needle:{en:{desc:'Critical chance +20%, critical damage +60%, max HP -15%'}},
+  royal_jelly:{en:{desc:'Luck +20%, gold +20%, XP +10%'}}
+});
+Object.assign(CHAR_I18N,{
+  paladin:{en:{bio:'A holy warrior who forgives everyone, except when the cooldown is ready.',passive:'Armor +2 / Lv (heavy tank, slower movement and attacks)'}},
+  huntress:{en:{bio:'Can track every monster on the map, but still loses her own house keys.',passive:'Attack speed +3.5% / Lv'}},
+  sorceress:{en:{bio:'Solves most problems with large explosions, then asks what the problem was.',passive:'Damage +2% / Lv'}},
+  templar:{en:{bio:'Heavy armor, calm heart, slow feet. Faith and metal both weigh a lot.',passive:'Max HP +5 / Lv'}},
+  ranger:{en:{bio:'Loves nature, but not the parts of nature sprinting directly at him.',passive:'Move speed +1.5% / Lv'}},
+  necromancer:{en:{bio:'Talks to spirits every night. The downside is some ask about insurance.',passive:'XP gain +3% / Lv'}},
+  slayer:{en:{bio:'Talks less because that time could be used for three more slashes.',passive:'Damage +2.5% / Lv'}},
+  priestess:{en:{bio:'Heals with a smile, then politely smites anyone who forgets to say thanks.',passive:'Regeneration +0.3 and heal / Lv'}},
+  stormcaller:{en:{bio:'Calls lightning very precisely, except when her phone also needs charging.',passive:'Critical damage +6% / Lv'}},
+  assassin:{en:{bio:'So good at vanishing that teammates forget to split loot with her.',passive:'Critical chance +2% / Lv'}},
+  it_support:{en:{bio:'Always called when systems crash, and always asks, "Have you tried restarting it?"',passive:'Skill size +3% / Lv'}},
+  striker:{en:{bio:'A tournament forward who turned match pressure into a cursed pact.',passive:'Move speed +0.5%, projectile/object speed +1.5% / Lv'}}
+});
+Object.assign(PACT_I18N,{
+  blood_moon:{en:{title:'Blood Moon',desc:'Normal monsters have +50% HP',unlock:'Finish your first run, win or lose'}},
+  glass_soul:{en:{title:'Glass Soul',desc:'Player max HP -25%',unlock:'Survive at least 5 minutes'}},
+  cursed_economy:{en:{title:'Cursed Economy',desc:'Gold gain x0.6, shop/chest prices x1.3',unlock:'Buy from the Merchant once, or end a run with 300 gold'}},
+  no_mercy:{en:{title:'No Mercy',desc:'Regeneration and healing are reduced by 50%',unlock:'End a run below 25% HP, or heal during a run'}},
+  ravenous_horde:{en:{title:'Ravenous Horde',desc:'Monsters spawn faster and in denser packs',unlock:'Kill 300 enemies in one run, or reach Map 2'}}
+});
+function pactName(p){ return i18nField(PACT_I18N,p&&p.id,'name',p&&p.name); }
+function pactTitle(p){ return i18nField(PACT_I18N,p&&p.id,'title',p&&p.title); }
+function pactDesc(p){ return i18nField(PACT_I18N,p&&p.id,'desc',p&&p.desc); }
+function pactUnlockText(p){ return i18nField(PACT_I18N,p&&p.id,'unlock',p&&p.unlock); }
+function setGameLanguage(lang){ localStorage.setItem(LANG_STORAGE_KEY, lang==='en'?'en':'th'); applyStaticI18n(); updateStartFlow(); if(typeof renderAuth==='function') renderAuth(); if(currentGuideKind) openGuide(currentGuideKind); if(document.getElementById('select')&&document.getElementById('select').style.display==='flex') buildSelect(); }
+function makeLangToggle(id){
+  const wrap=document.createElement('div');
+  wrap.id=id;
+  wrap.className='langtoggle';
+  wrap.innerHTML='<span></span><button type="button" data-lang="th"></button><button type="button" data-lang="en"></button>';
+  wrap.querySelectorAll('button').forEach(btn=>btn.onclick=()=>setGameLanguage(btn.dataset.lang));
+  return wrap;
+}
+function ensureLanguageToggle(){
+  const titleContent=document.querySelector('#title .titlecontent');
+  if(titleContent && !document.getElementById('langtoggle')){
+    const wrap=makeLangToggle('langtoggle');
+    const label=titleContent.querySelector('.startlabel');
+    titleContent.insertBefore(wrap, label || titleContent.firstChild);
+  }
+  const authPanel=document.querySelector('.authpanel');
+  if(authPanel && !document.getElementById('authlangtoggle')){
+    const wrap=makeLangToggle('authlangtoggle');
+    const sub=authPanel.querySelector('.authsub');
+    authPanel.insertBefore(wrap, sub ? sub.nextSibling : authPanel.firstChild);
+  }
+}
+function applyStaticI18n(){
+  ensureLanguageToggle();
+  const lang=gameLang();
+  document.documentElement.lang=lang;
+  const set=(sel,key)=>{ const el=document.querySelector(sel); if(el) el.textContent=tr(key); };
+  set('#title .eyebrow','title.eyebrow'); set('#title .ts','title.tagline'); set('.startlabel','title.identity');
+  const metas=document.querySelectorAll('.titlemeta span'); if(metas[0]) metas[0].innerHTML='<i></i>'+escHtml(tr('title.meta.heroes')); if(metas[1]) metas[1].innerHTML='<i></i>'+escHtml(tr('title.meta.maps')); if(metas[2]) metas[2].innerHTML='<i></i>'+escHtml(tr('title.meta.minutes'));
+  const menu=document.querySelectorAll('.titlemenu button'); if(menu[0]) menu[0].textContent=tr('title.pets'); if(menu[1]) menu[1].textContent=tr('title.guide');
+  set('.authpanel h2','auth.chooseTitle'); set('.authpanel .authsub','auth.chooseSub');
+  const g=document.querySelector('#googlechoice .mode-name'); if(g) g.textContent=tr('auth.google'); const gd=document.querySelector('#googlechoice .mode-desc'); if(gd) gd.textContent=tr('auth.googleDesc');
+  const q=document.querySelector('#guestchoice .mode-name'); if(q) q.textContent=tr('auth.guest'); const qd=document.querySelector('#guestchoice .mode-desc'); if(qd) qd.textContent=tr('auth.guestDesc');
+  document.querySelectorAll('.langtoggle').forEach(langBox=>{ const span=langBox.querySelector('span'); if(span) span.textContent=tr('lang.label'); langBox.querySelector('[data-lang="th"]').textContent=tr('lang.th'); langBox.querySelector('[data-lang="en"]').textContent=tr('lang.en'); langBox.querySelectorAll('button').forEach(btn=>btn.classList.toggle('active', btn.dataset.lang===lang)); });
+}
+window.tr=tr; window.setGameLanguage=setGameLanguage; window.gameLang=gameLang;
+
 function spawnDmg(x,z,amount,color,crit,kind){
   if (dmgNums.length>36) return;
   const cls=['dn'];
@@ -64,6 +294,46 @@ function spawnDmg(x,z,amount,color,crit,kind){
   document.getElementById('dmg').appendChild(el);
   dmgNums.push({ el, x, z, t:0, life:crit?0.86:(kind==='playerhit'?0.76:0.65), ox:(Math.random()-0.5)*0.7, crit:!!crit, kind:kind||'' });
 }
+function petEmojiSet(kind, petId){
+  const base={
+    start:['✨','💛','!'],
+    level:['⭐','🎉','✨'],
+    loot:['💎','✨','!'],
+    hurt:['💢','💛','!'],
+    lowhp:['💙','💦','!'],
+    idle:['…','💤','?'],
+    select:['💛','✨','!']
+  };
+  const flavor={
+    lumo_wisp:{ start:['✨','🔥'], level:['⭐','🔥'], loot:['💎','✨'], hurt:['💦','🔥'], lowhp:['💙','✨'], idle:['✨','…'], select:['🔥','✨'] },
+    lantern_bunny:{ start:['🏮','✨'], level:['🐾','⭐'], loot:['💎','🏮'], hurt:['💦','🏮'], lowhp:['💛','🏮'], idle:['💤','🏮'], select:['🏮','🐾'] },
+    tiny_gargoyle:{ start:['🛡','✨'], level:['🪨','⭐'], loot:['💎','🛡'], hurt:['🛡','💢'], lowhp:['🛡','💙'], idle:['…','🪨'], select:['🛡','!'] },
+    storm_pup:{ start:['⚡','🐾'], level:['⚡','⭐'], loot:['💎','⚡'], hurt:['💢','⚡'], lowhp:['💙','⚡'], idle:['🐾','…'], select:['⚡','🐾'] },
+    grave_kitten:{ start:['🐾','🌙'], level:['🐾','⭐'], loot:['💎','🌙'], hurt:['💢','🐾'], lowhp:['💜','🐾'], idle:['💤','🐾'], select:['🐾','💜'] },
+    mini_mimic:{ start:['💰','✨'], level:['💰','⭐'], loot:['💎','💰'], hurt:['💢','💰'], lowhp:['💛','💰'], idle:['…','💰'], select:['💰','!'] }
+  };
+  return (flavor[petId]&&flavor[petId][kind]) || base[kind] || ['✨'];
+}
+function spawnPetBubble(text, life){
+  if(!player || !player.pet || !player.pet.spr || petBubbles.length>10) return;
+  const el=document.createElement('div');
+  el.className='petbubble';
+  el.textContent=text;
+  document.getElementById('dmg').appendChild(el);
+  const pet=player.pet;
+  petBubbles.push({ el, pet, t:0, life:life||1.05, ox:(Math.random()-0.5)*0.3 });
+}
+function petReact(kind, force){
+  if(!player || !player.pet) return;
+  const pet=player.pet;
+  const now=gameTime||0;
+  if(!force && now < (pet.reactCd||0)) return;
+  const set=petEmojiSet(kind, pet.id);
+  spawnPetBubble(set[(Math.random()*set.length)|0], kind==='idle'?1.25:1.05);
+  pet.reactT=Math.max(pet.reactT||0, kind==='start'?0.9:kind==='loot'?0.75:kind==='hurt'||kind==='lowhp'?0.65:0.55);
+  pet.reactKind=kind;
+  pet.reactCd=now+(kind==='lowhp'?5.5:kind==='idle'?7.0:1.2);
+}
 let weaponSig=null;
 function updateWeaponHUD(){
   const sig = player.weapons.map(w=>w.key+w.lvl+evolveStateForWeapon(w).state).join(',')+'|'+Object.entries(player.tomeCount||{}).map(([k,v])=>k+v).join(',');
@@ -72,9 +342,9 @@ function updateWeaponHUD(){
   for (let i=0;i<MAX_WEAPONS;i++){
     const w=player.weapons[i];
     const d=document.createElement('div');
-    if (w){ const t=WEAPON_TYPES[w.key]||{}, ev=evolveStateForWeapon(w); d.className='wslot'+(w.evolved?' evo':'')+(ev.state!=='none'?' ev-'+ev.state:''); d.title=(t.name||w.key)+(ev.text?' - '+ev.text:'');
+    if (w){ const t=WEAPON_TYPES[w.key]||{}, ev=evolveStateForWeapon(w); d.className='wslot'+(w.evolved?' evo':'')+(ev.state!=='none'?' ev-'+ev.state:''); d.title=weaponName(w.key)+(ev.text?' - '+ev.text:'');
       d.innerHTML='<img src="'+escHtml(spriteSrc(t.icon))+'"><span>Lv'+w.lvl+'</span>'; }
-    else { d.className='wslot empty'; d.title='ช่องอาวุธว่าง'; d.textContent='+'; }
+    else { d.className='wslot empty'; d.title=tr('common.emptyWeapon'); d.textContent='+'; }
     wrap.appendChild(d);
   }
 }
@@ -88,9 +358,9 @@ function updateTomeHUD(){
   for (let i=0;i<MAX_TOMES;i++){
     const id=ids[i];
     const d=document.createElement('div');
-    if (id){ const u=UPGRADES.find(x=>x.id===id)||{}, ev=evolveStateForTome(id); d.className='tslot'+(ev.state!=='none'?' ev-'+ev.state:''); d.title=(u.name||id)+' - '+(u.desc||'')+(ev.text?' - '+ev.text:'');
+    if (id){ const u=UPGRADES.find(x=>x.id===id)||{}, ev=evolveStateForTome(id); d.className='tslot'+(ev.state!=='none'?' ev-'+ev.state:''); d.title=tomeName(u)+' - '+tomeDesc(u)+(ev.text?' - '+ev.text:'');
       d.innerHTML='<img src="'+escHtml(spriteSrc(u.icon))+'"><span>×'+tc[id]+'</span>'; }
-    else { d.className='tslot empty'; d.title='ช่อง tome ว่าง'; d.textContent='+'; }
+    else { d.className='tslot empty'; d.title=tr('common.emptyTome'); d.textContent='+'; }
     wrap.appendChild(d);
   }
 }
@@ -148,6 +418,19 @@ function updateDamageNumbers(dt){
     const punch=d.crit ? 1+Math.max(0,1-p*5)*0.55 : d.kind==='playerhit' ? 1+Math.max(0,1-p*6)*0.28 : 1+Math.max(0,1-p*7)*0.18;
     const wobble=d.crit ? Math.sin(p*Math.PI*5)*3 : 0;
     d.el.style.transform='translate(-50%,-50%) scale('+punch.toFixed(3)+') rotate('+wobble.toFixed(2)+'deg)';
+  }
+  for (let i=petBubbles.length-1;i>=0;i--){
+    const b=petBubbles[i]; b.t+=dt;
+    if(b.t>=b.life || !b.pet || !b.pet.spr){ b.el.remove(); petBubbles.splice(i,1); continue; }
+    const p=b.t/b.life;
+    const x=(b.pet.x||player.x)+b.ox;
+    const z=(b.pet.z||player.z);
+    damageScreenPos.set(x, 1.25 + p*1.4, z).project(camera);
+    b.el.style.left=((damageScreenPos.x*0.5+0.5)*innerWidth)+'px';
+    b.el.style.top=((-damageScreenPos.y*0.5+0.5)*innerHeight)+'px';
+    b.el.style.opacity=String(Math.max(0,1-p));
+    const bounce=1+Math.sin(Math.min(1,p*2)*Math.PI)*0.22;
+    b.el.style.transform='translate(-50%,-50%) scale('+bounce.toFixed(3)+')';
   }
 }
 function spawnTrail(x,z,color,scale,life){
@@ -341,8 +624,8 @@ let runStats = null;
 let stageStartTime = 0;                       // gameTime when the current stage began
 function stageTime(){ return gameTime - stageStartTime; }   // per-stage clock (resets each map)
 function healCap(p){ return Math.round(p.maxHp*(1+(p.overheal||0))); }   // Chonkplate lets HP exceed max
-// Overtime escalation is map-specific. Map 3 starts only after the final boss dies.
-function overtimeBase(){ return mapStage>=3 ? 4 : mapStage>=2 ? 3 : 2; }
+// Overtime starts at x2 on every map. Map 3 still starts only after the final boss dies.
+function overtimeBase(){ return 2; }
 function overtimeElapsed(){
   if(mapStage>=3) return finalBossKilledAt==null ? -1 : gameTime-finalBossKilledAt;
   return stageTime()-RUN_TARGET;
@@ -363,6 +646,12 @@ let relocationCursor = 0;
 let mbTimer = 0;
 let nextMinibossAt = 180;
 const MINIBOSS_INTERVAL = 55;
+const BUTCHER_RUN_CHANCE = 0.35;
+let butcherRunEligible = Math.random() < BUTCHER_RUN_CHANCE;
+let butcherAppeared = false;
+let nextButcherAt = butcherRunEligible ? 360 + Math.random()*120 : Infinity;
+let butcherActive = false;
+let butcherKills = 0;
 const RUN_TARGET = 600;            // 10:00 clear target
 let mapStage = 1;
 let won = false, altar = null, boss = null;
@@ -380,9 +669,20 @@ let debtCollectorCooldownUntil = 0;
 const CHEST_BASE=[40,100,220];
 const PLAYER_NAME_KEY='sc3_player_name';
 const PLAYER_COUNTRY_KEY='sc3_player_country';
+const AUTH_PENDING_MODE_KEY='sc3_pending_start_mode';
+const PACT_UNLOCK_STORAGE_KEY='sc3_pact_unlocks_v1';
+const PACT_LAST_STORAGE_KEY='sc3_last_pacts_v1';
+const SOUL_COINS_STORAGE_KEY='sc3_soul_coins_v1';
+const PET_STATE_STORAGE_KEY='sc3_pets_v1';
 let playerName = localStorage.getItem(PLAYER_NAME_KEY) || 'Player';
 let playerCountry = localStorage.getItem(PLAYER_COUNTRY_KEY) || 'TH';
-function chestCost(tier){ const disc=Math.max(0.5, 1-0.08*((player&&player._wrench)||0)); return Math.round(CHEST_BASE[tier]*Math.pow(1.18, chestsOpened)*disc); }
+let selectedStartMode = '';
+let selectedPactIds = [];
+let activePactIds = [];
+let pactMultiplier = 1;
+let lastPactUnlocks = [];
+let runBossKills = 0, runMinibossKills = 0, lastSoulCoinAward = null;
+function chestCost(tier){ const disc=Math.max(0.5, 1-0.08*((player&&player._wrench)||0)); return Math.round(CHEST_BASE[tier]*Math.pow(1.18, chestsOpened)*disc*pactCostMul()); }
 let paused = false, pendingUps = 0, currentChoices = [], currentRelicChoices = [], pendingRelicPortal = null;
 let userPaused = false;
 function buildPauseInfo(){
@@ -390,22 +690,22 @@ function buildPauseInfo(){
   const C=CHARACTERS[player.char]||{};
   let h='<div class="piw">';
   for (const w of player.weapons){ const t=WEAPON_TYPES[w.key]; if(!t) continue;
-    h+='<div class="piwslot'+(w.evolved?' evo':'')+'"><img src="'+escHtml(spriteSrc(t.icon))+'"><div class="pn">'+t.name+'</div><div class="pl">Lv '+w.lvl+'</div></div>'; }
-  h+='</div><div class="pist">'+(C.name||'')+' \u00b7 Lv '+player.level+' \u00b7 HP '+Math.ceil(player.hp)+'/'+player.maxHp
+    h+='<div class="piwslot'+(w.evolved?' evo':'')+'"><img src="'+escHtml(spriteSrc(t.icon))+'"><div class="pn">'+escHtml(weaponName(w.key))+'</div><div class="pl">Lv '+w.lvl+'</div></div>'; }
+  h+='</div><div class="pist">'+escHtml(charField(player.char,'name',C.name||''))+' \u00b7 Lv '+player.level+' \u00b7 HP '+Math.ceil(player.hp)+'/'+player.maxHp
     +' \u00b7 SPD '+player.spd.toFixed(1)+' \u00b7 DASH '+Math.round(100*(player.dashCdMul||1))+'% CD/'+Math.round(100*(player.dashDistMul||1))+'% DIST'
     +' \u00b7 CRIT '+Math.round((player.critChance||0)*100)+'%/'+Math.round((player.critDmg||1.5)*100)+'%</div>';
   // items list
   if (player.items.length) {
-    h+='<div style="margin-top:8px;color:#ffe08a;font-size:12px">Items ('+player.items.length+')</div>';
+    h+='<div style="margin-top:8px;color:#ffe08a;font-size:12px">'+escHtml(tr('common.items'))+' ('+player.items.length+')</div>';
     h+='<div class="piitems">';
     for(const s of itemStacks()){
       const it=s.item;
-      h+='<div class="piitem '+escHtml(it.rarity||'common')+'"><img src="'+escHtml(spriteSrc(it.icon))+'"><div><b>'+escHtml(it.name)+'</b><p>'+escHtml(it.desc)+'</p></div><span>x'+s.count+'</span></div>';
+      h+='<div class="piitem '+escHtml(it.rarity||'common')+'"><img src="'+escHtml(spriteSrc(it.icon))+'"><div><b>'+escHtml(itemName(it))+'</b><p>'+escHtml(itemDesc(it))+'</p></div><span>x'+s.count+'</span></div>';
     }
     h+='</div>';
   }
   if (player.relics && player.relics.length) {
-    h+='<div style="margin-top:8px;color:#ffd86a;font-size:12px">Relic</div>';
+    h+='<div style="margin-top:8px;color:#ffd86a;font-size:12px">'+escHtml(tr('common.relic'))+'</div>';
     for(const r of player.relics) h+='<div style="color:#d7c18a;font-size:11px">'+r.name+' - '+r.desc+'</div>';
   }
   el.innerHTML=h;
@@ -430,10 +730,13 @@ function tryDash(){
 function quitToTitle(){
   started=false; userPaused=false; paused=false; gameOver=false; won=false; pendingUps=0;
   pendingRelicPortal=null; currentRelicChoices=[];
-  for (const id of ['pause','shop','playersetup','select','over','levelup','relicup']) document.getElementById(id).style.display='none';
+  for (const id of ['pause','shop','playersetup','select','pactselect','over','levelup','relicup']) document.getElementById(id).style.display='none';
   document.getElementById('pausebtn').textContent='⏸';
   document.getElementById('title').style.display='flex';
   showLeaderboard();
+  updateStartFlow();
+  if(!selectedStartMode) openAuthChoice(false);
+  else closeAuthChoice();
   startTitleBGM();
 }
 function cleanPlayerName(v){
@@ -443,22 +746,23 @@ function cleanCountryCode(v){
   const code=String(v||'TH').trim().toUpperCase();
   return /^[A-Z]{2}$/.test(code) ? code : 'TH';
 }
+const KNOWN_FLAG_CODES = new Set(['TH','US','JP','KR','CN','SG','MY','ID','PH','VN','GB','FR','DE','BR','AU']);
 function countryFlag(code){
   const cc=cleanCountryCode(code);
-  return '<i class="cflag cflag-'+cc.toLowerCase()+'" title="'+cc+'"><b>'+cc+'</b></i>';
+  const cls=KNOWN_FLAG_CODES.has(cc) ? 'cflag cflag-'+cc.toLowerCase() : 'cflag cflag-fallback';
+  return '<i class="'+cls+'" title="'+cc+'"><b>'+cc+'</b></i>';
 }
 function resetRunStats(){
   runStats = { startedAt:Date.now(), weaponDamage:{}, itemStats:{}, damageTakenBy:{}, lastHit:null, deathCause:null };
 }
 function statName(kind,key){
   if(kind==='weapon'){
-    const w=WEAPON_TYPES[key]||{};
-    return w.name||key||'อาวุธไม่ทราบชื่อ';
+    return weaponName(key)||key||'Unknown Weapon';
   }
   const special={ hp_orb:'HP Orb', lifesteal:'Lifesteal', orbit:'Orbiting Skull Guard', orbitX:'Death Orbit Guard' };
   if(special[key]) return special[key];
   const it=(typeof ITEMS!=='undefined') ? ITEMS.find(x=>x.id===key) : null;
-  return (it&&it.name)||key||'Unknown Item';
+  return (it&&itemName(it))||key||'Unknown Item';
 }
 function addStatBucket(group,key,fields){
   if(!runStats || !key) return null;
@@ -492,9 +796,65 @@ function recordPlayerHit(amount, src, kind){
 function recordDeathCause(){
   if(runStats && !runStats.deathCause) runStats.deathCause=runStats.lastHit || { label:'Unknown', kind:'unknown', amount:0, time:gameTime, stage:mapStage };
 }
+function openAuthChoice(unlockAudio=true){
+  if(unlockAudio){ initAudio(); resumeAudio(); }   // unlock audio on the first tap; auth.js keeps the Google button state current
+  const box=document.getElementById('authchoice'); if(box) box.style.display='flex';
+}
+function closeAuthChoice(){
+  const box=document.getElementById('authchoice'); if(box) box.style.display='none';
+}
+function selectStartMode(mode){
+  const googleInput=document.getElementById('startmode_google');
+  if(mode==='google' && googleInput && googleInput.disabled) return;
+  selectedStartMode = mode === 'google' ? 'google' : 'guest';
+  updateStartFlow();
+}
+function settleAuthChoice(mode){
+  selectedStartMode = mode === 'google' ? 'google' : 'guest';
+  try{ sessionStorage.removeItem(AUTH_PENDING_MODE_KEY); }catch(_){}
+  updateStartFlow();
+  if(typeof renderAuth === 'function') renderAuth();
+  closeAuthChoice();
+}
+function updateStartFlow(){
+  const guest=document.getElementById('guestchoice');
+  const google=document.getElementById('googlechoice');
+  const guestInput=document.getElementById('startmode_guest');
+  const googleInput=document.getElementById('startmode_google');
+  const play=document.getElementById('playbtn');
+  const status=document.getElementById('startstatus');
+  if(!guest || !google || !status) return;
+  guest.classList.toggle('selected', selectedStartMode==='guest');
+  google.classList.toggle('selected', selectedStartMode==='google');
+  if(guestInput) guestInput.checked = selectedStartMode==='guest';
+  if(googleInput) googleInput.checked = selectedStartMode==='google';
+  const user = (typeof currentAuthUser==='function') ? currentAuthUser() : null;
+  const st = window.gameAuthState || {};
+  if(!selectedStartMode){
+    if(play){ play.disabled = true; play.textContent = tr('start.needChoice'); }
+    status.textContent = tr('start.needChoiceStatus');
+  } else if(selectedStartMode==='guest'){
+    if(play){ play.disabled = false; play.textContent = tr('start.guestBtn'); }
+    status.textContent = tr('start.guestStatus');
+  } else if(user){
+    if(play){ play.disabled = false; play.textContent = tr('start.verifiedBtn'); }
+    status.textContent = 'Google: '+user.name+' · '+(gameLang()==='en'?'score and unlocks sync online':'คะแนนและ unlock จะ sync online');
+  } else if(!st.ready){
+    if(play){ play.disabled = true; play.textContent = tr('start.loadingBtn'); }
+    status.textContent = tr('start.loadingStatus');
+  } else if(!st.enabled){
+    if(play){ play.disabled = true; play.textContent = tr('start.notReadyBtn'); }
+    status.textContent = tr('start.notReadyStatus');
+  } else {
+    if(play){ play.disabled = false; play.textContent = tr('start.loginGoogleBtn'); }
+    status.textContent = tr('start.loginGoogleStatus');
+  }
+}
 function openPlayerSetup(){
   closeGuide();
+  closeAuthChoice();
   document.getElementById('title').style.display='none';
+  document.getElementById('pactselect').style.display='none';
   const box=document.getElementById('playersetup'), input=document.getElementById('playername');
   input.value=playerName;
   const country=document.getElementById('playercountry');
@@ -502,6 +862,101 @@ function openPlayerSetup(){
   box.style.display='flex';
   setTimeout(()=>{ input.focus(); input.select(); },0);
 }
+function titleStartAction(){
+  if(!selectedStartMode){
+    showToast(tr('start.needChoice'), 1.8);
+    updateStartFlow();
+    openAuthChoice(true);
+    return;
+  }
+  if(selectedStartMode==='guest') beginTitleRun();
+  else beginGoogleRun();
+}
+function chooseGuestStart(){
+  settleAuthChoice('guest');
+}
+function chooseGoogleStart(){
+  const google=document.getElementById('googlechoice');
+  if(google && (google.disabled || google.classList.contains('disabled'))){
+    updateStartFlow();
+    showToast(gameLang()==='en'?'Google Login is not ready yet; Guest is available':'Google Login ยังไม่พร้อม ใช้ Guest ได้ก่อน', 2);
+    return;
+  }
+  selectedStartMode='google';
+  updateStartFlow();
+  if(typeof currentAuthUser==='function' && currentAuthUser()){
+    settleAuthChoice('google');
+    return;
+  }
+  const st=window.gameAuthState || {};
+  if(!st.ready){
+    showToast('Login is still loading', 1.6);
+    return;
+  }
+  if(!st.enabled){
+    showToast('Google Login is not configured yet', 2.4);
+    return;
+  }
+  try{ sessionStorage.setItem(AUTH_PENDING_MODE_KEY,'google'); }catch(_){}
+  if(typeof gameAuthLogin==='function') gameAuthLogin();
+}
+function finishPendingAuthChoice(){
+  let pending='';
+  try{ pending=sessionStorage.getItem(AUTH_PENDING_MODE_KEY)||''; }catch(_){}
+  if(pending==='google' && typeof currentAuthUser==='function' && currentAuthUser()){
+    settleAuthChoice('google');
+    return true;
+  }
+  return false;
+}
+function applyRememberedLogin(){
+  if(selectedStartMode) return false;
+  if(typeof currentAuthUser==='function' && currentAuthUser()){
+    selectedStartMode='google';
+    try{ sessionStorage.removeItem(AUTH_PENDING_MODE_KEY); }catch(_){}
+    updateStartFlow();
+    closeAuthChoice();
+    return true;
+  }
+  return false;
+}
+function resetStartChoiceAfterLogout(){
+  selectedStartMode='';
+  try{ sessionStorage.removeItem(AUTH_PENDING_MODE_KEY); }catch(_){}
+  updateStartFlow();
+  openAuthChoice(false);
+}
+function beginTitleRun(){
+  initAudio();
+  resumeAudio();
+  stopTitleBGM();
+  openPlayerSetup();
+}
+function beginGoogleRun(){
+  initAudio();
+  resumeAudio();
+  if(typeof currentAuthUser==='function' && currentAuthUser()){
+    stopTitleBGM();
+    openPlayerSetup();
+    return;
+  }
+  const st=window.gameAuthState || {};
+  if(!st.ready){
+    showToast('Login is still loading', 1.6);
+    return;
+  }
+  if(!st.enabled){
+    showToast('Google Login is not configured yet', 2.4);
+    return;
+  }
+  if(typeof gameAuthLogin==='function') gameAuthLogin();
+}
+window.updateStartFlow = updateStartFlow;
+window.finishPendingAuthChoice = finishPendingAuthChoice;
+window.applyRememberedLogin = applyRememberedLogin;
+window.resetStartChoiceAfterLogout = resetStartChoiceAfterLogout;
+window.getSelectedStartMode = () => selectedStartMode;
+window.chooseGoogleStart = chooseGoogleStart;
 function confirmPlayerName(){
   const input=document.getElementById('playername');
   playerName=cleanPlayerName(input.value);
@@ -516,10 +971,12 @@ function confirmPlayerName(){
 function buildSelect(){
   const wrap=document.getElementById('selcards'); wrap.innerHTML='';
   for (const key in CHARACTERS){
-    const c=CHARACTERS[key], wpn=(WEAPON_TYPES[c.weapon]||{}).name||c.weapon;
-    const d=document.createElement('div'); d.className='ccard';
-    d.innerHTML='<img src="'+characterPortrait(key)+'"><div class="cn">'+escHtml(c.name)+'</div><div class="cw">\u2694 '+escHtml(wpn)+'</div><div class="cp">'+escHtml(c.passive.desc)+'</div>'+(c.bio?'<div class="cbio">'+escHtml(c.bio)+'</div>':'');
-    d.onclick=()=>selectCharacter(key);
+    const c=CHARACTERS[key], wpn=weaponName(c.weapon)||c.weapon;
+    const locked=!isCharacterUnlocked(key);
+    const lockText=locked ? unlockRequirementShort('character', key) : '';
+    const d=document.createElement('div'); d.className='ccard'+(locked?' locked':'');
+    d.innerHTML='<img src="'+characterPortrait(key)+'"><div class="cn">'+escHtml(charField(key,'name',c.name))+'</div><div class="cw">\u2694 '+escHtml(wpn)+'</div><div class="cp">'+escHtml(charField(key,'passive',c.passive.desc))+'</div>'+(charField(key,'bio',c.bio)?'<div class="cbio">'+escHtml(charField(key,'bio',c.bio))+'</div>':'')+(locked?'<div class="lock">'+escHtml(tr('locked'))+'</div><div class="unlock">'+escHtml(lockText)+'</div>':'');
+    d.onclick=()=>locked ? showToast('Locked: '+lockText,2.8) : selectCharacter(key);
     wrap.appendChild(d);
   }
 }
@@ -571,15 +1028,15 @@ function updateItemHUD(force){
   stacks.slice(0,limit).forEach(s=>{
     const it=s.item, d=document.createElement('div');
     d.className='islot '+(it.rarity||'common');
-    d.title=it.name+(s.count>1?' x'+s.count:'')+' - '+it.desc;
+    d.title=itemName(it)+(s.count>1?' x'+s.count:'')+' - '+itemDesc(it);
     d.innerHTML='<img src="'+escHtml(spriteSrc(it.icon))+'"><span>'+s.count+'</span>';
-    d.onclick=()=>showToast(it.name+(s.count>1?' x'+s.count:'')+' - '+it.desc,2.0);
+    d.onclick=()=>showToast(itemName(it)+(s.count>1?' x'+s.count:'')+' - '+itemDesc(it),2.0);
     wrap.appendChild(d);
   });
   if(stacks.length>limit){
     const d=document.createElement('div');
     d.className='islot more';
-    d.title=(stacks.length-limit)+' more item stacks. Pause to view all.';
+    d.title=tr('common.moreItems',{count:stacks.length-limit});
     d.textContent='+'+(stacks.length-limit);
     wrap.appendChild(d);
   }
@@ -600,19 +1057,85 @@ function guideSectionTitle(name, desc){
   return '<div class="guidesection"><b>'+escHtml(name)+'</b>'+(desc?'<span>'+escHtml(desc)+'</span>':'')+'</div>';
 }
 function guideJumpCard(kind, name, desc){
-  return '<button class="guidecard text jump" data-jump="'+escHtml(kind)+'"><b>'+escHtml(name)+'</b><p>'+escHtml(desc)+'</p><small>เปิดคู่มือ</small></button>';
+  return '<button class="guidecard text jump" data-jump="'+escHtml(kind)+'"><b>'+escHtml(name)+'</b><p>'+escHtml(desc)+'</p><small>'+escHtml(tr('guide.open'))+'</small></button>';
 }
-function guideCharacterCard(img, name, bio, weapon, passive, stats){
-  return '<div class="guidecard character"><img src="'+escHtml(img)+'" loading="lazy"><div class="gctxt">'
+function petIconData(pet){
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" shape-rendering="crispEdges"><rect width="48" height="48" fill="none"/><rect x="12" y="38" width="24" height="4" fill="rgba(0,0,0,.38)"/><rect x="14" y="11" width="5" height="7" fill="'+(pet.color||'#ffe08a')+'"/><rect x="29" y="11" width="5" height="7" fill="'+(pet.color||'#ffe08a')+'"/><rect x="16" y="14" width="16" height="16" fill="'+(pet.color||'#ffe08a')+'"/><rect x="12" y="20" width="24" height="14" fill="'+(pet.color||'#ffe08a')+'"/><rect x="20" y="19" width="3" height="3" fill="#fff4d6"/><rect x="27" y="19" width="3" height="3" fill="#fff4d6"/><rect x="21" y="20" width="2" height="2" fill="#241a38"/><rect x="28" y="20" width="2" height="2" fill="#241a38"/><rect x="21" y="27" width="6" height="2" fill="#120b18"/></svg>');
+}
+function guidePetCard(pet){
+  const state=loadPetState();
+  const owned=!!(state.owned||{})[pet.id];
+  const selected=owned && state.selected===pet.id;
+  const coins=soulCoins();
+  const pct=Math.min(100, Math.round((coins/pet.price)*100));
+  const price=pet.price.toLocaleString();
+  const action=owned ? (selected?tr('pets.selected'):tr('pets.select')) : tr('pets.buy',{price});
+  return '<div class="guidecard pet '+(owned?'owned ':'locked ')+(selected?'selected':'')+'">'
+    +'<img src="'+escHtml(pet.sprite?spriteSrc(pet.sprite):petIconData(pet))+'" loading="lazy"><div class="petcopy"><b>'+escHtml(pet.name)+'</b><p>'+escHtml(petText(pet,'title')+' — '+petText(pet,'desc'))+'</p>'
+    +'<small>'+escHtml(pet.buff)+' / '+escHtml(tr('pets.price',{price}))+'</small>'
+    +(!owned?'<div class="petprogress"><i style="width:'+pct+'%"></i><span>'+coins.toLocaleString()+' / '+price+'</span></div>':'')
+    +'<button data-pet-'+(owned?'select':'buy')+'="'+escHtml(pet.id)+'" '+(selected?'disabled':'')+'>'+escHtml(action)+'</button></div></div>';
+}
+function guideCharacterCard(img, name, bio, weapon, passive, stats, cls){
+  return '<div class="guidecard character '+(cls||'')+'"><img src="'+escHtml(img)+'" loading="lazy"><div class="gctxt">'
     +'<b>'+escHtml(name)+'</b>'
     +(bio?'<p class="gcbio">'+escHtml(bio)+'</p>':'')
-    +'<div class="gcrow"><span>อาวุธ</span><strong>'+escHtml(weapon)+'</strong></div>'
-    +'<div class="gcrow passive"><span>สกิลติดตัว</span><strong>'+escHtml(passive)+'</strong></div>'
+    +'<div class="gcrow"><span>'+escHtml(tr('common.weapon'))+'</span><strong>'+escHtml(weapon)+'</strong></div>'
+    +'<div class="gcrow passive"><span>'+escHtml(tr('common.passive'))+'</span><strong>'+escHtml(passive)+'</strong></div>'
     +(stats?'<small>'+escHtml(stats)+'</small>':'')
     +'</div></div>';
 }
 function guideUnitCard(img, name, desc, meta, cls){
   return '<div class="guidecard unit '+(cls||'')+'"><img src="'+escHtml(img)+'" loading="lazy"><div><b>'+escHtml(name)+'</b><p>'+escHtml(desc)+'</p>'+(meta?'<small>'+escHtml(meta)+'</small>':'')+'</div></div>';
+}
+const ITEM_RARITY_ORDER = { common:0, uncommon:1, rare:2, legendary:3 };
+const ITEM_RARITY_TEXT = {
+  common:'Common',
+  uncommon:'Uncommon',
+  rare:'Rare',
+  legendary:'Legendary'
+};
+const ITEM_RARITY_NOTE = {
+  common:'ของพื้นฐานที่ช่วยตั้งตัวช่วงต้นเกม',
+  uncommon:'เริ่มกำหนดทิศทางบิลด์และคอมโบ',
+  rare:'ของแรงที่เปลี่ยนจังหวะเล่นชัดเจน',
+  legendary:'ของระดับรันเปลี่ยนชีวิต แต่หาไม่ง่าย'
+};
+function itemGuideTags(it){
+  const txt=(it.id+' '+itemName(it)+' '+itemDesc(it)).toLowerCase();
+  const tags=[];
+  if(/crit|คริติคอล/.test(txt)) tags.push('Crit');
+  if(/ดาเมจ|damage|แรง|ระเบิด|สายฟ้า|ติดไฟ|thorns|สะท้อน|โจมตี/.test(txt)) tags.push('Damage');
+  if(/เลือด|ฟื้น|ดูดเลือด|overheal|ฮีล/.test(txt)) tags.push('Sustain');
+  if(/เกราะ|หลบ|พุ่ง|อมตะ|dash|คูลดาวน์/.test(txt)) tags.push('Defense');
+  if(/xp|ทอง|gold|luck|หีบ|ร้าน|ค่าหีบ|ดรอป/.test(txt)) tags.push('Economy');
+  if(/ความเร็ว|จำนวน|กระสุน|วัตถุ|ขนาด|stack|ออร่า/.test(txt)) tags.push('Build');
+  if(!tags.length) tags.push('Utility');
+  return tags.slice(0,3);
+}
+function guideItemSummary(items){
+  const total=items.length;
+  const unlocked=items.filter(it=>isItemUnlocked(it.id)).length;
+  const counts={ common:0, uncommon:0, rare:0, legendary:0 };
+  for(const it of items) counts[it.rarity]=(counts[it.rarity]||0)+1;
+  const rows=['common','uncommon','rare','legendary'].map(r=>
+    '<div><span>'+escHtml(tr('rarity.'+r))+'</span><b>'+counts[r]+'</b></div>'
+  ).join('');
+  return '<div class="itemsummary">'
+    +'<div class="itemhint"><b>'+escHtml(tr('items.summaryTitle'))+'</b><p>'+escHtml(tr('items.summaryDesc'))+'</p></div>'
+    +rows
+    +'<div class="itemhint compact"><b>'+escHtml(tr('items.unlockedCount',{unlocked,total}))+'</b><p>'+escHtml(tr('items.lockedHint'))+'</p></div>'
+    +'</div>';
+}
+function guideItemCard(it){
+  const unlocked=isItemUnlocked(it.id);
+  const rarity=it.rarity||'common';
+  const lock=unlocked ? tr('common.unlocked') : tr('common.locked')+': '+unlockRequirementShort('item', it.id);
+  const tags=itemGuideTags(it).map(t=>'<span>'+escHtml(t)+'</span>').join('');
+  return '<div class="guidecard item '+escHtml(rarity)+(unlocked?'':' locked')+'">'
+    +'<div class="itemicon"><img src="'+escHtml(spriteSrc(it.icon))+'" loading="lazy"><em>'+escHtml(tr('rarity.'+rarity)||rarity)+'</em></div>'
+    +'<div class="itemcopy"><b>'+escHtml(unlocked?itemName(it):itemName(it)+' ('+tr('common.locked')+')')+'</b><p>'+escHtml(itemDesc(it))+'</p><div class="itemtags">'+tags+'</div><small>'+escHtml(lock)+' / '+escHtml(tr('common.stackUnlimited'))+'</small></div>'
+    +'</div>';
 }
 function unitSpritePath(sprite){
   return spriteSrc(sprite);
@@ -627,17 +1150,58 @@ function skillListFor(sprite, table){
   return 'สกิล: '+table[sprite].map(s=>s.replace(/([A-Z])/g,' $1')).join(', ');
 }
 function evolveGuideForTome(id){
-  const pairs=Object.values(WEAPON_TYPES).filter(w=>!w.hidden && w.evolveTome===id).map(w=>w.name);
-  return pairs.length ? ' / วิวัฒน์: '+pairs.join(', ') : '';
+  const pairs=Object.keys(WEAPON_TYPES).filter(key=>!WEAPON_TYPES[key].hidden && WEAPON_TYPES[key].evolveTome===id).map(weaponName);
+  return pairs.length ? ' / '+tr('common.evolve')+': '+pairs.join(', ') : '';
 }
 function evolvedFromName(evolvedKey){
   const base=Object.values(WEAPON_TYPES).find(w=>w && !w.hidden && w.evolveTo===evolvedKey);
-  return base ? base.name : '';
+  return base ? weaponName(Object.keys(WEAPON_TYPES).find(k=>WEAPON_TYPES[k]===base)) : '';
 }
+
+function renderLocalizedGuide(kind, guide, body){
+  currentGuideKind=kind;
+  if(kind==='hub'){
+    const entries=['characters','weapons','tomes','evolution','items','relics','monsters','bosses','events','maps','combat','shrine','shop','pets','achievements','ranking'];
+    const cards=entries.map(k=>guideJumpCard(k,tr('guide.'+k),tr('guide.'+k+'.desc'))).join('');
+    body.innerHTML='<div class="guidehead"><h2>'+escHtml(tr('guide.hub.title'))+'</h2><span>'+escHtml(tr('guide.hub.note'))+'</span></div><div class="guidegrid hub">'+cards+'</div>';
+    body.querySelectorAll('[data-jump]').forEach(btn=>btn.onclick=()=>openGuide(btn.dataset.jump));
+    guide.style.display='flex';
+    return true;
+  }
+  if(kind==='pets'){
+    const state=loadPetState();
+    const ownedCount=Object.keys(state.owned||{}).length;
+    const selected=petById(selectedPetId());
+    const note=tr('pets.note',{coins:soulCoins().toLocaleString(),owned:ownedCount,total:PETS.length,selected:selected?selected.name:tr('pets.none')});
+    const cards=guideTextCard(tr('pets.coinInfoTitle'),tr('pets.coinInfoDesc'),tr('pets.coinInfoMeta'),'legendary')+
+      '<div class="petnone"><button data-pet-select="">'+escHtml(tr('pets.noPet'))+'</button></div>'+PETS.map(guidePetCard).join('');
+    body.innerHTML='<div class="guidehead"><h2>'+escHtml(tr('pets.title'))+'</h2><span>'+escHtml(note)+'</span></div><div class="guidegrid pets">'+cards+'</div>';
+    body.querySelectorAll('[data-pet-buy]').forEach(btn=>btn.onclick=()=>buyPet(btn.getAttribute('data-pet-buy')));
+    body.querySelectorAll('[data-pet-select]').forEach(btn=>btn.onclick=()=>selectPet(btn.getAttribute('data-pet-select')||''));
+    guide.style.display='flex';
+    return true;
+  }
+  if(kind==='achievements'){
+    const state=loadAchievementState();
+    const done=ACHIEVEMENTS.filter(a=>state.done&&state.done[a.id]).length;
+    const note=tr('ach.note',{done,total:ACHIEVEMENTS.length,coins:soulCoins().toLocaleString()});
+    const cards=ACHIEVEMENTS.map(a=>{
+      const ok=!!(state.done&&state.done[a.id]);
+      return '<div class="guidecard text achievement '+(ok?'done':'locked')+'"><b>'+escHtml(achievementName(a))+'</b><p>'+escHtml(achievementDesc(a))+'</p><small>'+escHtml((ok?tr('ach.done'):tr('ach.locked'))+' · '+tr('ach.rewards')+': '+achievementRewardText(a))+'</small></div>';
+    }).join('');
+    body.innerHTML='<div class="guidehead"><h2>'+escHtml(tr('ach.title'))+'</h2><span>'+escHtml(note)+'</span></div><div class="guidegrid achievements">'+cards+'</div>';
+    guide.style.display='flex';
+    return true;
+  }
+  return false;
+}
+
 function openGuide(kind){
   const guide=document.getElementById('guide'), body=document.getElementById('guidebody');
   if(!guide||!body) return;
   kind=kind||'hub';
+  if(renderLocalizedGuide(kind, guide, body)) return;
+  currentGuideKind=kind;
   if(kind==='hub'){
     const title='สารบัญคู่มือ', note='รวมข้อมูลสำคัญของตัวละคร อาวุธ ศัตรู และระบบการเล่น';
     const cards=[
@@ -654,6 +1218,8 @@ function openGuide(kind){
       guideJumpCard('combat','ระบบต่อสู้','Crit, knockback, pierce, guard และ overtime'),
       guideJumpCard('shrine','Shrine','เสาแม่เหล็ก, Shrine, Chest, Merchant, Altar และ Portal'),
       guideJumpCard('shop','ร้านค้า / NPC','การซื้อของ reroll และโอกาสพ่อค้าทรยศ'),
+      guideJumpCard('pets','Pets','ซื้อสัตว์เลี้ยงด้วย Soul Coins และเลือกติดตาม 1 ตัวต่อรัน'),
+      guideJumpCard('achievements','Achievements','ปลดล็อกตัวละคร อาวุธ และไอเทม พร้อม sync เมื่อใช้ Google'),
       guideJumpCard('ranking','Ranking','กติกาคะแนนและ leaderboard online')
     ].join('');
     body.innerHTML='<div class="guidehead"><h2>'+escHtml(title)+'</h2><span>'+escHtml(note)+'</span></div><div class="guidegrid hub">'+cards+'</div>';
@@ -674,7 +1240,9 @@ function openGuide(kind){
         stats.def?'DEF '+stats.def:null,
         stats.regen?'Regen '+stats.regen:null
       ].filter(Boolean).join(' / ');
-      return guideCharacterCard(characterPortrait(key), c.name, c.bio||'', w.name||c.weapon, c.passive.desc, statLine);
+      const locked=!isCharacterUnlocked(key);
+      const meta=statLine+(locked?(statLine?' / ':'')+tr('common.locked')+': '+unlockRequirementShort('character', key):'');
+      return guideCharacterCard(characterPortrait(key), locked?charField(key,'name',c.name)+' ('+tr('common.locked')+')':charField(key,'name',c.name), charField(key,'bio',c.bio||''), weaponName(c.weapon)||c.weapon, charField(key,'passive',c.passive.desc), meta, locked?'locked':'');
     }).join('');
   } else if(kind==='weapons'){
     title='อาวุธ';
@@ -683,15 +1251,16 @@ function openGuide(kind){
     note='อาวุธพื้นฐานคือสิ่งที่เลือกได้ตอนอัปเลเวล ส่วนร่างวิวัฒน์จะเกิดหลังอาวุธ Lv8 และมี Tome ที่ตรงกัน';
     const baseCards=Object.keys(WEAPON_TYPES).filter(key=>!WEAPON_TYPES[key].hidden).map(key=>{
       const w=WEAPON_TYPES[key];
-      const pair=w.evolveTome ? ' / วิวัฒน์คู่กับ '+tomeName(w.evolveTome) : '';
-      const meta='พื้นฐาน / DMG '+(w.dmg||'-')+(w.rate?' / ความถี่ '+w.rate:'')+(w.count?' / จำนวน '+w.count:'')+pair;
-      return guideCard(spriteSrc(w.icon), w.name, w.desc, meta, '');
+      const pair=w.evolveTome ? ' / '+tr('common.pairWith',{name:tomeName(w.evolveTome)}) : '';
+      const locked=!isWeaponUnlocked(key);
+      const meta=tr('common.basic')+' / '+tr('common.damage')+' '+(w.dmg||'-')+(w.rate?' / '+tr('common.rate')+' '+w.rate:'')+(w.count?' / '+tr('common.count')+' '+w.count:'')+pair+(locked?' / '+tr('common.locked')+': '+unlockRequirementShort('weapon', key):'');
+      return guideCard(spriteSrc(w.icon), locked?weaponName(key)+' ('+tr('common.locked')+')':weaponName(key), weaponDesc(key), meta, locked?'locked':'');
     }).join('');
     const evolvedCards=Object.keys(WEAPON_TYPES).filter(key=>WEAPON_TYPES[key].hidden).map(key=>{
       const w=WEAPON_TYPES[key];
       const from=evolvedFromName(key);
-      const meta='ร่างวิวัฒน์'+(from?' จาก '+from:'')+' / DMG '+(w.dmg||'-')+(w.rate?' / ความถี่ '+w.rate:'')+(w.count?' / จำนวน '+w.count:'');
-      return guideCard(spriteSrc(w.icon), w.name, w.desc, meta, 'rare');
+      const meta=tr('common.evolved')+(from?' '+tr('common.from',{name:from}):'')+' / '+tr('common.damage')+' '+(w.dmg||'-')+(w.rate?' / '+tr('common.rate')+' '+w.rate:'')+(w.count?' / '+tr('common.count')+' '+w.count:'');
+      return guideCard(spriteSrc(w.icon), weaponName(key), weaponDesc(key), meta, 'rare');
     }).join('');
     cards=guideSectionTitle('อาวุธพื้นฐาน','เลือกได้ตอนอัปเลเวล รายละเอียด Tome คู่จะแสดงอยู่ในการ์ด')+
       baseCards+
@@ -702,17 +1271,17 @@ function openGuide(kind){
     note='อัปเกรดติดตัว เลือกได้สูงสุด 4 ชนิดต่อรัน แต่เก็บซ้ำเพื่อเพิ่มพลังได้';
     note='อัปเกรดติดตัว เลือกได้สูงสุด 4 ชนิดต่อรัน และเก็บซ้ำเพื่อเพิ่มพลังได้';
     cards=UPGRADES.map(u=>
-      guideCard(spriteSrc(u.icon), u.name, u.desc, 'อัปเกรด Tome'+evolveGuideForTome(u.id), 'uncommon')
+      guideCard(spriteSrc(u.icon), tomeName(u), tomeDesc(u), 'Tome upgrade'+evolveGuideForTome(u.id), 'uncommon')
     ).join('');
   } else if(kind==='items') {
     title='ไอเทม';
-    note='ไอเทม stack ได้ เก็บซ้ำแล้วคูณความสามารถต่อเนื่อง';
-    title='ไอเทม';
-    note='ไอเทม stack ได้ เก็บซ้ำแล้วคูณความสามารถต่อเนื่อง';
-    const order={common:0,uncommon:1,rare:2,legendary:3};
-    cards=ITEMS.slice().sort((a,b)=>order[a.rarity]-order[b.rarity]||a.name.localeCompare(b.name)).map(it=>
-      guideCard(spriteSrc(it.icon), it.name, it.desc, it.rarity, it.rarity)
-    ).join('');
+    note='ดู rarity, สายของไอเทม และสถานะปลดล็อก เพื่อเลือกของให้เข้ากับบิลด์ในรัน';
+    const sortedItems=ITEMS.slice().sort((a,b)=>(ITEM_RARITY_ORDER[a.rarity]||0)-(ITEM_RARITY_ORDER[b.rarity]||0)||a.name.localeCompare(b.name));
+    cards=guideItemSummary(sortedItems)+['common','uncommon','rare','legendary'].map(r=>{
+      const group=sortedItems.filter(it=>(it.rarity||'common')===r);
+      if(!group.length) return '';
+      return guideSectionTitle(tr('rarity.'+r)||r, tr('items.'+r+'Note'))+group.map(guideItemCard).join('');
+    }).join('');
   } else if(kind==='evolution'){
     title='คู่มือวิวัฒน์อาวุธ';
     note='อัปอาวุธพื้นฐานให้ถึง Lv8 แล้วมี Tome คู่ให้พอ ตัวเลือกที่พร้อมวิวัฒน์จะเรืองแสงสีทอง';
@@ -721,14 +1290,34 @@ function openGuide(kind){
       return w && !w.hidden && w.evolveTo;
     }).map(key=>{
       const w=WEAPON_TYPES[key], ev=WEAPON_TYPES[w.evolveTo]||{};
-      const desc=w.name+' วิวัฒน์เป็น '+(ev.name||w.evolveTo);
-      const meta='ต้องมี '+w.name+' Lv8 + '+tomeName(w.evolveTome)+' x3. Ancient Anvil ทำให้ครั้งแรกใช้ x2';
-      return guideCard(spriteSrc(ev.icon||w.icon), ev.name||w.name, desc, meta, 'rare');
+      const desc=weaponName(key)+' '+tr('common.evolve')+' -> '+weaponName(w.evolveTo);
+      const meta=tr('common.requires',{weapon:weaponName(key),tome:tomeName(w.evolveTome)});
+      return guideCard(spriteSrc(ev.icon||w.icon), weaponName(w.evolveTo)||weaponName(key), desc, meta, 'rare');
     }).join('');
   } else if(kind==='relics'){
     title='Relic';
     note='รางวัลหลังฆ่าบอส มีผลแรงและเปลี่ยนแนวเล่นของรัน เลือกให้เข้ากับบิลด์และแผนที่ถัดไป';
     cards=RELICS.map(r=>guideCard(spriteSrc(r.icon), r.name, r.desc, 'รางวัล Relic จากบอส', 'legendary')).join('');
+  } else if(kind==='achievements'){
+    title='Achievements';
+    const done=ACHIEVEMENTS.filter(a=>hasAchievement(a.id)).length;
+    const syncText=typeof progressSyncStatus==='function' ? progressSyncStatus() : 'Guest: บันทึกในเครื่องนี้';
+    note=syncText+' ('+done+'/'+ACHIEVEMENTS.length+') · Soul Coins '+soulCoins().toLocaleString();
+    cards=ACHIEVEMENTS.map(a=>{
+      const ok=hasAchievement(a.id);
+      const meta=(ok?'สำเร็จแล้ว':'ยังไม่สำเร็จ')+' / รางวัล: '+achievementRewardText(a);
+      return guideTextCard((ok?'[DONE] ':'[LOCKED] ')+a.name, a.desc, meta, 'achievement '+(ok?'done':'locked'));
+    }).join('');
+  } else if(kind==='pets'){
+    title='Pets';
+    const state=loadPetState();
+    const ownedCount=Object.keys(state.owned||{}).length;
+    const selected=petById(selectedPetId());
+    note='Soul Coins '+soulCoins().toLocaleString()+' · ซื้อแล้ว '+ownedCount+'/'+PETS.length+' · '+(selected?'ใช้งาน: '+selected.name:'ยังไม่ได้เลือก Pet');
+    cards=guideSectionTitle('ร้านสัตว์เลี้ยง','ไม่มีตัวฟรี ซื้อขาดถาวร และเลือกใช้ได้ 1 ตัวต่อรัน')+
+      guideTextCard('Soul Coins','ได้จากการจบรันแบบจำนวนน้อย และจาก Achievement บางอันครั้งเดียว','Pet ราคาแพงเพื่อเป็นเป้าหมายระยะยาว','legendary')+
+      '<div class="petnone"><button data-pet-select="">เล่นโดยไม่มี Pet</button></div>'+
+      PETS.map(guidePetCard).join('');
   } else if(kind==='events'){
     title='อีเวนต์';
     note='เหตุการณ์พิเศษเพิ่มความปั่น รางวัล หรือปัญหาระยะสั้นให้ต้องแก้ระหว่างรัน';
@@ -744,9 +1333,9 @@ function openGuide(kind){
     title='คู่มือแผนที่';
     note='แต่ละแผนที่จะเปลี่ยนชนิดศัตรู จังหวะเกม และแรงกดดันจากบอส';
     cards=[
-      guideTextCard('Map 1: Bleakfield','ด่านเริ่มต้น มีเวฟช่วงต้น มินิบอสตัวแรกตอน 3:00 และเสาแม่เหล็ก 1 ต้น','ใช้ตั้งทิศทางบิลด์ช่วงต้น'),
-      guideTextCard('Map 2: Fenmire','ด่านบึงแดง ศัตรูแรงขึ้น object เยอะขึ้น และมีเสาแม่เหล็ก 1-2 ต้น','ฆ่าบอสเพื่อเปิดทางไปด่านถัดไป'),
-      guideTextCard('Map 3: Void Rift','ด่านบอสสุดท้าย เข้าไปแล้วเจอบอสทันทีพร้อมเวฟช่วยตีหนัก','บอสมีเลือด 3 หลอดและลูกเล่นหลายเฟส'),
+      guideTextCard('Map 1: '+((MAP_THEMES[1]&&MAP_THEMES[1].name)||'Bleakfield'),'ด่านเริ่มต้น มีเวฟช่วงต้น มินิบอสตัวแรกตอน 3:00 และเสาแม่เหล็ก 1 ต้น','ใช้ตั้งทิศทางบิลด์ช่วงต้น'),
+      guideTextCard('Map 2: '+((MAP_THEMES[2]&&MAP_THEMES[2].name)||'Crimson Wastes'),'ด่านแดนร้างสีเลือด ศัตรูแรงขึ้นมาก object เยอะขึ้น และมีเสาแม่เหล็ก 1-2 ต้น','ฆ่าบอสเพื่อเปิดทางไปด่านถัดไป'),
+      guideTextCard('Map 3: '+((MAP_THEMES[3]&&MAP_THEMES[3].name)||'Void Citadel'),'ด่านบอสสุดท้าย เข้าไปแล้วเจอบอสทันทีพร้อมเวฟช่วยตีหนัก','บอสมีเลือด 3 หลอดและลูกเล่นหลายเฟส'),
       guideTextCard('วาร์ปศัตรูไกล','ศัตรูที่อยู่ไกลเกินไปจะกลับมาเกิดรอบผู้เล่นโดยไม่ฟื้นเลือดที่เสียไป','ช่วยให้แรงกดดันไม่หาย')
     ].join('');
   } else if(kind==='combat'){
@@ -760,7 +1349,7 @@ function openGuide(kind){
       guideTextCard('บิลด์ Ricochet','Football เด้งต่อเป้าหมาย, Shield Toss ทะลุก่อนเด้ง, Bone Boomerang ยิงเป็นโค้งคู่, Bouncing Bomb ทิ้งแรงระเบิด','Ricochet ไม่ส่งผลกับ melee, nova, orbit, smite หรือ lightning'),
       guideTextCard('Knockback','แรงผลักศัตรู ยิ่งเข้า Overtime ศัตรูยิ่งต้านแรงผลักมากขึ้น','ผู้เล่นเองก็โดนมอนสเตอร์ตีจนกระเด็นได้'),
       guideTextCard('Guard','Orbiting Skull บล็อกดาเมจได้ หัวกะโหลกจะหายไปเมื่อบล็อกแล้วค่อยฟื้นตามคูลดาวน์','มีกะโหลกมากเท่ากับกันตายได้มากขึ้น'),
-      guideTextCard('Overtime','หลังเวลาปกติ ทุก 30 วินาทีพลังและจำนวนศัตรูจะกระโดดตามแผนที่ Map 3 เริ่มหลังบอสสุดท้ายตาย','Map 1 x2 / Map 2 x3 / Map 3 x4')
+      guideTextCard('Overtime','หลังเวลาปกติ ทุก 30 วินาทีพลังและจำนวนศัตรูจะคูณแรงขึ้น Map 3 เริ่มหลังบอสสุดท้ายตาย','ทุก Map เริ่ม x2 แล้วทวีคูณทุก 30 วินาที')
     ].join('');
   } else if(kind==='shrine'){
     title='Shrine';
@@ -798,14 +1387,14 @@ function openGuide(kind){
     cards=[
       guideTextCard('เฉพาะเวอร์ชันปัจจุบัน','คะแนนจาก build เก่าจะถูกปฏิเสธ เพื่อให้ทุกคนแข่งด้วยกติกาเดียวกัน','รันที่ถูกปฏิเสธจะไม่ขึ้น ranking'),
       guideTextCard('ที่มาของคะแนน','จำนวน kill, บอส, เวลารอดชีวิต, ความคืบหน้าแผนที่ และรางวัลที่เลือก มีผลกับคะแนน','เสาแม่เหล็กอาจให้คะแนนน้อยหรือไม่ให้เลย'),
-      guideTextCard('ชื่อผู้เล่น','ชื่อที่กรอกก่อนเริ่มเกมจะใช้แสดงบน ranking','ช่วงแรกยังไม่ต้อง login'),
+      guideTextCard('ชื่อผู้เล่น','ชื่อที่กรอกก่อนเริ่มเกมจะใช้แสดงบน ranking','Guest เล่นได้ แต่ Login จะทำให้คะแนนเป็น Verified'),
       guideTextCard('ธงประเทศ','เลือกประเทศก่อนเริ่มรัน และแสดงธงด้วย CSS เพื่อให้ใช้ได้บน PC','เหมาะกับการแข่งกันเล่นแบบขำ ๆ')
     ].join('');
   } else if(kind==='monsters'){
     title='สารานุกรมมอนสเตอร์';
-    note='มอนสเตอร์ปกติ แยกตามแผนที่และพฤติกรรมหลัก';
-    note='มอนสเตอร์ปกติ แยกตามแผนที่และพฤติกรรมหลัก';
-    const mapName=t=>t.tier===0?'Map 1 Bleakfield':t.tier===1?'Map 2 Fenmire':'Map 3 Void Rift';
+    note='มอนสเตอร์ปกติ แยกตามโซน/แผนที่และพฤติกรรมหลัก';
+    const mn=n=>(MAP_THEMES[n]&&MAP_THEMES[n].name)||('Map '+n);
+    const mapName=t=>t.tier===0?('Map 1 · '+mn(1)):t.tier===1?('Map 2 · '+mn(2)):('Map 3 · '+mn(3));
     cards=ENEMY_TYPES.slice().sort((a,b)=>a.tier-b.tier||a.name.localeCompare(b.name)).map(e=>{
       const desc=unitBehaviorText(e)+' / '+mapName(e);
       const meta='เลือด '+e.hp+' / โจมตี '+e.atk+' / ความเร็ว '+e.spd+' / XP '+e.xp;
@@ -814,20 +1403,24 @@ function openGuide(kind){
   } else if(kind==='bosses'){
     title='สารานุกรมบอส';
     note='บอสและมินิบอส พร้อมสกิลสำคัญที่ต้องระวัง';
-    note='บอสและมินิบอส พร้อมสกิลสำคัญที่ต้องระวัง';
+    const mnb=n=>(MAP_THEMES[n]&&MAP_THEMES[n].name)||('Map '+n);
     const minis=MINIBOSS_TYPES.map(e=>
       guideUnitCard(unitSpritePath(e.sprite), e.name, 'มินิบอส / '+skillListFor(e.sprite, typeof MB_SKILLS!=='undefined'?MB_SKILLS:null), 'เลือด '+e.hp+' / โจมตี '+e.atk+' / ความเร็ว '+e.spd, 'boss')
     ).join('');
     const bosses=BOSS_TYPES.map(e=>{
-      const where=e.final?'Map 3 บอสสุดท้าย':e.name==='Lich King'||e.name==='Abyssal Behemoth'?'Map 1 กลุ่มบอส':'Map 2 กลุ่มบอส';
+      const where=e.final?('Map 3 · '+mnb(3)+' (บอสสุดท้าย)'):e.name==='Lich King'?('Map 1 · '+mnb(1)):e.name==='Abyssal Behemoth'?('Map 1–2 · '+mnb(1)+'/'+mnb(2)):('Map 2 · '+mnb(2));
       return guideUnitCard(unitSpritePath(e.sprite+'_8dir'), e.name, where+' / '+skillListFor(e.sprite, typeof BOSS_SKILLS!=='undefined'?BOSS_SKILLS:null), 'เลือด '+e.hp+' / โจมตี '+e.atk+(e.final?' / เลือด 3 หลอด':''), 'boss');
     }).join('');
     cards=minis+bosses;
   } else {
     return openGuide('hub');
   }
+  if(tr('guide.'+kind)) title=tr('guide.'+kind);
+  if(tr('guide.'+kind+'.desc')) note=tr('guide.'+kind+'.desc');
   body.innerHTML='<div class="guidehead"><h2>'+escHtml(title)+'</h2><span>'+escHtml(note)+'</span></div><div class="guidegrid '+escHtml(kind)+'">'+cards+'</div>';
   body.querySelectorAll('[data-jump]').forEach(btn=>btn.onclick=()=>openGuide(btn.dataset.jump));
+  body.querySelectorAll('[data-pet-buy]').forEach(btn=>btn.onclick=()=>buyPet(btn.getAttribute('data-pet-buy')));
+  body.querySelectorAll('[data-pet-select]').forEach(btn=>btn.onclick=()=>selectPet(btn.getAttribute('data-pet-select')||''));
   guide.style.display='flex';
 }
 function closeGuide(){
@@ -835,15 +1428,65 @@ function closeGuide(){
   if(guide) guide.style.display='none';
 }
 function selectCharacter(key){
+  if(!isCharacterUnlocked(key)){
+    showToast(tr('common.locked')+': '+unlockRequirement('character', key), 2.8);
+    return;
+  }
   currentChar=key;
   document.getElementById('select').style.display='none';
   document.getElementById('over').style.display='none';
+  if(unlockedPacts().length){
+    openPactSelect();
+    return;
+  }
+  setActivePacts([]);
+  beginSelectedRun();
+}
+function beginSelectedRun(){
+  document.getElementById('pactselect').style.display='none';
   started=true; restart();
   heroQuip('start',1,2.8);
+  petReact('start', true);
+}
+function openPactSelect(){
+  selectedPactIds = [];
+  buildPactSelect();
+  document.getElementById('pactselect').style.display='flex';
+}
+function buildPactSelect(){
+  const wrap=document.getElementById('pactcards');
+  const mult=document.getElementById('pactmult');
+  const lastBtn=document.getElementById('pactlast');
+  if(!wrap || !mult) return;
+  wrap.innerHTML='';
+  const currentMult=calcPactMultiplier(selectedPactIds);
+  mult.textContent=tr('common.score')+' x'+currentMult.toFixed(2);
+  mult.classList.toggle('hot', currentMult>=1.75);
+  for(const p of PACTS){
+    const unlocked=isPactUnlocked(p.id);
+    const selected=selectedPactIds.includes(p.id);
+    const d=document.createElement('div');
+    d.className='pactcard '+(selected?'selected ':'')+(unlocked?'':'locked');
+    d.innerHTML='<span class="pactbadge '+escHtml(p.tier)+'">+'+Math.round(p.bonus*100)+'%</span>'
+      +'<b>'+escHtml(pactName(p))+'</b><p>'+escHtml(pactDesc(p))+'</p>'
+      +'<small>'+escHtml(unlocked ? pactTitle(p) : tr('common.locked')+': '+pactUnlockText(p))+'</small>';
+    d.onclick=()=>{
+      if(!unlocked){ showToast(tr('common.locked')+': '+pactUnlockText(p),2.5); return; }
+      if(selectedPactIds.includes(p.id)) selectedPactIds=selectedPactIds.filter(id=>id!==p.id);
+      else selectedPactIds.push(p.id);
+      buildPactSelect();
+    };
+    wrap.appendChild(d);
+  }
+  if(lastBtn){
+    const last=lastPactLoadout();
+    lastBtn.className=last.length?'':'disabled';
+    lastBtn.textContent=last.length ? tr('common.useLast',{mult:calcPactMultiplier(last).toFixed(2)}) : tr('common.noLast');
+  }
 }
 const UPGRADES = [
   { id:'might',    name:'Might',      desc:'ดาเมจ +15%',        icon:'tomeic_might',     apply:()=>{ player.dmgMul*=1.15; } },
-  { id:'vitality', name:'Vitality',   desc:'เลือดสูงสุด +25 และฮีลทันที',   icon:'tomeic_vitality',  apply:()=>{ player.maxHp+=25; player.hp=Math.min(healCap(player), player.hp+25); } },
+  { id:'vitality', name:'Vitality',   desc:'เลือดสูงสุด +25 และฮีลทันที',   icon:'tomeic_vitality',  apply:()=>{ player.maxHp+=25; player.hp=Math.min(healCap(player), player.hp+scaledHeal(25)); } },
   { id:'celerity', name:'Celerity',   desc:'ความเร็วโจมตี +10%',  icon:'tomeic_celerity',  apply:()=>{ player.rateMul*=1.10; } },
   { id:'precision',name:'Precision',  desc:'ระยะโจมตี +25%',         icon:'tomeic_precision', apply:()=>{ player.rangeMul*=1.25; } },
   { id:'multishot',name:'Multishot',  desc:'จำนวนกระสุน/วัตถุโจมตี +1',      icon:'tomeic_multishot', apply:()=>{ player.countBonus+=1; } },
@@ -852,7 +1495,7 @@ const UPGRADES = [
   { id:'magnet',   name:'Magnetism',  desc:'ระยะดูดของ +30%',  icon:'tomeic_magnet', apply:()=>{ player.magnet*=1.3; } },
   { id:'exp',      name:'Experience', desc:'XP ที่ได้รับ +15%',       icon:'tomeic_exp',apply:()=>{ player.xpMul*=1.15; } },
   { id:'greed',    name:'Greed',      desc:'ทองที่ได้รับ +20%',          icon:'tomeic_greed',     apply:()=>{ player.goldMul*=1.2; } },
-  { id:'fortitude',name:'Fortitude',  desc:'เกราะ +5',           icon:'tomeic_fortitude', apply:()=>{ player.def+=5; } },
+  { id:'fortitude',name:'Fortitude',  desc:'เกราะ +4',           icon:'tomeic_fortitude', apply:()=>{ player.def+=4; } },
   { id:'lifesteal',name:'Lifesteal',  desc:'ฆ่าศัตรูแล้วฟื้นเลือด +1',     icon:'tomeic_lifesteal',  apply:()=>{ player.lifesteal+=1; } },
   { id:'duration', name:'Persistence',desc:'อายุกระสุน/วัตถุโจมตี +20%, ระยะเวลา AoE +10%',icon:'tomeic_duration',    apply:()=>{ player.lifeMul*=1.20; player.areaLifeMul*=1.10; } },
   { id:'velocity', name:'Velocity',   desc:'ความเร็วกระสุน/วัตถุโจมตี +20%',icon:'tomeic_velocity',apply:()=>{ player.projSpeedMul*=1.2; } },
@@ -879,23 +1522,15 @@ const RELICS = [
 function evolveTomeNeed(w){
   return player && player._ancientAnvil && !player._anvilUsed && w && !w.evolved ? 2 : 3;
 }
-function tomeName(id){
-  const u=UPGRADES.find(x=>x.id===id);
-  return u ? u.name : id;
-}
-function weaponName(key){
-  const w=WEAPON_TYPES[key]||{};
-  return w.name||key;
-}
 function evolveStateForWeapon(w){
   const t=w&&WEAPON_TYPES[w.key];
   if(!t || !t.evolveTo || w.evolved) return { state:'none', text:'' };
   const need=evolveTomeNeed(w);
   const have=(player.tomeCount&&player.tomeCount[t.evolveTome])||0;
-  if(w.lvl>=8 && have>=need) return { state:'ready', text:'พร้อมวิวัฒน์ด้วย '+tomeName(t.evolveTome) };
-  if(w.lvl>=8 && have===need-1) return { state:'almost', text:'1 more '+tomeName(t.evolveTome)+' to evolve' };
-  if(have>0) return { state:'pair', text:'จับคู่กับ '+tomeName(t.evolveTome)+' ('+have+'/'+need+')' };
-  return { state:'none', text:'วิวัฒน์คู่กับ '+tomeName(t.evolveTome) };
+  if(w.lvl>=8 && have>=need) return { state:'ready', text:tr('common.ready')+' '+tr('common.evolve')+': '+tomeName(t.evolveTome) };
+  if(w.lvl>=8 && have===need-1) return { state:'almost', text:(gameLang()==='en'?'1 more ':'ขาดอีก 1 ')+tomeName(t.evolveTome) };
+  if(have>0) return { state:'pair', text:tr('common.pairWith',{name:tomeName(t.evolveTome)})+' ('+have+'/'+need+')' };
+  return { state:'none', text:tr('common.evoPair')+': '+tomeName(t.evolveTome) };
 }
 function evolveStateForTome(id){
   if(!id || !player || !player.weapons) return { state:'none', text:'' };
@@ -904,33 +1539,33 @@ function evolveStateForTome(id){
     const t=WEAPON_TYPES[w.key];
     if(!t || !t.evolveTo || t.evolveTome!==id || w.evolved) continue;
     const need=evolveTomeNeed(w), have=(player.tomeCount&&player.tomeCount[id])||0;
-    let cur={ state:'pair', text:'จับคู่กับ '+weaponName(w.key) };
-    if(w.lvl>=8 && have>=need) cur={ state:'ready', text:weaponName(w.key)+' พร้อมวิวัฒน์' };
+    let cur={ state:'pair', text:tr('common.pairWith',{name:weaponName(w.key)}) };
+    if(w.lvl>=8 && have>=need) cur={ state:'ready', text:weaponName(w.key)+' '+tr('common.ready') };
     else if(w.lvl>=8 && have===need-1) cur={ state:'almost', text:'เลือกอันนี้เพื่อเตรียมวิวัฒน์ '+weaponName(w.key) };
-    else if(have>0) cur={ state:'pair', text:'จับคู่กับ '+weaponName(w.key)+' ('+have+'/'+need+')' };
+    else if(have>0) cur={ state:'pair', text:tr('common.pairWith',{name:weaponName(w.key)})+' ('+have+'/'+need+')' };
     if(priority[cur.state]>priority[best.state]) best=cur;
   }
   return best;
 }
 function evolveHintForChoice(u){
   if(!u || !player) return null;
-  if(u.id && u.id.startsWith('evo_')) return { state:'ready', label:'พร้อมวิวัฒน์', text:'เลือกตอนนี้เพื่อวิวัฒน์อาวุธนี้' };
+  if(u.id && u.id.startsWith('evo_')) return { state:'ready', label:tr('common.ready'), text:tr('common.chooseEvolve') };
   if(u.id && u.id.startsWith('w_')){
     const key=u.id.slice(2), w=player.weapons.find(x=>x.key===key);
     if(w){
       const st=evolveStateForWeapon(w);
-      if(st.state!=='none') return { state:st.state, label:st.state==='ready'?'พร้อม':st.state==='almost'?'ใกล้พร้อม':'คู่วิวัฒน์', text:st.text };
+      if(st.state!=='none') return { state:st.state, label:st.state==='ready'?tr('common.ready'):st.state==='almost'?tr('common.almost'):tr('common.evoPair'), text:st.text };
     }
     const t=WEAPON_TYPES[key];
-    if(t && t.evolveTome && player.tomeCount[t.evolveTome]) return { state:'pair', label:'คู่วิวัฒน์', text:'จับคู่กับ '+tomeName(t.evolveTome) };
+    if(t && t.evolveTome && player.tomeCount[t.evolveTome]) return { state:'pair', label:tr('common.evoPair'), text:tr('common.pairWith',{name:tomeName(t.evolveTome)}) };
   } else if(u.id){
     const st=evolveStateForTome(u.id);
-    if(st.state!=='none') return { state:st.state, label:st.state==='ready'?'พร้อม':st.state==='almost'?'ใกล้พร้อม':'คู่วิวัฒน์', text:st.text };
+    if(st.state!=='none') return { state:st.state, label:st.state==='ready'?tr('common.ready'):st.state==='almost'?tr('common.almost'):tr('common.evoPair'), text:st.text };
   }
   return null;
 }
 function relicCard(r,i){
-  return '<img src="'+escHtml(spriteSrc(r.icon))+'"><div class="nm">'+r.name+'</div><div class="ds">'+r.desc+'</div><div class="key">[ '+(i+1)+' ]</div>';
+  return '<img src="'+escHtml(spriteSrc(r.icon))+'"><div class="nm">'+escHtml(r.name)+'</div><div class="ds">'+escHtml(r.desc)+'</div><div class="key">[ '+(i+1)+' ]</div>';
 }
 function openRelicChoice(nextStage){
   const pool=RELICS.filter(r=>!(player.relics||[]).some(x=>x.id===r.id));
@@ -952,9 +1587,10 @@ function pickRelic(i){
   pendingRelicPortal=null;
   paused=false;
   if(nextStage) altarToPortal('nextStage', nextStage);
-  showToast('ได้รับ Relic: '+r.name,2.4);
+  showToast((gameLang()==='en'?'Relic gained: ':'ได้รับ Relic: ')+r.name,2.4);
 }
 const MAX_TOMES = 4;   // เลือก tome ได้สูงสุด 4 ชนิด (เก็บซ้อนได้ไม่จำกัด)
+const CHOICE_BANS_PER_RUN = 5;
 function isBannedChoice(u){
   return !!(u && player.bannedChoices && player.bannedChoices[u.id]);
 }
@@ -966,11 +1602,45 @@ function canBanChoice(u){
   }
   return !player.tomeCount[u.id];
 }
+function weaponChoiceHintText(key){
+  const t=WEAPON_TYPES[key];
+  if(!t || !t.evolveTo) return '';
+  const owned=player && player.weapons && player.weapons.find(x=>x.key===key);
+  const need=evolveTomeNeed(owned);
+  return ' · '+tr('common.evolve')+': '+tomeName(t.evolveTome)+' x'+need+' @Lv8';
+}
+function localizedChoiceName(u){
+  if(!u) return '';
+  if(u.id && u.id.startsWith('evo_')){
+    const key=u.id.slice(4);
+    const ev=(WEAPON_TYPES[key]&&WEAPON_TYPES[key].evolveTo)||key;
+    return '★ '+tr('common.evolve')+': '+weaponName(ev);
+  }
+  if(u.id && u.id.startsWith('w_')){
+    const key=u.id.slice(2);
+    const owned=player && player.weapons && player.weapons.find(w=>w.key===key);
+    return owned ? weaponName(key)+' Lv'+(owned.lvl+1) : tr('common.new')+': '+weaponName(key);
+  }
+  return tomeName(u);
+}
+function localizedChoiceDesc(u){
+  if(!u) return '';
+  if(u.id && u.id.startsWith('evo_')){
+    const key=u.id.slice(4);
+    const ev=(WEAPON_TYPES[key]&&WEAPON_TYPES[key].evolveTo)||key;
+    return weaponDesc(ev);
+  }
+  if(u.id && u.id.startsWith('w_')){
+    const key=u.id.slice(2);
+    return weaponDesc(key)+weaponChoiceHintText(key);
+  }
+  return tomeDesc(u);
+}
 function choiceCard(u,i){
-  const ban=canBanChoice(u) ? '<button class="banbtn" data-ban="'+i+'">Ban '+player.bansRemaining+'</button>' : '';
+  const ban=canBanChoice(u) ? '<button class="banbtn" data-ban="'+i+'">'+escHtml(tr('common.ban'))+' '+player.bansRemaining+'</button>' : '';
   const hint=evolveHintForChoice(u);
   const badge=hint ? '<div class="evobadge '+hint.state+'">'+escHtml(hint.label)+'</div><div class="evohint">'+escHtml(hint.text)+'</div>' : '';
-  return '<img src="'+escHtml(spriteSrc(u.icon))+'">'+badge+'<div class="nm">'+u.name+'</div><div class="ds">'+u.desc+'</div><div class="key">[ '+(i+1)+' ]</div>'+ban;
+  return '<img src="'+escHtml(spriteSrc(u.icon))+'">'+badge+'<div class="nm">'+escHtml(localizedChoiceName(u))+'</div><div class="ds">'+escHtml(localizedChoiceDesc(u))+'</div><div class="key">[ '+(i+1)+' ]</div>'+ban;
 }
 function openUpgradeChoice(){
   // Once 4 distinct tomes are taken, only offer those (level them up), no new tome types.
@@ -997,7 +1667,7 @@ function banUpgrade(i){
   if(!canBanChoice(u)) return;
   player.bannedChoices[u.id]=true;
   player.bansRemaining--;
-  showToast('แบน '+u.name, 1.1);
+  showToast(tr('common.ban')+' '+localizedChoiceName(u), 1.1);
   openUpgradeChoice();
 }
 function skipUpgrade(){
@@ -1012,7 +1682,7 @@ function checkEvolveReady(){
     const t = WEAPON_TYPES[w.key];
     if (t && t.evolveTo && !w.evolved && !w.evoAnnounced && w.lvl>=8 && (player.tomeCount[t.evolveTome]||0)>=evolveTomeNeed(w)){
       w.evoAnnounced = true;
-      showToast('⚡ '+t.name+' พร้อมวิวัฒน์ — เลือกการ์ด ★ ตอนอัพเลเวล!', 3.5);
+      showToast('★ '+weaponName(w.key)+' '+(gameLang()==='en'?'is ready to evolve. Pick the ★ card on level up!':'พร้อมวิวัฒน์ เลือกการ์ด ★ ตอนอัปเลเวล!'), 3.5);
       sfx('levelup');
     }
   }
@@ -1024,10 +1694,20 @@ function atkTimeScale(){ return Math.min(2.4, 1 + gameTime/420); }
 // Map 2+ ramps hard: enemies/minibosses/bosses get much tougher each stage.
 function stageHpMul(){ return mapStage>=3 ? 4.8 : mapStage>=2 ? 2.7 : 1; }
 function stageAtkMul(){ return mapStage>=3 ? 2.4 : mapStage>=2 ? 1.75 : 1; }
-function normalHpScale(tier){ return timeScale()*1.10*[1,1.22,1.48][tier||0]*stageHpMul()*otPowerMul(); }
+function normalHpScale(tier){ return timeScale()*1.10*[1,1.22,1.48][tier||0]*stageHpMul()*otPowerMul()*pactNormalHpMul(); }
 function normalAtkScale(tier){ return atkTimeScale()*[1,1.12,1.27][tier||0]*stageAtkMul()*otPowerMul(); }
 function minibossHpScale(){ return timeScale()*1.35*(mapStage>=3 ? 5.0 : mapStage>=2 ? 2.9 : 1)*otPowerMul(); }
 function bossHpScale(){ return timeScale()*1.45*(mapStage>=3 ? 5.8 : mapStage>=2 ? 3.1 : 1)*otPowerMul(); }
+function bossRegenCap(e){
+  if(e && e.final && e.phaseHp && e.finalPhase) return e.phaseHp*e.finalPhase;
+  return e && e.maxHp ? e.maxHp : 0;
+}
+function bossRegenRate(e){
+  if(!e || !e.isBoss || e.phaseInvuln>0) return 0;
+  const pct=e.isStageBoss ? (e.final?0.0018:0.0024) : (e.elite?0.0011:0.0009);
+  const flat=e.isStageBoss ? (e.final?2.4:3.2) : (e.elite?1.3:1.0);
+  return e.maxHp*pct + flat*otPowerMul();
+}
 const MINIBOSS_SPEED_MUL = 1.18;
 const BOSS_SPEED_MUL = 1.22;
 const MAX_LEVEL = 60;
@@ -1047,21 +1727,21 @@ function progressionProfile(){
   ];
   if(overtimeLevel()){
     const mul=otPowerMul();
-    return {cap:Math.min(overtimeEnemyCap(),Math.round(130*mul)),interval:Math.max(0.25,1.1/mul),batch:Math.min(96,Math.round(10*mul))};
+    return pactHordeProfile({cap:Math.min(overtimeEnemyCap(),Math.round(130*mul)),interval:Math.max(0.25,1.1/mul),batch:Math.min(96,Math.round(10*mul))});
   }
   let a=points[0], b=points[1];
   for(let i=1;i<points.length;i++) if(st>=points[i][0]){ a=points[i]; b=points[Math.min(i+1,points.length-1)]; }
   const f=(st-a[0])/Math.max(1,b[0]-a[0]);
-  return {
+  return pactHordeProfile({
     cap:Math.round(a[1]+(b[1]-a[1])*f),
     interval:a[2]+(b[2]-a[2])*f,
     batch:Math.round(a[3]+(b[3]-a[3])*f)
-  };
+  });
 }
 function hordeSize(number){
   const mul=otPowerMul();
   const base=number<=1 ? 35 : number===2 ? 55 : Math.round(55*Math.pow(1.2,number-2));
-  return Math.min(overtimeEnemyCap(),Math.round(base*mul));
+  return Math.min(overtimeEnemyCap(),pactHordeSize(Math.round(base*mul)));
 }
 function updateOvertimeWarning(){
   if(mapStage>=3 || overtimeLevel()) return;
@@ -1283,14 +1963,38 @@ function init() {
   makeBorder();
 
   player = makePlayer();
+  applyLocalPetTestUnlock();
   makeAltar();
   for (let i=0;i<4;i++) spawnEnemy();
   document.getElementById('title').style.display='flex';
+  const authReady = (typeof initGameAuth==='function') ? initGameAuth() : Promise.resolve();
   showLeaderboard();
+  authReady.then(()=>{
+    showLeaderboard();
+    updateStartFlow();
+    const resolved = finishPendingAuthChoice() || applyRememberedLogin();
+    if(!resolved && !selectedStartMode) openAuthChoice(false);
+  }).catch(()=>{
+    updateStartFlow();
+    if(!selectedStartMode) openAuthChoice(false);
+  });
   initAudio(); resumeAudio(); startTitleBGM();
-  document.getElementById('playbtn').onclick = ()=>{ initAudio(); resumeAudio(); stopTitleBGM(); openPlayerSetup(); };
+  { const gb=document.getElementById('guestchoice'); if(gb) gb.onclick = chooseGuestStart; }
+  { const gp=document.getElementById('googlechoice'); if(gp) gp.onclick = chooseGoogleStart; }
+  { const gi=document.getElementById('startmode_guest'); if(gi) gi.onchange = ()=>selectStartMode('guest'); }
+  { const go=document.getElementById('startmode_google'); if(go) go.onchange = ()=>selectStartMode('google'); }
+  { const pb=document.getElementById('playbtn'); if(pb) pb.onclick = titleStartAction; }
+  updateStartFlow();
   document.getElementById('nameconfirm').onclick = confirmPlayerName;
   document.getElementById('playername').addEventListener('keydown', e=>{ if(e.code==='Enter') confirmPlayerName(); });
+  document.getElementById('pactnone').onclick = ()=>{ selectedPactIds=[]; setActivePacts([]); beginSelectedRun(); };
+  document.getElementById('pactlast').onclick = ()=>{
+    const ids=lastPactLoadout();
+    if(!ids.length){ showToast('ยังไม่มีชุด Pact ล่าสุด',1.6); return; }
+    selectedPactIds=ids.slice();
+    buildPactSelect();
+  };
+  document.getElementById('pactstart').onclick = ()=>{ setActivePacts(selectedPactIds); beginSelectedRun(); };
   document.querySelectorAll('.titlemenu button').forEach(btn=>btn.onclick=()=>openGuide(btn.dataset.guide));
   document.getElementById('guideclose').onclick = closeGuide;
   document.getElementById('guide').onclick = e=>{ if(e.target.id==='guide') closeGuide(); };
@@ -1298,6 +2002,8 @@ function init() {
   addEventListener('resize', onResize);
   document.getElementById('pausebtn').onclick = togglePause;
   startVersionCheck();
+  applyStaticI18n();
+  updateStartFlow();
   document.getElementById('shopreroll').onclick = rerollShop;
   document.getElementById('shopclose').onclick = closeShop;
   document.getElementById('skipupgrade').onclick = skipUpgrade;
@@ -1317,7 +2023,7 @@ function init() {
     if ((e.code==='KeyP'||e.code==='Escape') && !e.repeat && !gameOver && !paused) togglePause();
     if (e.code==='KeyF' && !e.repeat){ if (document.getElementById('shop').style.display==='flex') closeShop(); else activateNearby(); }
     if (e.code==='KeyR' && (gameOver||won)) restart();
-    if (e.code==='KeyC' && (gameOver||won)){ started=false; document.getElementById('select').style.display='none'; document.getElementById('over').style.display='none'; openPlayerSetup(); }
+    if (e.code==='KeyC' && (gameOver||won)){ started=false; selectedPactIds=[]; activePactIds=[]; document.getElementById('pactselect').style.display='none'; document.getElementById('select').style.display='none'; document.getElementById('over').style.display='none'; openPlayerSetup(); }
   });
   addEventListener('keyup', (e)=>{ keys[e.code]=false; });
 
@@ -1362,6 +2068,7 @@ function buildGround() {
   scene.add(ground);
 }
 function buildScenery() {
+  ensureBreakableTextures();
   const scatter=(key, n, h, minR, solidR)=>{
     for (let i=0;i<n;i++){
       const x=(Math.random()*2-1)*MAP_BOUND, z=(Math.random()*2-1)*MAP_BOUND;
@@ -1416,6 +2123,7 @@ function buildScenery() {
       const obstacle={ x, z, r:0.4 }; obstacles.push(obstacle); worldScenery.push({ spr:g, obstacle });
     }
   }
+  scatterBreakables(1, 34);
 }
 function clearWorldScenery(){
   for(const p of worldScenery){
@@ -1446,6 +2154,71 @@ function pixelPropTexture(key,w,h,draw){
   const t=new THREE.CanvasTexture(cv);
   t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
   tex[key]=t;
+}
+function ensureBreakableTextures(){
+  if(tex.obj_clay_jar && tex.obj_wood_crate && tex.obj_crimson_jar && tex.obj_charred_crate) return;
+  pixelPropTexture('obj_clay_jar',28,34,(c)=>{
+    c.fillStyle='rgba(0,0,0,0.20)'; c.fillRect(7,29,15,3);
+    c.fillStyle='#2b1612'; c.fillRect(9,7,10,3); c.fillRect(6,13,16,15); c.fillRect(9,28,10,3);
+    c.fillStyle='#7a3d29'; c.fillRect(8,12,14,16); c.fillRect(11,9,8,3); c.fillRect(10,28,8,2);
+    c.fillStyle='#b86239'; c.fillRect(10,13,9,14); c.fillRect(12,10,5,3);
+    c.fillStyle='#e4a36a'; c.fillRect(12,12,3,4); c.fillRect(10,18,2,6);
+    c.fillStyle='#4b241c'; c.fillRect(7,22,3,5); c.fillRect(19,20,2,6);
+  });
+  pixelPropTexture('obj_wood_crate',34,30,(c)=>{
+    c.fillStyle='rgba(0,0,0,0.22)'; c.fillRect(6,27,22,3);
+    c.fillStyle='#24120c'; c.fillRect(6,8,22,20);
+    c.fillStyle='#5f3820'; c.fillRect(8,10,18,16);
+    c.fillStyle='#9a6030'; c.fillRect(9,11,16,4); c.fillRect(9,18,16,5); c.fillRect(13,10,4,16);
+    c.fillStyle='#d09755'; c.fillRect(10,12,7,2); c.fillRect(18,19,5,2);
+    c.fillStyle='#33170f'; c.fillRect(7,8,20,2); c.fillRect(7,26,20,2); c.fillRect(6,9,2,18); c.fillRect(27,9,2,18);
+    c.fillStyle='#2a120b'; c.fillRect(10,24,15,2); c.fillRect(22,13,2,10);
+  });
+  pixelPropTexture('obj_crimson_jar',30,36,(c)=>{
+    c.fillStyle='rgba(0,0,0,0.22)'; c.fillRect(7,31,16,3);
+    c.fillStyle='#23090a'; c.fillRect(9,8,11,4); c.fillRect(6,14,18,16); c.fillRect(10,30,10,3);
+    c.fillStyle='#662020'; c.fillRect(8,13,15,17); c.fillRect(12,10,7,3);
+    c.fillStyle='#b8342d'; c.fillRect(11,14,9,14); c.fillRect(13,11,4,3);
+    c.fillStyle='#ff7a4f'; c.fillRect(13,15,2,5); c.fillRect(11,22,2,4);
+    c.fillStyle='#3a0f12'; c.fillRect(20,19,2,7); c.fillRect(7,23,2,5);
+  });
+  pixelPropTexture('obj_charred_crate',36,30,(c)=>{
+    c.fillStyle='rgba(0,0,0,0.26)'; c.fillRect(6,27,24,3);
+    c.fillStyle='#160b08'; c.fillRect(6,8,24,20);
+    c.fillStyle='#3b2015'; c.fillRect(8,10,20,16);
+    c.fillStyle='#6e2d1f'; c.fillRect(9,11,18,4); c.fillRect(9,19,18,5); c.fillRect(14,10,4,17);
+    c.fillStyle='#d85a2f'; c.fillRect(11,12,4,1); c.fillRect(22,20,3,1);
+    c.fillStyle='#27100b'; c.fillRect(7,8,22,2); c.fillRect(7,26,22,2); c.fillRect(6,9,2,18); c.fillRect(29,9,2,18);
+    c.fillStyle='#ff9a3d'; c.fillRect(25,11,2,3); c.fillRect(10,23,2,2);
+  });
+}
+function spawnBreakable(stage,x,z,kind){
+  const crimson=stage>=2;
+  const key=kind==='crate' ? (crimson?'obj_charred_crate':'obj_wood_crate') : (crimson?'obj_crimson_jar':'obj_clay_jar');
+  const h=kind==='crate' ? 0.72 : 0.82;
+  const spr=billboard(key,h*(0.9+Math.random()*0.24));
+  spr.position.set(x, groundHeight(x,z), z);
+  scene.add(spr);
+  breakables.push({
+    x,z,stage,kind,key,spr,alive:true,born:gameTime||0,
+    hp:kind==='crate' ? 18 : 12,
+    r:kind==='crate' ? 0.54 : 0.42,
+    gold:kind==='crate' ? 2 : 1,
+    xp:kind==='crate' ? 2 : 1,
+    flash:0
+  });
+}
+function scatterBreakables(stage,count){
+  ensureBreakableTextures();
+  let made=0, guard=0;
+  while(made<count && guard++<count*35){
+    const x=(Math.random()*2-1)*MAP_BOUND*0.9, z=(Math.random()*2-1)*MAP_BOUND*0.9;
+    if(Math.hypot(x,z)<9 || blocked(x,z)) continue;
+    const near=breakables.some(b=>b.alive && Math.hypot(b.x-x,b.z-z)<2.2);
+    if(near) continue;
+    spawnBreakable(stage,x,z,Math.random()<0.46?'crate':'jar');
+    made++;
+  }
 }
 function ensureStagePropTextures(){
   pixelPropTexture('map2_blood_crystal',32,44,(c)=>{
@@ -1538,6 +2311,7 @@ function buildStageScenery(stage){
   clearStageScenery();
   if(stage<2) return;
   ensureStagePropTextures();
+  if(stage===2) scatterBreakables(2, 38);
   const options=stage>=3 ? [
     {key:'map3_shard', h:2.5, solid:0.42, weight:0.10},
     {key:'map3_obelisk', h:2.9, solid:0.42, weight:0.09},
@@ -1546,18 +2320,22 @@ function buildStageScenery(stage){
     {key:'map3_rift_crystal', h:1.95, weight:0.16},
     {key:'map3_rune_shard', h:1.15, weight:0.17},
     {key:'map3_void_torch', h:1.8, weight:0.11},
-    {key:'map3_chain_pylon', h:1.7, weight:0.08},
-    {key:'map3_star_rift', h:0.82, weight:0.07}
+    {key:'map3_chain_pylon', h:1.7, weight:0.07},
+    {key:'map3_star_rift', h:0.82, weight:0.07},
+    {key:'map3_rift_arch', h:2.65, weight:0.07},
+    {key:'map3_void_lantern', h:2.15, weight:0.08}
   ] : [
     {key:'map2_rock', h:2.15, solid:0.46, weight:0.10},
     {key:'map2_pillar', h:2.65, solid:0.38, weight:0.08},
     {key:'map2_crystal', h:1.55, weight:0.14},
-    {key:'map2_blood_crystal', h:1.95, weight:0.15},
-    {key:'map2_ember_spire', h:2.25, weight:0.12},
-    {key:'map2_bone_totem', h:1.7, weight:0.10},
-    {key:'map2_crimson_brazier', h:1.25, weight:0.12},
-    {key:'map2_lava_crack', h:0.55, weight:0.11},
-    {key:'map2_blood_root', h:1.45, weight:0.08}
+    {key:'map2_blood_crystal', h:1.95, weight:0.13},
+    {key:'map2_ember_spire', h:2.25, weight:0.11},
+    {key:'map2_bone_totem', h:1.7, weight:0.09},
+    {key:'map2_crimson_brazier', h:1.25, weight:0.10},
+    {key:'map2_lava_crack', h:0.55, weight:0.10},
+    {key:'map2_blood_root', h:1.45, weight:0.08},
+    {key:'map2_altar_shard', h:1.65, weight:0.08},
+    {key:'map2_skull_brazier', h:1.42, weight:0.09}
   ];
   const pick=()=>{
     const total=options.reduce((sum,opt)=>sum+opt.weight,0);
@@ -1605,7 +2383,7 @@ function buildStageScenery(stage){
     }
   }
   let guard=0;
-  const target=stage>=3 ? 155 : 190;
+  const target=stage>=3 ? 175 : 215;
   while(placed<target && guard++<1800){
     const x=(Math.random()*2-1)*MAP_BOUND*0.92, z=(Math.random()*2-1)*MAP_BOUND*0.92;
     const choice=pick();
@@ -1760,6 +2538,7 @@ function makeLootBeacon(color,tier,type){
 const WALK_SHEETS = { 'enemy_abyssal_horror':{sheet:'enemy_abyssal_horror_walk',frames:4,fps:7}, 'enemy_blight_treant':{sheet:'enemy_blight_treant_walk',frames:4,fps:7}, 'enemy_bog_elemental':{sheet:'enemy_bog_elemental_walk',frames:4,fps:7}, 'enemy_bog_fiend':{sheet:'enemy_bog_fiend_walk',frames:4,fps:7}, 'enemy_bone_stalker':{sheet:'enemy_bone_stalker_walk',frames:4,fps:7}, 'enemy_chaos_wisp':{sheet:'enemy_chaos_wisp_walk',frames:4,fps:7}, 'enemy_crypt_spider':{sheet:'enemy_crypt_spider_walk',frames:4,fps:7}, 'enemy_cursed_knight':{sheet:'enemy_cursed_knight_walk',frames:4,fps:7}, 'enemy_dark_apostle':{sheet:'enemy_dark_apostle_walk',frames:4,fps:7}, 'enemy_dire_bat':{sheet:'enemy_dire_bat_walk',frames:4,fps:7}, 'enemy_fen_stalker':{sheet:'enemy_fen_stalker_walk',frames:4,fps:7}, 'enemy_grave_robber':{sheet:'enemy_grave_robber_walk',frames:4,fps:7}, 'enemy_leech_swarm':{sheet:'enemy_leech_swarm_walk',frames:4,fps:7}, 'enemy_marsh_lurker':{sheet:'enemy_marsh_lurker_walk',frames:4,fps:7}, 'enemy_muck_slime':{sheet:'enemy_muck_slime_walk',frames:4,fps:7}, 'enemy_nether_drake':{sheet:'enemy_nether_drake_walk',frames:4,fps:7}, 'enemy_oblivion_orb':{sheet:'enemy_oblivion_orb_walk',frames:4,fps:7}, 'enemy_plague_rat':{sheet:'enemy_plague_rat_walk',frames:4,fps:7}, 'enemy_rift_phantom':{sheet:'enemy_rift_phantom_walk',frames:4,fps:7}, 'enemy_rot_hound':{sheet:'enemy_rot_hound_walk',frames:4,fps:7}, 'enemy_shade':{sheet:'enemy_shade_walk',frames:4,fps:7}, 'enemy_shadow_weaver':{sheet:'enemy_shadow_weaver_walk',frames:4,fps:7}, 'enemy_swamp_witch':{sheet:'enemy_swamp_witch_walk',frames:4,fps:7}, 'enemy_toxic_spore':{sheet:'enemy_toxic_spore_walk',frames:4,fps:7}, 'enemy_void_reaper':{sheet:'enemy_void_reaper_walk',frames:4,fps:7}, 'enemy_void_walker':{sheet:'enemy_void_walker_walk',frames:4,fps:7}, 'enemy_willow_wisp':{sheet:'enemy_willow_wisp_walk',frames:4,fps:7}, 'enemy_wraith':{sheet:'enemy_wraith_walk',frames:4,fps:7}, 'miniboss_colossus':{sheet:'miniboss_colossus_walk',frames:4,fps:7}, 'miniboss_executioner':{sheet:'miniboss_executioner_walk',frames:4,fps:7}, 'miniboss_horror':{sheet:'miniboss_horror_walk',frames:4,fps:7}, 'miniboss_skeleton_lord':{sheet:'miniboss_skeleton_lord_walk',frames:4,fps:7}, 'miniboss_troll':{sheet:'miniboss_troll_walk',frames:4,fps:7}, 'miniboss_warden':{sheet:'miniboss_warden_walk',frames:4,fps:7} };  // enemy 4-frame walk strips
 const DIR_SHEETS = { 'enemy_shade':{key:'enemy_shade_8dir',cols:1,rows:8,fps:1},'enemy_bone_stalker':{key:'enemy_bone_stalker_8dir',cols:1,rows:8,fps:1},'enemy_wraith':{key:'enemy_wraith_8dir',cols:1,rows:8,fps:1},'enemy_dire_bat':{key:'enemy_dire_bat_8dir',cols:1,rows:8,fps:1},'enemy_rot_hound':{key:'enemy_rot_hound_8dir',cols:1,rows:8,fps:1},'enemy_cursed_knight':{key:'enemy_cursed_knight_8dir',cols:1,rows:8,fps:1},'enemy_plague_rat':{key:'enemy_plague_rat_8dir',cols:1,rows:8,fps:1},'enemy_marsh_lurker':{key:'enemy_marsh_lurker_8dir',cols:1,rows:8,fps:1},'enemy_swamp_witch':{key:'enemy_swamp_witch_8dir',cols:1,rows:8,fps:1},'enemy_crypt_spider':{key:'enemy_crypt_spider_8dir',cols:1,rows:8,fps:1},'enemy_bog_fiend':{key:'enemy_bog_fiend_8dir',cols:1,rows:8,fps:1},'enemy_leech_swarm':{key:'enemy_leech_swarm_8dir',cols:1,rows:8,fps:1},'enemy_willow_wisp':{key:'enemy_willow_wisp_8dir',cols:1,rows:8,fps:1},'enemy_fen_stalker':{key:'enemy_fen_stalker_8dir',cols:1,rows:8,fps:1},'enemy_blight_treant':{key:'enemy_blight_treant_8dir',cols:1,rows:8,fps:1},'enemy_muck_slime':{key:'enemy_muck_slime_8dir',cols:1,rows:8,fps:1},'enemy_bog_elemental':{key:'enemy_bog_elemental_8dir',cols:1,rows:8,fps:1},'enemy_void_walker':{key:'enemy_void_walker_8dir',cols:1,rows:8,fps:1},'enemy_abyssal_horror':{key:'enemy_abyssal_horror_8dir',cols:1,rows:8,fps:1},'enemy_nether_drake':{key:'enemy_nether_drake_8dir',cols:1,rows:8,fps:1},'enemy_rift_phantom':{key:'enemy_rift_phantom_8dir',cols:1,rows:8,fps:1},'enemy_oblivion_orb':{key:'enemy_oblivion_orb_8dir',cols:1,rows:8,fps:1},'enemy_dark_apostle':{key:'enemy_dark_apostle_8dir',cols:1,rows:8,fps:1},'miniboss_executioner':{key:'miniboss_executioner_8dir',cols:1,rows:8,fps:1},'miniboss_horror':{key:'miniboss_horror_8dir',cols:1,rows:8,fps:1},'miniboss_skeleton_lord':{key:'miniboss_skeleton_lord_8dir',cols:1,rows:8,fps:1},'miniboss_troll':{key:'miniboss_troll_8dir',cols:1,rows:8,fps:1},'miniboss_warden':{key:'miniboss_warden_8dir',cols:1,rows:8,fps:1},'enemy_grave_robber':{key:'enemy_grave_robber_8dir',cols:1,rows:8,fps:1},'enemy_toxic_spore':{key:'enemy_toxic_spore_8dir',cols:1,rows:8,fps:1},'enemy_chaos_wisp':{key:'enemy_chaos_wisp_8dir',cols:1,rows:8,fps:1},'enemy_shadow_weaver':{key:'enemy_shadow_weaver_8dir',cols:1,rows:8,fps:1},'enemy_void_reaper':{key:'enemy_void_reaper_8dir',cols:1,rows:8,fps:1},'miniboss_colossus':{key:'miniboss_colossus_8dir',cols:1,rows:8,fps:1},'boss_lich':{key:'boss_lich_8dir',cols:1,rows:8,fps:1},'boss_behemoth':{key:'boss_behemoth_8dir',cols:1,rows:8,fps:1},'boss_reaper':{key:'boss_reaper_8dir',cols:1,rows:8,fps:1},'boss_dragon':{key:'boss_dragon_8dir',cols:1,rows:8,fps:1},'boss_overlord':{key:'boss_overlord_8dir',cols:1,rows:8,fps:1} };  // PixelLab 8-dir rotations
 // Auto-fill DIR/WALK sheet configs from the rosters (only missing keys; guarded by tex[] at use sites).
+DIR_SHEETS.boss_butcher={key:'boss_butcher_8dir',cols:1,rows:8,fps:1};
 [].concat(ENEMY_TYPES, MINIBOSS_TYPES, BOSS_TYPES).forEach(t=>{ if(!DIR_SHEETS[t.sprite]) DIR_SHEETS[t.sprite]={key:t.sprite+'_8dir',cols:1,rows:8,fps:1}; });
 [].concat(ENEMY_TYPES, MINIBOSS_TYPES).forEach(t=>{ if(!WALK_SHEETS[t.sprite]) WALK_SHEETS[t.sprite]={sheet:t.sprite+'_walk',frames:4,fps:7}; });
 // 8-direction grid sheets: rows = direction, cols = animation frame.
@@ -1831,8 +2610,8 @@ const SHEETS = {
 // ---- Playable characters: signature weapon + base stats + per-level passive ----
 // (add SHEETS.<sheet> entries when the char_<key>_walk/idle sheets exist; falls back to paladin art)
 const CHARACTERS = {
-  paladin:     { name:'Paladin',     sheet:'player',      weapon:'bolt',
-                 stats:{}, passive:{ desc:'เกราะ +2 / Lv', apply:p=>{ p.def += 2; } } },
+  paladin:     { name:'Paladin',     sheet:'player',      weapon:'shieldtoss',
+                 stats:{ spd:4.0, rateMul:0.85 }, passive:{ desc:'เกราะ +2 / Lv (แทงค์หนัก เดินช้า ตีช้า)', apply:p=>{ p.def += 2; } } },
   huntress:    { name:'Huntress',    sheet:'huntress',    weapon:'spread',
                  stats:{ maxHp:70, spd:5.8 }, passive:{ desc:'ความเร็วโจมตี +3.5% / Lv', apply:p=>{ p.rateMul *= 1.035; } } },
   sorceress:   { name:'Sorceress',   sheet:'sorceress',   weapon:'nova',
@@ -1846,7 +2625,7 @@ const CHARACTERS = {
   slayer:      { name:'Slayer',      sheet:'slayer',      weapon:'bladewhirl',
                  stats:{ maxHp:75 }, passive:{ desc:'ดาเมจ +2.5% / Lv', apply:p=>{ p.dmgMul *= 1.025; } } },
   priestess:   { name:'Priestess',   sheet:'priestess',   weapon:'smite',
-                 stats:{ maxHp:95, regen:0.4 }, passive:{ desc:'ฟื้นเลือด +0.3 และฮีล / Lv', apply:p=>{ p.regen += 0.3; p.hp=Math.min(healCap(p),p.hp+10); } } },
+                 stats:{ maxHp:95, regen:0.4 }, passive:{ desc:'ฟื้นเลือด +0.3 และฮีล / Lv', apply:p=>{ p.regen += 0.3; p.hp=Math.min(healCap(p),p.hp+scaledHeal(10)); } } },
   stormcaller: { name:'Stormcaller', sheet:'stormcaller', weapon:'lightning', portrait:'stormcaller',
                  stats:{ maxHp:70, critChance:0.08 }, passive:{ desc:'ดาเมจคริติคอล +6% / Lv', apply:p=>{ p.critDmg += 0.06; } } },
   assassin:    { name:'Assassin',    sheet:'assassin',    weapon:'dagger', portrait:'assassin',
@@ -1854,7 +2633,7 @@ const CHARACTERS = {
   it_support:  { name:'IT Support',  sheet:'it_support', weapon:'toolstab', portrait:'it_support',
                  stats:{ maxHp:78, spd:5.5, magnet:3.6, critChance:0.07 }, passive:{ desc:'ขนาดสกิล +3% / Lv', apply:p=>{ p.projScale *= 1.03; } } },
   striker:     { name:'Striker',     sheet:'striker',     weapon:'football', portrait:'striker',
-                 stats:{ maxHp:76, spd:5.7, magnet:3.4, critChance:0.06 }, passive:{ desc:'ความเร็วเดิน +1.5%, ความเร็วกระสุน/วัตถุโจมตี +1% / Lv', apply:p=>{ p.spd *= 1.015; p.projSpeedMul *= 1.01; } } },
+                 stats:{ maxHp:76, spd:5.7, magnet:3.4, critChance:0.06 }, passive:{ desc:'ความเร็วเดิน +0.5%, ความเร็วกระสุน/วัตถุโจมตี +1.5% / Lv', apply:p=>{ p.spd *= 1.005; p.projSpeedMul *= 1.015; } } },
 };
 Object.assign(CHARACTERS.paladin, {
   bio:'นักรบศักดิ์สิทธิ์ที่ให้อภัยทุกคน ยกเว้นตอน cooldown พร้อม',
@@ -1916,6 +2695,440 @@ Object.assign(CHARACTERS.striker, {
 });
 let currentChar = 'paladin';
 const MAX_WEAPONS = 3;   // signature + 2
+
+const PETS = [
+  { id:'lumo_wisp', name:'Lumo Wisp', title:'วิญญาณไฟหลงทาง', price:1200, icon:'LW', sprite:'pet_lumo_wisp', sheet:'pet_lumo_wisp_8dir', color:'#7ce7ff',
+    desc:'ดวงไฟตัวจิ๋วลอยตามหลัง ช่วยให้โตไวขึ้นแบบนุ่ม ๆ', buff:'+6% XP gain',
+    apply:p=>{ p.xpMul*=1.06; } },
+  { id:'lantern_bunny', name:'Lantern Bunny', title:'กระต่ายโคมผี', price:1600, icon:'LB', sprite:'pet_lantern_bunny', sheet:'pet_lantern_bunny_8dir', color:'#ffe08a',
+    desc:'ตัวเล็กถือโคมไฟ คอยส่องของที่ตกอยู่รอบตัว', buff:'+8% magnet range',
+    apply:p=>{ p.magnet*=1.08; } },
+  { id:'tiny_gargoyle', name:'Tiny Gargoyle', title:'การ์กอยล์ไซซ์พกพา', price:2200, icon:'TG', sprite:'pet_tiny_gargoyle', sheet:'pet_tiny_gargoyle_8dir', color:'#9fb4c8',
+    desc:'หินมีปีกจอมจริงจัง เกาะตามเหมือนบอดี้การ์ดตัวน้อย', buff:'+10% armor',
+    apply:p=>{ p.armorMul*=1.10; } },
+  { id:'storm_pup', name:'Storm Pup', title:'ลูกหมาป่าฟ้าผ่า', price:2800, icon:'SP', sprite:'pet_storm_pup', sheet:'pet_storm_pup_8dir', color:'#9ee7ff',
+    desc:'วิ่งตามพร้อมประกายไฟฟ้า ทำให้วัตถุโจมตีพุ่งไวขึ้น', buff:'+5% projectile speed',
+    apply:p=>{ p.projSpeedMul*=1.05; } },
+  { id:'grave_kitten', name:'Grave Kitten', title:'แมวสุสาน', price:3600, icon:'GK', sprite:'pet_grave_kitten', sheet:'pet_grave_kitten_8dir', color:'#d887ff',
+    desc:'แมวดำตาเรืองแสง ข่วนโชคชะตาให้ติดคริบ่อยขึ้น', buff:'+4% crit chance',
+    apply:p=>{ p.critChance+=0.04; } },
+  { id:'mini_mimic', name:'Mini Mimic', title:'หีบจิ๋วมีขา', price:4500, icon:'MM', sprite:'pet_mini_mimic', sheet:'pet_mini_mimic_8dir', color:'#ffcc66',
+    desc:'หีบสมบัติที่เลือกอยู่ข้างคุณ ช่วยหาเงินและของดีขึ้นนิดหน่อย', buff:'+5% gold, +3% luck',
+    apply:p=>{ p.goldMul*=1.05; p.luck=(p.luck||0)+0.03; } }
+];
+function petById(id){ return PETS.find(p=>p.id===id); }
+function loadPetState(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(PET_STATE_STORAGE_KEY)||'{}');
+    return { owned:parsed&&parsed.owned?parsed.owned:{}, selected:parsed&&parsed.selected?parsed.selected:'' };
+  }catch(_){ return { owned:{}, selected:'' }; }
+}
+function savePetState(state){
+  try{ localStorage.setItem(PET_STATE_STORAGE_KEY, JSON.stringify(state||{owned:{},selected:''})); }catch(_){}
+}
+function soulCoins(){
+  const n=parseInt(localStorage.getItem(SOUL_COINS_STORAGE_KEY)||'0',10);
+  return Number.isFinite(n) && n>0 ? n : 0;
+}
+function setSoulCoins(v){
+  const n=Math.max(0, Math.floor(v||0));
+  try{ localStorage.setItem(SOUL_COINS_STORAGE_KEY, String(n)); }catch(_){}
+  return n;
+}
+function addSoulCoins(amount, reason){
+  amount=Math.max(0, Math.floor(amount||0));
+  if(!amount) return 0;
+  const total=setSoulCoins(soulCoins()+amount);
+  if(reason) showToast('Soul Coins +'+amount+' · '+reason, 3.2);
+  return total;
+}
+function isPetOwned(id){ return !!(loadPetState().owned||{})[id]; }
+function selectedPetId(){
+  const state=loadPetState();
+  return state.selected && state.owned && state.owned[state.selected] ? state.selected : '';
+}
+function buyPet(id){
+  const p=petById(id), state=loadPetState();
+  if(!p) return false;
+  if(state.owned[p.id]){ selectPet(p.id); return true; }
+  const coins=soulCoins();
+  if(coins<p.price){ showToast('Soul Coins ไม่พอ: ต้องมี '+p.price.toLocaleString(),2.4); return false; }
+  setSoulCoins(coins-p.price);
+  state.owned[p.id]=new Date().toISOString();
+  state.selected=p.id;
+  savePetState(state);
+  showToast('ซื้อ Pet: '+p.name,2.8);
+  openGuide('pets');
+  return true;
+}
+function selectPet(id){
+  const state=loadPetState();
+  if(id && !state.owned[id]){ showToast('ยังไม่ได้ซื้อ Pet ตัวนี้',2); return false; }
+  state.selected=id||'';
+  savePetState(state);
+  const p=petById(id);
+  const quips={
+    lumo_wisp:'วิบวับพร้อมลุย',
+    lantern_bunny:'ถือโคมตามมาแล้ว',
+    tiny_gargoyle:'ทำหน้าเข้ม แต่ตัวเล็ก',
+    storm_pup:'หางสปาร์กด้วยความตื่นเต้น',
+    grave_kitten:'เมี๊ยวแบบต้องสาป',
+    mini_mimic:'หีบจิ๋วขยับขาอย่างภูมิใจ'
+  };
+  showToast(id ? 'เลือก Pet: '+p.name+' — '+(quips[id]||'พร้อมลุย') : 'เล่นโดยไม่มี Pet',2.3);
+  openGuide('pets');
+  return true;
+}
+function unlockAllPetsForTesting(){
+  const state=loadPetState();
+  const now=new Date().toISOString();
+  for(const p of PETS) state.owned[p.id]=state.owned[p.id]||now;
+  if(!state.selected && PETS[0]) state.selected=PETS[0].id;
+  savePetState(state);
+  return state;
+}
+function applyLocalPetTestUnlock(){
+  const host=location.hostname;
+  const local=host==='localhost' || host==='127.0.0.1' || host==='::1';
+  const params=new URLSearchParams(location.search);
+  if(!local || params.get('unlockPets')!=='1') return false;
+  unlockAllPetsForTesting();
+  showToast('TEST: ปลดล็อก Pet ทั้งหมดแล้ว',3);
+  if(history && history.replaceState){
+    params.delete('unlockPets');
+    const qs=params.toString();
+    history.replaceState(null,'',location.pathname+(qs?'?'+qs:'')+location.hash);
+  }
+  return true;
+}
+window.unlockAllPetsForTesting = unlockAllPetsForTesting;
+
+const ACHIEVEMENT_STORAGE_KEY = 'sc3_achievements_v1';
+const STARTER_CHARACTER_KEYS = new Set(['paladin','ranger','sorceress']);
+const STARTER_WEAPON_KEYS = new Set(['shieldtoss','arrow','nova']);
+const ACHIEVEMENTS = [
+  { id:'first_hunt', name:'นักล่ามือใหม่', desc:'ฆ่ามอนสเตอร์ 120 ตัวในรันเดียว',
+    rewards:[{type:'character',key:'huntress'},{type:'weapon',key:'spread'},{type:'item',key:'backpack'},{type:'item',key:'magnet_coil'},{type:'coins',amount:10}],
+    test:c=>c.kills>=120 },
+  { id:'level_10', name:'เริ่มจับทางได้', desc:'ไปถึงเลเวล 15 ในรันเดียว',
+    rewards:[{type:'character',key:'slayer'},{type:'weapon',key:'bladewhirl'},{type:'item',key:'brass_knuckle'},{type:'item',key:'swift_oil'},{type:'coins',amount:30}],
+    test:c=>c.level>=15 },
+  { id:'map2_reached', name:'ข้ามแดนต้องสาป', desc:'เข้าสู่ Map 2 และฆ่าศัตรูอย่างน้อย 250 ตัวในรันเดียว',
+    rewards:[{type:'character',key:'priestess'},{type:'weapon',key:'smite'},{type:'item',key:'holy_book'},{type:'coins',amount:50}],
+    test:c=>(c.stage>=2 && c.kills>=250) || c.won },
+  { id:'first_evolution', name:'ช่างตีอาวุธเงา', desc:'วิวัฒน์อาวุธ 1 ชิ้น และไปถึงเลเวล 25 ในรันเดียว',
+    rewards:[{type:'character',key:'templar'},{type:'weapon',key:'orbit'},{type:'item',key:'spiky_shield'},{type:'item',key:'mirror'},{type:'item',key:'runic_lens'},{type:'coins',amount:50}],
+    test:c=>c.evolved && c.level>=25 },
+  { id:'swift_survivor', name:'หลบไวไม่ถามสุขภาพ', desc:'อยู่รอดอย่างน้อย 12 นาทีในรันเดียว',
+    rewards:[{type:'item',key:'dash_boots'},{type:'item',key:'blink_feather'},{type:'item',key:'phase_cloak'},{type:'item',key:'battle_banner'},{type:'coins',amount:50}],
+    test:c=>c.time>=720 },
+  { id:'assassin_trial', name:'งานเงียบแต่ศพเยอะ', desc:'ฆ่ามอนสเตอร์ 550 ตัวในรันเดียว',
+    rewards:[{type:'character',key:'assassin'},{type:'weapon',key:'dagger'},{type:'item',key:'lucky_charm'},{type:'item',key:'sharpening_stone'},{type:'item',key:'execution_coin'},{type:'item',key:'glass_needle'},{type:'coins',amount:75}],
+    test:c=>c.kills>=550 },
+  { id:'soul_collector', name:'บัญชีวิญญาณไม่เคยว่าง', desc:'ฆ่ามอนสเตอร์ 700 ตัว หรือถือไอเทม 14 ชิ้นในรันเดียว',
+    rewards:[{type:'character',key:'necromancer'},{type:'weapon',key:'soulspiral'},{type:'item',key:'demon_soul'},{type:'item',key:'soul_harvester'},{type:'item',key:'stopwatch'},{type:'coins',amount:75}],
+    test:c=>c.kills>=700 || c.items>=14 },
+  { id:'shop_regular', name:'ลูกค้าประจำ NPC', desc:'ซื้อของจาก Merchant 6 ครั้งในรันเดียว',
+    rewards:[{type:'character',key:'it_support'},{type:'weapon',key:'toolstab'},{type:'item',key:'wrench'},{type:'item',key:'credit_card'},{type:'coins',amount:45}],
+    test:c=>c.shops>=6 },
+  { id:'rich_striker', name:'มีงบก็ยิงชิ่งได้', desc:'จบรันพร้อมทองอย่างน้อย 800 หรือเปิดหีบ 8 ใบ',
+    rewards:[{type:'character',key:'striker'},{type:'weapon',key:'football'},{type:'weapon',key:'boneboomerang'},{type:'weapon',key:'bouncebomb'},{type:'item',key:'ricochet_charm'},{type:'coins',amount:45}],
+    test:c=>c.gold>=800 || c.chests>=8 },
+  { id:'map3_reached', name:'ฟ้าผ่าเข้าห้องบอส', desc:'เข้าสู่ Map 3 และฆ่าศัตรู 900 ตัว หรือถึงเลเวล 35',
+    rewards:[{type:'character',key:'stormcaller'},{type:'weapon',key:'lightning'},{type:'item',key:'thunder_mitts'},{type:'coins',amount:100}],
+    test:c=>(c.stage>=3 && (c.kills>=900 || c.level>=35)) || c.won },
+  { id:'butcher_hunted', name:'The Butcher Hunt', desc:'ฆ่า The Butcher ให้ทันก่อนมันหายตัว',
+    rewards:[{type:'item',key:'butcher_token'},{type:'coins',amount:120}],
+    test:c=>c.butcherKills>=1 },
+  { id:'void_cleared', name:'ปิดสัญญาเงา', desc:'เคลียร์รันสำเร็จ',
+    rewards:[{type:'item',key:'big_bonk'},{type:'item',key:'power_gloves'},{type:'item',key:'dragonfire'},{type:'item',key:'energy_core'},{type:'item',key:'royal_jelly'},{type:'coins',amount:200}],
+    test:c=>c.won }
+];
+const ACHIEVEMENT_LOCKED_WEAPONS = new Set(ACHIEVEMENTS.flatMap(a=>a.rewards.filter(r=>r.type==='weapon').map(r=>r.key)));
+const ACHIEVEMENT_LOCKED_ITEMS = new Set(ACHIEVEMENTS.flatMap(a=>a.rewards.filter(r=>r.type==='item').map(r=>r.key)));
+let achievementStateCache = null;
+let lastAchievementUnlocks = [];
+
+const PACTS = [
+  { id:'blood_moon', name:'Blood Moon', title:'จันทร์โลหิต', desc:'มอนสเตอร์ปกติมีเลือด +50%', bonus:0.20, tier:'silver',
+    unlock:'จบรันแรกไม่ว่าจะชนะหรือตาย', test:c=>c.finished },
+  { id:'glass_soul', name:'Glass Soul', title:'วิญญาณแก้ว', desc:'เลือดสูงสุดผู้เล่น -25%', bonus:0.25, tier:'gold',
+    unlock:'อยู่รอดอย่างน้อย 5 นาที', test:c=>c.time>=300 },
+  { id:'cursed_economy', name:'Cursed Economy', title:'เศรษฐกิจต้องสาป', desc:'ทองที่ได้รับ x0.6, ร้าน/หีบแพงขึ้น x1.3', bonus:0.15, tier:'bronze',
+    unlock:'ซื้อของจาก Merchant 1 ครั้ง หรือจบรันพร้อมทอง 300', test:c=>c.shops>=1 || c.gold>=300 },
+  { id:'no_mercy', name:'No Mercy', title:'ไร้ความเมตตา', desc:'การฟื้นเลือดและฮีลลดลง 50%', bonus:0.20, tier:'silver',
+    unlock:'จบรันด้วย HP ต่ำกว่า 25% หรือมีการฮีลในรัน', test:c=>c.lowHp || c.healed },
+  { id:'ravenous_horde', name:'Ravenous Horde', title:'ฝูงกระหายเลือด', desc:'มอนสเตอร์เกิดถี่ขึ้นและจำนวนหนาแน่นขึ้น', bonus:0.25, tier:'gold',
+    unlock:'ฆ่า 300 ตัวในรันเดียว หรือเข้าสู่ Map 2', test:c=>c.kills>=300 || c.stage>=2 || c.won }
+];
+const PACT_CAP = 2.5;
+let pactUnlockStateCache = null;
+
+function pactById(id){ return PACTS.find(p=>p.id===id); }
+function loadPactUnlockState(){
+  if(pactUnlockStateCache) return pactUnlockStateCache;
+  try{
+    const raw=localStorage.getItem(PACT_UNLOCK_STORAGE_KEY);
+    const parsed=raw ? JSON.parse(raw) : {};
+    pactUnlockStateCache = { done: parsed && parsed.done ? parsed.done : {} };
+  }catch(_){
+    pactUnlockStateCache = { done:{} };
+  }
+  return pactUnlockStateCache;
+}
+function savePactUnlockState(state){
+  pactUnlockStateCache = state || { done:{} };
+  try{ localStorage.setItem(PACT_UNLOCK_STORAGE_KEY, JSON.stringify(pactUnlockStateCache)); }catch(_){}
+}
+function isPactUnlocked(id){ return !!(loadPactUnlockState().done||{})[id]; }
+function unlockedPacts(){ return PACTS.filter(p=>isPactUnlocked(p.id)); }
+function pactBonusSum(ids){ return (ids||[]).reduce((sum,id)=>sum+((pactById(id)||{}).bonus||0),0); }
+function calcPactMultiplier(ids){ return Math.min(PACT_CAP, 1 + pactBonusSum(ids)); }
+function activePact(id){ return activePactIds.includes(id); }
+function pactNormalHpMul(){ return activePact('blood_moon') ? 1.5 : 1; }
+function pactCostMul(){ return activePact('cursed_economy') ? 1.3 : 1; }
+function pactGoldMul(){ return activePact('cursed_economy') ? 0.6 : 1; }
+function pactHealMul(){ return activePact('no_mercy') ? 0.5 : 1; }
+function scaledHeal(v){ return Math.max(0, v * pactHealMul()); }
+function pactHordeProfile(profile){
+  if(!activePact('ravenous_horde')) return profile;
+  return {
+    cap:Math.min(360, Math.round(profile.cap*1.22 + 12)),
+    interval:Math.max(0.35, profile.interval*0.82),
+    batch:Math.min(64, Math.max(profile.batch+1, Math.round(profile.batch*1.35)))
+  };
+}
+function pactHordeSize(n){ return activePact('ravenous_horde') ? Math.min(360, Math.round(n*1.25)) : n; }
+function pactLabel(ids){
+  ids=ids||activePactIds;
+  return ids.length ? ids.map(id=>{ const p=pactById(id); return p ? pactName(p) : id; }).join(', ') : 'No Pact';
+}
+function pactSummary(ids){
+  ids=ids||activePactIds;
+  return { ids:ids.slice(), multiplier:calcPactMultiplier(ids), label:pactLabel(ids), count:ids.length };
+}
+function setActivePacts(ids){
+  activePactIds = (ids||[]).filter(id=>isPactUnlocked(id));
+  pactMultiplier = calcPactMultiplier(activePactIds);
+  try{ localStorage.setItem(PACT_LAST_STORAGE_KEY, JSON.stringify(activePactIds)); }catch(_){}
+}
+function lastPactLoadout(){
+  try{
+    const ids=JSON.parse(localStorage.getItem(PACT_LAST_STORAGE_KEY)||'[]');
+    return Array.isArray(ids) ? ids.filter(id=>isPactUnlocked(id)) : [];
+  }catch(_){ return []; }
+}
+function pactContext(){
+  const healed=Object.values((runStats&&runStats.itemStats)||{}).some(r=>(r.heal||0)>0);
+  return {
+    finished:true,
+    time:gameTime||0,
+    kills:kills||0,
+    stage:mapStage||1,
+    won:!!won,
+    shops:shopPurchases||0,
+    gold:player?player.gold:0,
+    lowHp:!!(player && player.maxHp && player.hp/player.maxHp<0.25),
+    healed
+  };
+}
+function evaluatePactUnlocks(){
+  lastPactUnlocks=[];
+  const state=loadPactUnlockState();
+  const ctx=pactContext();
+  for(const p of PACTS){
+    if(state.done[p.id] || !p.test(ctx)) continue;
+    state.done[p.id]=new Date().toISOString();
+    lastPactUnlocks.push(p);
+  }
+  if(lastPactUnlocks.length){
+    savePactUnlockState(state);
+    lastPactUnlocks.forEach((p,i)=>setTimeout(()=>showToast((gameLang()==='en'?'Pact Unlocked: ':'ปลดล็อก Pact: ')+pactName(p),3.2), 400+i*850));
+  }
+  return lastPactUnlocks;
+}
+function pactUnlockSummaryHtml(){
+  if(!lastPactUnlocks.length) return '';
+  return '<section><h3>Pact Unlocked</h3>'+lastPactUnlocks.map(p=>
+    '<div><b>'+escHtml(pactName(p))+'</b><span>'+escHtml(pactDesc(p))+' · +'+Math.round(p.bonus*100)+'%</span></div>'
+  ).join('')+'</section>';
+}
+function currentPactSummaryHtml(){
+  const s=pactSummary(activePactIds);
+  if(!s.ids.length) return '<section><h3>Pact</h3><div><b>No Pact</b><span>Score x1.00</span></div></section>';
+  return '<section><h3>Pact</h3><div><b>x'+s.multiplier.toFixed(2)+' · '+s.count+' Pact'+(s.count>1?'s':'')+'</b><span>'+escHtml(s.label)+'</span></div></section>';
+}
+function calcRunSoulCoins(){
+  let base=0;
+  const parts=[];
+  if((gameTime||0)>=180){
+    base+=3; parts.push('เล่นครบ 3 นาที +3');
+    const extra=Math.max(0, Math.floor(((gameTime||0)-180)/60));
+    if(extra>0){ base+=extra; parts.push('เวลาหลัง 3 นาที +'+extra); }
+  }
+  if(runMinibossKills>0){ base+=runMinibossKills*2; parts.push('มินิบอส x'+runMinibossKills+' +'+(runMinibossKills*2)); }
+  if(runBossKills>0){ base+=runBossKills*5; parts.push('บอส x'+runBossKills+' +'+(runBossKills*5)); }
+  if(mapStage>=2 || won){ base+=6; parts.push('ผ่าน Map 1 +6'); }
+  if(mapStage>=3 || won){ base+=10; parts.push('ผ่าน Map 2 +10'); }
+  if(won){ base+=18; parts.push('ชนะ Map 3 +18'); }
+  const mult=Math.min(1.5, Math.max(1, typeof pactMultiplier==='number'?pactMultiplier:1));
+  const total=Math.round(base*mult);
+  if(mult>1 && base>0) parts.push('Pact x'+mult.toFixed(2));
+  return { base, total, mult, parts };
+}
+function awardRunSoulCoins(){
+  const award=calcRunSoulCoins();
+  lastSoulCoinAward=award;
+  if(award.total>0) addSoulCoins(award.total, 'Run Reward');
+  return award;
+}
+function soulCoinSummaryHtml(){
+  if(!lastSoulCoinAward) return '';
+  const a=lastSoulCoinAward;
+  if(!a.total) return '<section><h3>Soul Coins</h3><div><b>+0</b><span>ต้องอยู่รอดอย่างน้อย 3 นาทีเพื่อรับรางวัลรัน</span></div></section>';
+  return '<section><h3>Soul Coins</h3><div><b>+'+a.total.toLocaleString()+'</b><span>'+escHtml(a.parts.join(' · '))+'</span></div></section>';
+}
+
+function loadAchievementState(){
+  if(achievementStateCache) return achievementStateCache;
+  try{
+    const raw=localStorage.getItem(ACHIEVEMENT_STORAGE_KEY);
+    const parsed=raw ? JSON.parse(raw) : {};
+    achievementStateCache = { done: parsed && parsed.done ? parsed.done : {} };
+  }catch(_){
+    achievementStateCache = { done:{} };
+  }
+  return achievementStateCache;
+}
+function saveAchievementState(state){
+  achievementStateCache = state || { done:{} };
+  try{ localStorage.setItem(ACHIEVEMENT_STORAGE_KEY, JSON.stringify(achievementStateCache)); }catch(_){}
+}
+function exportAchievementProgress(){
+  const state=loadAchievementState();
+  return { done:{ ...(state.done||{}) } };
+}
+function importAchievementProgress(done, opts){
+  opts=opts||{};
+  const state=loadAchievementState();
+  const imported=[];
+  for(const [id, at] of Object.entries(done||{})){
+    if(!ACHIEVEMENTS.some(a=>a.id===id) || state.done[id]) continue;
+    const parsed=Date.parse(at);
+    state.done[id]=Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString();
+    const a=ACHIEVEMENTS.find(x=>x.id===id);
+    if(a) imported.push(a);
+  }
+  if(imported.length){
+    saveAchievementState(state);
+    if(!opts.silent){
+      imported.forEach((a,i)=>setTimeout(()=>showToast(tr('ach.synced',{name:achievementName(a)}),3), 250+i*800));
+    }
+  }
+  return imported;
+}
+function hasAchievement(id){
+  return !!(loadAchievementState().done||{})[id];
+}
+function achievementForReward(type,key){
+  return ACHIEVEMENTS.find(a=>a.rewards.some(r=>r.type===type && r.key===key));
+}
+function rewardUnlocked(type,key){
+  return ACHIEVEMENTS.some(a=>hasAchievement(a.id) && a.rewards.some(r=>r.type===type && r.key===key));
+}
+function isCharacterUnlocked(key){
+  return STARTER_CHARACTER_KEYS.has(key) || rewardUnlocked('character', key);
+}
+function isWeaponUnlocked(key){
+  const w=WEAPON_TYPES[key];
+  if(w && w.hidden) return true;
+  return STARTER_WEAPON_KEYS.has(key) || !ACHIEVEMENT_LOCKED_WEAPONS.has(key) || rewardUnlocked('weapon', key);
+}
+function isItemUnlocked(id){
+  return !ACHIEVEMENT_LOCKED_ITEMS.has(id) || rewardUnlocked('item', id);
+}
+function availableItemPool(rarity){
+  const pool=ITEMS.filter(i=>i.rarity===rarity && isItemUnlocked(i.id));
+  if(pool.length) return pool;
+  return ITEMS.filter(i=>isItemUnlocked(i.id));
+}
+function unlockRequirement(type,key){
+  const a=achievementForReward(type,key);
+  return a ? achievementName(a)+' - '+achievementDesc(a) : tr('unlock.ready');
+}
+function unlockRequirementShort(type,key){
+  const a=achievementForReward(type,key);
+  return a ? achievementName(a) : tr('unlock.ready');
+}
+function rewardDisplayName(r){
+  if(r.type==='character') return charField(r.key,'name',(CHARACTERS[r.key]&&CHARACTERS[r.key].name)||r.key);
+  if(r.type==='weapon') return weaponName(r.key)||r.key;
+  if(r.type==='item'){ const it=ITEMS.find(x=>x.id===r.key); return (it&&itemName(it))||r.key; }
+  if(r.type==='coins') return '+'+Math.round(r.amount||0).toLocaleString()+' Soul Coins';
+  return r.key;
+}
+function achievementRewardText(a){
+  return a.rewards.map(r=>rewardDisplayName(r)).join(', ');
+}
+function achievementContext(){
+  const weapons=(player&&player.weapons)||[];
+  return {
+    kills:kills||0,
+    level:player?player.level:1,
+    stage:mapStage||1,
+    time:gameTime||0,
+    won:!!won,
+    items:player&&player.items?player.items.length:0,
+    gold:player?player.gold:0,
+    chests:chestsOpened||0,
+    shops:shopPurchases||0,
+    evolved:weapons.some(w=>w.evolved || ((WEAPON_TYPES[w.key]||{}).hidden)),
+    butcherKills:butcherKills||0,
+    bossKills:runBossKills||0,
+    minibossKills:runMinibossKills||0
+  };
+}
+function completeAchievement(a){
+  const state=loadAchievementState();
+  if(state.done[a.id]) return false;
+  state.done[a.id]=new Date().toISOString();
+  saveAchievementState(state);
+  const coins=(a.rewards||[]).filter(r=>r.type==='coins').reduce((sum,r)=>sum+(r.amount||0),0);
+  if(coins>0) addSoulCoins(coins, achievementName(a));
+  const index=lastAchievementUnlocks.length;
+  lastAchievementUnlocks.push(a);
+  setTimeout(()=>showToast(tr('ach.unlocked',{name:achievementName(a)}),3.6), 250 + index*900);
+  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('unlock');
+  return true;
+}
+function evaluateRunAchievements(){
+  lastAchievementUnlocks=[];
+  const ctx=achievementContext();
+  for(const a of ACHIEVEMENTS){
+    if(!hasAchievement(a.id) && a.test(ctx)) completeAchievement(a);
+  }
+  return lastAchievementUnlocks;
+}
+function achievementSummaryHtml(){
+  if(!lastAchievementUnlocks.length) return '';
+  return '<section><h3>'+escHtml(tr('ach.unlockedSection'))+'</h3>'+lastAchievementUnlocks.map(a=>
+    '<div><b>'+escHtml(achievementName(a))+'</b><span>'+escHtml(achievementRewardText(a))+'</span></div>'
+  ).join('')+'</section>';
+}
+function onAchievementProgressSynced(){
+  if(document.getElementById('select').style.display==='flex') buildSelect();
+  const guide=document.getElementById('guide');
+  if(guide && guide.style.display==='flex') {
+    const body=document.getElementById('guidebody');
+    const head=body && body.querySelector('.guidehead h2');
+    const title=head ? head.textContent : '';
+    if(title===tr('ach.title') || title==='Achievements') openGuide('achievements');
+  }
+}
+window.exportAchievementProgress = exportAchievementProgress;
+window.importAchievementProgress = importAchievementProgress;
+window.onAchievementProgressSynced = onAchievementProgressSynced;
+
 function dirIndex(mx, mz){ return ((Math.round(Math.atan2(mx, mz)/(Math.PI/4)))%8+8)%8; }
 
 function animBillboard(sheetKey, height, frames) {
@@ -1983,6 +3196,85 @@ function normalizedPlayerScale(base, cfg){
     y:PLAYER_VISIBLE_SIZE.h * b.fh / Math.max(1,b.h)
   };
 }
+const petTextureCache = new Map();
+function petTexture(pet){
+  if(pet.sprite && tex[pet.sprite]) return tex[pet.sprite];
+  if(petTextureCache.has(pet.id)) return petTextureCache.get(pet.id);
+  const cv=document.createElement('canvas'); cv.width=48; cv.height=48;
+  const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  const color=pet.color||'#ffe08a';
+  ctx.clearRect(0,0,48,48);
+  ctx.fillStyle='rgba(0,0,0,.38)'; ctx.fillRect(12,38,24,4);
+  ctx.fillStyle=color; ctx.fillRect(16,14,16,16); ctx.fillRect(12,20,24,14);
+  ctx.fillStyle='#fff4d6'; ctx.fillRect(20,19,3,3); ctx.fillRect(27,19,3,3);
+  ctx.fillStyle='#241a38'; ctx.fillRect(21,20,2,2); ctx.fillRect(28,20,2,2);
+  ctx.fillStyle='#120b18'; ctx.fillRect(21,27,6,2);
+  ctx.fillStyle=color; ctx.fillRect(14,11,5,6); ctx.fillRect(29,11,5,6);
+  ctx.fillStyle='rgba(255,255,255,.75)'; ctx.fillRect(14,14,2,2); ctx.fillRect(31,14,2,2); ctx.fillRect(17,16,2,2);
+  ctx.fillStyle='#ffe7a6'; ctx.font='bold 8px monospace'; ctx.textAlign='center'; ctx.fillText(pet.icon||'P',24,43);
+  const t=new THREE.CanvasTexture(cv);
+  t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
+  petTextureCache.set(pet.id,t); return t;
+}
+function makePetFollower(id){
+  const pet=petById(id);
+  if(!pet) return null;
+  let map=petTexture(pet), dirState=null;
+  if(pet.sheet && tex[pet.sheet]){
+    map=tex[pet.sheet].clone(); map.needsUpdate=true; map.wrapS=map.wrapT=THREE.RepeatWrapping; map.repeat.set(1,1/8);
+    dirState={ map, rows:8, dirRows:[0,7,6,5,4,3,2,1] };
+  }
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent:true, alphaTest:0.08, depthWrite:true }));
+  if(dirState) spr.material._ownsMap=true;
+  spr.center.set(0.5,0); spr.scale.set(0.58,0.58,1);
+  const sh=makeShadow(0.28);
+  scene.add(spr); scene.add(sh);
+  return { id, name:pet.name, spr, sh, dirState, baseW:0.58, baseH:0.58, x:-0.8, z:0.55, lastX:-0.8, lastZ:0.55, face:1, bob:Math.random()*6.28, reactT:0, reactKind:'', idleT:0, lowHpWarnAt:0 };
+}
+function updatePetFollower(dt){
+  if(!player || !player.pet || !player.pet.spr) return;
+  const pet=player.pet;
+  const headingX=player.moving ? (player.ldx||0) : ((player.face||1)*0.65);
+  const headingZ=player.moving ? (player.ldz||0) : 0.35;
+  const hl=Math.hypot(headingX,headingZ)||1;
+  const hx=headingX/hl, hz=headingZ/hl;
+  const side=(player.face||1)>0?-1:1;
+  const tx=player.x-hx*0.78+(-hz)*side*0.28;
+  const tz=player.z-hz*0.78+(hx)*side*0.28;
+  const follow=1-Math.pow(0.04,dt);
+  pet.lastX=pet.x; pet.lastZ=pet.z;
+  pet.x+=(tx-pet.x)*follow; pet.z+=(tz-pet.z)*follow;
+  const mvx=pet.x-pet.lastX, mvz=pet.z-pet.lastZ, moveLen=Math.hypot(mvx,mvz), moving=moveLen>0.002;
+  const faceX=moveLen>0.012 ? mvx : player.x-pet.x;
+  const faceZ=moveLen>0.012 ? mvz : player.z-pet.z;
+  if(moveLen>0.012 && Math.abs(mvx)>0.001) pet.face = mvx>0 ? 1 : -1;
+  else pet.face = pet.x < player.x ? 1 : -1;
+  if(moving) pet.idleT=0; else pet.idleT=(pet.idleT||0)+dt;
+  if(pet.idleT>6.5 && Math.random()<dt*0.22){ petReact('idle'); pet.idleT=0; }
+  if(player.hp/player.maxHp<0.3 && gameTime>(pet.lowHpWarnAt||0)){ petReact('lowhp', true); pet.lowHpWarnAt=gameTime+8; }
+  if(pet.reactT>0) pet.reactT=Math.max(0, pet.reactT-dt);
+  const react=pet.reactT>0 ? pet.reactT : 0;
+  const hop=moving ? Math.abs(Math.sin(gameTime*10+pet.bob))*0.07 : Math.sin(gameTime*3.4+pet.bob)*0.035;
+  const cheer=react ? Math.sin((1-react)*Math.PI*4)*0.13 + react*0.14 : 0;
+  const y=groundHeight(pet.x,pet.z)+0.34+hop+Math.max(0,cheer);
+  const squish=moving ? Math.sin(gameTime*10+pet.bob)*0.045 : Math.sin(gameTime*2.8+pet.bob)*0.025;
+  const pop=react ? 1+react*0.26 : 1;
+  if(pet.dirState && pet.spr.material.map){
+    const fl=Math.hypot(faceX,faceZ)||1;
+    const dir=dirIndex(-faceX/fl, faceZ/fl);
+    const row=pet.dirState.dirRows[dir] || 0;
+    pet.dirState.map.offset.x=0;
+    pet.dirState.map.offset.y=1-(row+1)/pet.dirState.rows;
+  }
+  const flip=pet.dirState ? 1 : pet.face;
+  pet.spr.scale.set(pet.baseW*flip*pop*(1-squish), pet.baseH*pop*(1+squish), 1);
+  pet.spr.position.set(pet.x,y,pet.z);
+  if(pet.sh){
+    const shadowPulse=0.92 + Math.max(0, 0.08-hop*0.6) + (react?0.08*react:0);
+    pet.sh.position.set(pet.x, groundHeight(pet.x,pet.z)+0.018, pet.z);
+    pet.sh.scale.set(0.28*shadowPulse,0.28*shadowPulse,0.28*shadowPulse);
+  }
+}
 
 function makePlayer() {
   const C = CHARACTERS[currentChar] || CHARACTERS.paladin;
@@ -2004,7 +3296,7 @@ function makePlayer() {
   scene.add(spr); scene.add(sh);
   const p = { x:0, z:0, hp:80, maxHp:80, def:5, spd:PLAYER_SPEED,
            level:1, xp:0, xpToNext:xpRequired(1), gold:0, alive:true, moving:false, dir:0,
-           invuln:0, flash:0, hpBarUntil:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, dashCdMul:1, dashDistMul:1, dashInvulnBonus:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, ricochetBonus:0, lifesteal:0, knockbackMul:0, lifeMul:1, areaLifeMul:1, projSpeedMul:1, projScale:1, pickupSpeedBoost:0, pickupSpeedTimer:0, pickupDmgBoost:0, pickupDmgTimer:0, critChance:0.05, critDmg:1.5, tomeCount:{}, bansRemaining:3, bannedChoices:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, relics:[], char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh, hpbar };
+           invuln:0, flash:0, hpBarUntil:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, dashCdMul:1, dashDistMul:1, dashInvulnBonus:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, ricochetBonus:0, lifesteal:0, knockbackMul:0, armorMul:1, lifeMul:1, areaLifeMul:1, projSpeedMul:1, projScale:1, buffDurationMul:1, pickupSpeedBoost:0, pickupSpeedTimer:0, pickupDmgBoost:0, pickupDmgTimer:0, critChance:0.05, critDmg:1.5, tomeCount:{}, bansRemaining:CHOICE_BANS_PER_RUN, bannedChoices:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, relics:[], char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh, hpbar };
   const st = C.stats || {};
   if (st.maxHp!=null){ p.maxHp=st.maxHp; p.hp=st.maxHp; }
   if (st.spd!=null)   p.spd=st.spd;
@@ -2013,6 +3305,16 @@ function makePlayer() {
   if (st.regen!=null) p.regen=st.regen;
   if (st.critChance!=null) p.critChance=st.critChance;
   if (st.critDmg!=null) p.critDmg=st.critDmg;
+  if (st.rateMul!=null) p.rateMul=st.rateMul;
+  const petId=selectedPetId();
+  const pet=petById(petId);
+  if(pet){
+    pet.apply(p);
+    p.petId=petId;
+    p.pet=makePetFollower(petId);
+  }
+  if (activePact('glass_soul')){ p.maxHp=Math.max(1,Math.round(p.maxHp*0.75)); p.hp=Math.min(p.hp,p.maxHp); }
+  if (activePact('cursed_economy')) p.goldMul*=pactGoldMul();
   return p;
 }
 
@@ -2028,7 +3330,8 @@ function pickupItem(gi){
   if (gi.spr) scene.remove(gi.spr);
   score += ({common:100,uncommon:200,rare:300,legendary:500})[it.rarity]||100;
   if (gi.glow) scene.remove(gi.glow);
-  showToast('📦 '+it.name+' ('+it.rarity+')', 1.5);
+  showToast('📦 '+itemName(it)+' ('+tr('rarity.'+(it.rarity||'common'))+')', 1.5);
+  if((it.rarity==='rare' || it.rarity==='legendary') && typeof petReact==='function') petReact('loot', true);
 }
 function spawnGroundItem(x, z, item){
   const col = RARITY_COLORS[item.rarity]||0xffffff;
@@ -2076,7 +3379,7 @@ function rollItemDrop(boosted){
     else rarity = 'common';
   }
   if (!rarity) rarity = 'common'; // guaranteed drop, fallback to common
-  const pool = ITEMS.filter(i => i.rarity === rarity);
+  const pool = availableItemPool(rarity);
   if (!pool.length) return null;
   return pool[(Math.random()*pool.length)|0];
 }

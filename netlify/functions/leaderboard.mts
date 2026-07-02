@@ -9,7 +9,7 @@ const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260701-quality-pass-rankreset";
+const REQUIRED_BUILD = "20260702-i18n-pass";
 
 const jsonHeaders = {
   "Content-Type": "application/json; charset=utf-8",
@@ -43,7 +43,60 @@ function cleanBuild(value) {
   return String(value || "").replace(/[^\w.-]/g, "").slice(0, 64);
 }
 
-function cleanScore(input) {
+function cleanId(value) {
+  return String(value || "").replace(/[^\w.-]/g, "").slice(0, 80);
+}
+
+function supabaseEnv() {
+  return {
+    url: (Netlify.env.get("SUPABASE_URL") || "").trim().replace(/\/+$/, ""),
+    anonKey: (Netlify.env.get("SUPABASE_ANON_KEY") || "").trim(),
+  };
+}
+
+function bearerToken(req) {
+  const header = req.headers.get("authorization") || "";
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : "";
+}
+
+function userDisplayName(data) {
+  const meta = data && data.user_metadata ? data.user_metadata : {};
+  return cleanText(meta.full_name || meta.name || meta.preferred_username || "", "", 48);
+}
+
+async function verifySupabaseUser(req) {
+  const token = bearerToken(req);
+  if (!token) return { user: null, error: "" };
+  const { url, anonKey } = supabaseEnv();
+  if (!url || !anonKey) return { user: null, error: "Auth is not configured on the server" };
+  try {
+    const res = await fetch(`${url}/auth/v1/user`, {
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) return { user: null, error: "Login session is invalid or expired" };
+    const data = await res.json();
+    const id = cleanId(data && data.id);
+    if (!id) return { user: null, error: "Login session is missing a user id" };
+    return {
+      user: {
+        id,
+        name: userDisplayName(data),
+      },
+      error: "",
+    };
+  } catch {
+    return { user: null, error: "Unable to verify login session" };
+  }
+}
+
+function cleanScore(input, authUser) {
+  const pactIds = Array.isArray(input.pact_ids || input.pactIds)
+    ? (input.pact_ids || input.pactIds).map((v: unknown) => cleanText(v, "", 32)).filter(Boolean).slice(0, 12)
+    : [];
   return {
     player_name: cleanText(input.player_name || input.name, "Player", 18),
     country_code: cleanCountry(input.country_code || input.country),
@@ -56,7 +109,14 @@ function cleanScore(input) {
     stage: cleanInt(input.stage, 1, 99),
     damage: cleanInt(input.damage, 0, 9999999),
     items: cleanInt(input.items, 0, 9999),
+    pact_ids: pactIds,
+    pact_multiplier: Math.max(1, Math.min(2.5, Number(input.pact_multiplier || input.pactMultiplier || 1) || 1)),
+    pact_label: cleanText(input.pact_label || input.pactLabel, "", 160),
+    pact_count: cleanInt(input.pact_count || input.pactCount || pactIds.length, 0, 12),
     build: cleanBuild(input.build),
+    user_id: authUser ? authUser.id : "",
+    auth_name: authUser ? authUser.name : "",
+    verified: !!authUser,
     created_at: new Date().toISOString(),
   };
 }
@@ -110,6 +170,29 @@ async function readScores(store) {
   return Array.isArray(rows) ? rows : [];
 }
 
+function publicScore(row) {
+  return {
+    player_name: row.player_name || "Player",
+    country_code: row.country_code || "TH",
+    character: row.character || "Unknown",
+    score: row.score || 0,
+    kills: row.kills || 0,
+    time: row.time || 0,
+    won: !!row.won,
+    level: row.level || 1,
+    stage: row.stage || 1,
+    damage: row.damage || 0,
+    items: row.items || 0,
+    pact_ids: row.pact_ids || [],
+    pact_multiplier: row.pact_multiplier || 1,
+    pact_label: row.pact_label || "",
+    pact_count: row.pact_count || ((row.pact_ids || []).length),
+    build: row.build || "",
+    created_at: row.created_at || "",
+    verified: !!row.verified,
+  };
+}
+
 async function checkRateLimit(store, req) {
   const fingerprint = clientFingerprint(req);
   const now = Date.now();
@@ -138,8 +221,9 @@ export default async (req) => {
     const limit = cleanInt(url.searchParams.get("limit"), 8, 50);
     const rows = (await readScores(store))
       .sort((a, b) => (b.score || 0) - (a.score || 0) || String(a.created_at || "").localeCompare(String(b.created_at || "")))
-      .slice(0, limit);
-    return json({ rows, required_build: REQUIRED_BUILD });
+      .slice(0, limit)
+      .map(publicScore);
+    return json({ rows, required_build: REQUIRED_BUILD, auth_enabled: !!(supabaseEnv().url && supabaseEnv().anonKey) });
   }
 
   if (req.method === "POST") {
@@ -158,15 +242,17 @@ export default async (req) => {
     } catch {
       return json({ error: "Invalid JSON" }, 400);
     }
-    const entry = cleanScore(body);
+    const auth = await verifySupabaseUser(req);
+    if (auth.error) return json({ error: auth.error }, 401);
+    const entry = cleanScore(body, auth.user);
     const problem = validateScore(entry);
     if (problem) return json({ error: problem, required_build: REQUIRED_BUILD }, problem.startsWith("Outdated") ? 426 : 400);
     const rows = await readScores(store);
-    if (isDuplicateScore(rows, entry)) return json({ ok: true, duplicate: true });
+    if (isDuplicateScore(rows, entry)) return json({ ok: true, duplicate: true, verified: entry.verified });
     rows.push(entry);
     rows.sort((a, b) => (b.score || 0) - (a.score || 0) || String(a.created_at || "").localeCompare(String(b.created_at || "")));
     await store.setJSON(SCORE_KEY, rows.slice(0, MAX_STORED));
-    return json({ ok: true });
+    return json({ ok: true, verified: entry.verified });
   }
 
   return json({ error: "Method not allowed" }, 405);

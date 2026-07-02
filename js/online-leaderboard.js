@@ -18,6 +18,16 @@ function onlineHeaders(){
     Prefer: 'return=minimal',
   };
 }
+async function onlineApiHeaders(){
+  const headers = { 'Content-Type':'application/json' };
+  if(typeof getAuthAccessToken === 'function'){
+    try {
+      const token = await getAuthAccessToken();
+      if(token) headers.Authorization = 'Bearer '+token;
+    } catch (_) {}
+  }
+  return headers;
+}
 
 function onlineEndpoint(query){
   const base = ONLINE_LEADERBOARD.supabaseUrl.replace(/\/+$/,'')+'/rest/v1/'+ONLINE_LEADERBOARD.table;
@@ -37,6 +47,10 @@ function onlineScorePayload(entry, includeBuild){
     stage: entry.stage|0,
     damage: entry.damage|0,
     items: entry.items|0,
+    pact_ids: Array.isArray(entry.pactIds) ? entry.pactIds : [],
+    pact_multiplier: Number(entry.pactMultiplier || 1),
+    pact_label: entry.pactLabel || '',
+    pact_count: entry.pactCount || (Array.isArray(entry.pactIds) ? entry.pactIds.length : 0),
   };
   if(includeBuild) payload.build = entry.build || window.SHADOW_BUILD_VERSION || '';
   return payload;
@@ -47,11 +61,16 @@ async function saveOnlineScore(entry){
   if(ONLINE_LEADERBOARD.apiEndpoint){
     const apiRes = await fetch(ONLINE_LEADERBOARD.apiEndpoint, {
       method:'POST',
-      headers:{ 'Content-Type':'application/json' },
+      headers: await onlineApiHeaders(),
       body: JSON.stringify(onlineScorePayload(entry, true)),
     });
-    if(apiRes.ok) return { ok:true };
+    if(apiRes.ok) {
+      let data = {};
+      try { data = await apiRes.json(); } catch (_) {}
+      return { ok:true, verified:!!data.verified, duplicate:!!data.duplicate };
+    }
     if(apiRes.status===426 && typeof showToast==='function') showToast('New version available - reload to rank', 3);
+    if(apiRes.status===401 && typeof showToast==='function') showToast('Login expired - score saved as local only', 3);
     if(!ONLINE_LEADERBOARD.supabaseUrl || !ONLINE_LEADERBOARD.supabaseAnonKey) throw new Error('Online leaderboard save failed: '+apiRes.status);
   }
   const res = await fetch(onlineEndpoint(), {
@@ -81,13 +100,18 @@ async function loadOnlineLeaderboard(){
         stage: r.stage || 1,
         damage: r.damage || 0,
         items: r.items || 0,
+        pactIds: r.pact_ids || [],
+        pactMultiplier: r.pact_multiplier || 1,
+        pactLabel: r.pact_label || '',
+        pactCount: r.pact_count || ((r.pact_ids || []).length),
         date: r.created_at,
+        verified: !!r.verified,
         online: true,
       }));
     }
     if(!ONLINE_LEADERBOARD.supabaseUrl || !ONLINE_LEADERBOARD.supabaseAnonKey) return [];
   }
-  const q = '?select=player_name,country_code,character,score,kills,time,won,level,stage,damage,items,created_at&order=score.desc&limit='+ONLINE_LEADERBOARD.limit;
+  const q = '?select=player_name,country_code,character,score,kills,time,won,level,stage,damage,items,pact_ids,pact_multiplier,pact_label,pact_count,created_at&order=score.desc&limit='+ONLINE_LEADERBOARD.limit;
   const res = await fetch(onlineEndpoint(q), { headers: onlineHeaders() });
   if(!res.ok) throw new Error('Online leaderboard load failed: '+res.status);
   const rows = await res.json();
@@ -103,7 +127,12 @@ async function loadOnlineLeaderboard(){
     stage: r.stage || 1,
     damage: r.damage || 0,
     items: r.items || 0,
+    pactIds: r.pact_ids || [],
+    pactMultiplier: r.pact_multiplier || 1,
+    pactLabel: r.pact_label || '',
+    pactCount: r.pact_count || ((r.pact_ids || []).length),
     date: r.created_at,
+    verified: !!r.verified,
     online: true,
   }));
 }
