@@ -609,7 +609,7 @@ function moveEnemyAroundObstacles(e,mvx,mvz,dt){
   return moved;
 }
 const keys = {};
-let gameTime = 0, kills = 0, gameOver = false, score = 0, damageTaken = 0, scoreFinalized = false, lastScoreEntry = null;
+let gameTime = 0, kills = 0, gameOver = false, deathCinematic = false, deathCinematicTimer = 0, score = 0, damageTaken = 0, scoreFinalized = false, lastScoreEntry = null;
 let runStats = null;
 let stageStartTime = 0;                       // gameTime when the current stage began
 function stageTime(){ return gameTime - stageStartTime; }   // per-stage clock (resets each map)
@@ -722,9 +722,10 @@ function tryDash(){
   player.invuln=Math.max(player.invuln, player.dashTime+0.08+(player.dashInvulnBonus||0));   // i-frames while dashing
 }
 function quitToTitle(){
-  started=false; userPaused=false; paused=false; gameOver=false; won=false; pendingUps=0;
+  clearTimeout(deathCinematicTimer);
+  started=false; userPaused=false; paused=false; gameOver=false; deathCinematic=false; won=false; pendingUps=0;
   pendingRelicPortal=null; currentRelicChoices=[];
-  for (const id of ['pause','shop','playersetup','select','pactselect','over','levelup','relicup']) document.getElementById(id).style.display='none';
+  for (const id of ['pause','shop','playersetup','select','pactselect','over','levelup','relicup','deathfx']) document.getElementById(id).style.display='none';
   document.getElementById('pausebtn').textContent='⏸';
   document.body.classList.remove('user-paused');
   document.getElementById('title').style.display='flex';
@@ -2093,6 +2094,7 @@ function init() {
     if (e.code==='Space' && !e.repeat) tryDash();
     if ((e.code==='KeyP'||e.code==='Escape') && !e.repeat && !gameOver && !paused) togglePause();
     if (e.code==='KeyF' && !e.repeat){ if (document.getElementById('shop').style.display==='flex') closeShop(); else activateNearby(); }
+    if (deathCinematic) return;
     if (e.code==='KeyR' && (gameOver||won)) restart();
     if (e.code==='KeyC' && (gameOver||won)){ started=false; selectedPactIds=[]; activePactIds=[]; document.getElementById('pactselect').style.display='none'; document.getElementById('select').style.display='none'; document.getElementById('over').style.display='none'; openPlayerSetup(); }
   });

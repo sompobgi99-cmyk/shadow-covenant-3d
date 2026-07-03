@@ -510,8 +510,31 @@ function update(dt) {
     else { won = true; finalizeScore(); sfx('win'); }
   }
 
-  if (!player.alive) { gameOver = true; finalizeScore(); }
+  if (!player.alive) triggerDeathCinematic();
   if (toastTimer>0) toastTimer-=dt;
+}
+function triggerDeathCinematic(){
+  if (deathCinematic || gameOver || won) return;
+  deathCinematic = true;
+  gameOver = true;
+  const el=document.getElementById('deathfx');
+  const word=el && el.querySelector('.deathword');
+  if(word) word.textContent = (typeof gameLang==='function' && gameLang()==='en') ? 'YOU DIED' : 'อ่อนแอ';
+  if(el) {
+    el.style.display='flex';
+    if(word) word.style.animation='none';
+    void el.offsetHeight;
+    if(word) word.style.animation='';
+  }
+  spawnObjectPulse(player.x,player.z,0xff263f,8.5,0.9);
+  spawnBurst(player.x,player.z,0xff263f,34,1.35);
+  shake(0.5,0.24);
+  clearTimeout(deathCinematicTimer);
+  deathCinematicTimer=setTimeout(()=>{
+    deathCinematic=false;
+    if(el) el.style.display='none';
+    finalizeScore();
+  },3000);
 }
 function finalizeScore(){
   if (scoreFinalized) return;

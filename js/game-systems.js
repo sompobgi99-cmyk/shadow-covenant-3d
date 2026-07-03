@@ -1340,11 +1340,15 @@ function hurtPlayer(amt,dx,dz,force,src,kind){
   if(player.hp<=0 && player._phoenix){
     player._phoenix=0;
     player.hp=Math.max(1,Math.round(player.maxHp*0.5));
-    player.invuln=2.2;
+    player.invuln=2.0;
     player.hpBarUntil=gameTime+4;
-    spawnObjectPulse(player.x,player.z,0xffd86a,6.5,0.7);
-    spawnBurst(player.x,player.z,0xffd86a,30,1.2);
-    showToast('Phoenix Sigil revived you!',2.4);
+    spawnObjectPulse(player.x,player.z,0xffd86a,7.2,0.8);
+    spawnObjectPulse(player.x,player.z,0xff7a3a,4.8,0.55);
+    spawnBurst(player.x,player.z,0xffd86a,38,1.35);
+    spawnBurst(player.x,player.z,0xff7a3a,18,0.9);
+    spawnDmg(player.x,player.z,'REVIVED',0xffd86a,true,'guard');
+    spawnDmg(player.x,player.z,'INVULNERABLE 2s',0xfff2a8,false,'immune');
+    showToast('Phoenix Sigil revived you! Invulnerable 2s',3.0);
     sfx('levelup');
     return;
   }
@@ -1555,7 +1559,7 @@ function updateHUD(dt){
   updateTomeHUD();
   updateItemHUD();
   updateObjective();
-  if (gameOver || won){ $('over').style.display='flex';
+  if ((gameOver && !deathCinematic) || won){ $('over').style.display='flex';
     $('overtitle').textContent = won ? 'VICTORY' : 'YOU DIED';
     $('overtitle').style.color = won ? '#7CE7FF' : '#e85b5b';
     $('overstats').textContent = `${won?'Cleared':'Survived'} ${fmt(gameTime)} · ${kills} kills · Lv ${player.level} · Score: ${score}`;
@@ -1709,6 +1713,8 @@ function renderRunSummary(){
   el.innerHTML=`<div class="summarypanel"><div class="summaryhead"><span>Run Summary</span><b>${won?'Victory':'Death Cause'}: ${escHtml(deathText)}</b></div><div class="summarycols${unlockHtml||pactHtml||soulHtml?' hasunlock':''}"><section><h3>Weapon DPS</h3>${weaponHtml}</section><section><h3>Best Items</h3>${itemHtml}</section>${petHtml}${soulHtml}${pactHtml}${unlockHtml}</div></div>`;
 }
 function restart(){
+  clearTimeout(deathCinematicTimer); deathCinematic=false;
+  { const dfx=document.getElementById('deathfx'); if(dfx) dfx.style.display='none'; }
   for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); scene.remove(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
   for (const p of projectiles){ scene.remove(p.mesh); freeObj(p.mesh); }
   for (const a of afterimages){ scene.remove(a.spr); freeObj(a.spr); } afterimages.length=0;
@@ -1737,7 +1743,7 @@ function restart(){
   scene.remove(player.spr); freeObj(player.spr); scene.remove(player.sh); if(player.hpbar){ scene.remove(player.hpbar); freeObj(player.hpbar); }
   player = makePlayer();
   resetRunStats();
-  gameTime=0; stageStartTime=0; globalPickupMagnet=0; heroQuipAt=0; kills=0; gameOver=false; won=false; boss=null; mapStage=1; finalBossKilledAt=null; overtimeWarnStage=0; finalBossWarnStage=0; score=0; damageTaken=0; scoreFinalized=false; lastScoreEntry=null; lastAchievementUnlocks=[]; lastPactUnlocks=[]; runBossKills=0; runMinibossKills=0; lastSoulCoinAward=null; resetEventState(true); applyMapTheme(); clearStageScenery();
+  gameTime=0; stageStartTime=0; globalPickupMagnet=0; heroQuipAt=0; kills=0; gameOver=false; deathCinematic=false; won=false; boss=null; mapStage=1; finalBossKilledAt=null; overtimeWarnStage=0; finalBossWarnStage=0; score=0; damageTaken=0; scoreFinalized=false; lastScoreEntry=null; lastAchievementUnlocks=[]; lastPactUnlocks=[]; runBossKills=0; runMinibossKills=0; lastSoulCoinAward=null; resetEventState(true); applyMapTheme(); clearStageScenery();
   if(!worldScenery.length){ spawnTrees(40); buildScenery(); }
   waveTimer=0; waveInterval=3.2; enemiesPerWave=2; maxEnemies=18;
   nextHordeAt=240; hordeRemaining=0; hordeSpawnTimer=0; hordeNumber=0; hordeSpawned=0; hordeWarned=false; relocationCursor=0;
@@ -1745,7 +1751,7 @@ function restart(){
   chestsOpened=0; shopPurchases=0;
   removeAltar(); makeAltar();
   clearWorldObjects(); makeWorldObjects();
-  document.getElementById('pause').style.display='none'; document.getElementById('pausebtn').textContent='⏸';
+  document.getElementById('pause').style.display='none'; document.getElementById('pausebtn').textContent='⏸'; { const dfx=document.getElementById('deathfx'); if(dfx) dfx.style.display='none'; }
   document.getElementById('levelup').style.display='none';
   document.getElementById('relicup').style.display='none';
   for (let i=0;i<4;i++) spawnEnemy();

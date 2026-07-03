@@ -601,6 +601,20 @@
   #topright .t { color: #ffcc00; font-size: 20px; font-weight: bold; }
   #toast { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); background: rgba(10,5,15,.85);
            border: 2px solid #ffcc00; color: #ffcc00; font-weight: bold; padding: 8px 18px; display: none; }
+  #deathfx{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; pointer-events:none; z-index:8;
+            background:radial-gradient(circle at center,rgba(120,0,12,.22),rgba(5,0,5,.72) 72%);
+            box-shadow:inset 0 0 170px rgba(255,0,32,.34); }
+  #deathfx .deathword{ font-family:monospace; font-weight:900; text-transform:uppercase; text-align:center;
+            font-size:clamp(56px,18vw,220px); line-height:.9; letter-spacing:0;
+            color:#ff263f; text-shadow:0 0 12px #000,0 0 24px rgba(255,38,63,.78),5px 5px 0 #2a0008;
+            animation:deathWordIn 3s ease both; max-width:96vw; overflow-wrap:anywhere; }
+  @keyframes deathWordIn{
+    0%{ opacity:0; transform:scale(.78); filter:blur(4px); }
+    12%{ opacity:1; transform:scale(1.07); filter:blur(0); }
+    22%{ transform:scale(.98); }
+    82%{ opacity:1; transform:scale(1); }
+    100%{ opacity:0; transform:scale(1.08); }
+  }
   #over { position: absolute; inset: 0; background: rgba(5,2,8,.75); display: none; flex-direction: column;
           align-items: center; justify-content: center; gap: 10px; pointer-events: auto; }
   #over h1 { color: #e85b5b; font-size: 40px; } #over p { color: #ddd; } #over small { color: #888; }
@@ -683,6 +697,7 @@
     #bossbar{ top:calc(38px + env(safe-area-inset-top)); width:68%; height:13px; }
     #bossbar span{ font-size:8px; line-height:11px; }
     #toast{ top:calc(56px + env(safe-area-inset-top)); max-width:82vw; text-align:center; font-size:12px; padding:6px 10px; }
+    #deathfx .deathword{ font-size:clamp(46px,17vw,118px); max-width:92vw; }
     #prompt{ bottom:calc(134px + env(safe-area-inset-bottom)); width:76vw; text-align:center; font-size:12px; }
     #altar{ bottom:calc(132px + env(safe-area-inset-bottom)); font-size:11px; width:84vw; text-align:center; }
     #weapons{ left:max(8px,env(safe-area-inset-left)); bottom:calc(134px + env(safe-area-inset-bottom)); gap:3px; max-width:132px; flex-wrap:wrap; }
