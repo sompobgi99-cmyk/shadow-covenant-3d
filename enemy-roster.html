@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shadow Covenant - Enemy Roster</title>
+  <style>
+    :root{
+      color-scheme:dark;
+      --bg:#08060d;
+      --panel:#130c1c;
+      --panel2:#1a1128;
+      --line:#6f4b83;
+      --gold:#ffe08a;
+      --cyan:#8fd0ff;
+      --muted:#bda8d8;
+      --bad:#ff7d8f;
+      --ok:#8ff0a0;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      min-height:100vh;
+      background:
+        radial-gradient(circle at 20% 12%,rgba(116,58,108,.22),transparent 34%),
+        linear-gradient(180deg,#08060d,#120a19 50%,#08060d);
+      color:#efe8ff;
+      font-family:Consolas, "Courier New", monospace;
+    }
+    main{ width:min(1180px,calc(100vw - 28px)); margin:0 auto; padding:28px 0 40px; }
+    header{
+      display:flex; align-items:flex-end; justify-content:space-between; gap:16px;
+      border-bottom:1px solid rgba(255,224,138,.28); padding-bottom:16px; margin-bottom:18px;
+    }
+    h1{ margin:0; color:var(--gold); font-size:clamp(24px,4vw,42px); line-height:1; }
+    h2{ margin:24px 0 10px; color:var(--gold); font-size:18px; }
+    header p{ margin:7px 0 0; color:var(--muted); max-width:720px; line-height:1.45; }
+    .summary{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .pill{
+      border:1px solid rgba(255,224,138,.38); background:rgba(20,12,30,.78);
+      color:var(--gold); border-radius:6px; padding:8px 10px; white-space:nowrap;
+    }
+    .toolbar{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:14px 0 18px;
+    }
+    .toolbar input,.toolbar select{
+      min-height:38px; border-radius:6px; border:1px solid rgba(143,208,255,.38);
+      background:#100a18; color:#efe8ff; padding:8px 10px; font:inherit;
+    }
+    .toolbar input{ flex:1; min-width:220px; }
+    table{
+      width:100%; border-collapse:separate; border-spacing:0; overflow:hidden;
+      border:1px solid rgba(255,224,138,.35); border-radius:8px; background:rgba(12,8,18,.78);
+      box-shadow:0 18px 60px rgba(0,0,0,.38);
+    }
+    th,td{ padding:10px 12px; border-bottom:1px solid rgba(111,75,131,.45); vertical-align:middle; }
+    th{
+      position:sticky; top:0; z-index:2; text-align:left; background:#1b1028;
+      color:var(--gold); font-size:12px; text-transform:uppercase;
+    }
+    tr:last-child td{ border-bottom:0; }
+    tbody tr:nth-child(even){ background:rgba(31,20,47,.34); }
+    tbody tr:hover{ background:rgba(72,39,74,.42); }
+    .enemy{
+      display:grid; grid-template-columns:52px minmax(0,1fr); gap:10px; align-items:center; min-width:210px;
+    }
+    .enemy img{
+      width:48px; height:48px; object-fit:contain; image-rendering:pixelated;
+      filter:drop-shadow(0 4px 7px #000);
+    }
+    .enemy img.sheet{ object-fit:cover; object-position:center top; }
+    .enemy b{ display:block; color:#fff8d6; }
+    .enemy small{ display:block; color:#9fdcff; overflow-wrap:anywhere; font-size:11px; margin-top:2px; }
+    .map{ color:#fff0bf; }
+    .stats{ color:#d9cef0; line-height:1.45; white-space:nowrap; }
+    .asset{ display:flex; flex-direction:column; gap:4px; min-width:130px; }
+    .asset span{ display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+    .ok{ color:var(--ok); }
+    .bad{ color:var(--bad); }
+    .behavior{ color:var(--cyan); max-width:260px; line-height:1.35; }
+    .note{ margin-top:12px; color:#9a8fc0; font-size:12px; line-height:1.45; }
+    @media (max-width:760px){
+      main{ width:100%; padding:14px; }
+      header{ align-items:flex-start; flex-direction:column; }
+      .summary{ justify-content:flex-start; }
+      table{ display:block; overflow-x:auto; }
+      th,td{ padding:9px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Enemy Roster</h1>
+        <p>ตารางมอนสเตอร์ปกติที่อยู่ในระบบตอนนี้ แยกตาม Map พร้อมรูป, ค่าสถานะ, พฤติกรรม และสถานะ sprite 8 ทิศ/เดิน</p>
+      </div>
+      <div class="summary" id="summary"></div>
+    </header>
+
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="ค้นหาชื่อหรือ sprite...">
+      <select id="tier">
+        <option value="">ทุก Map</option>
+        <option value="0">Map 1</option>
+        <option value="1">Map 2</option>
+        <option value="2">Map 3</option>
+      </select>
+      <select id="walk">
+        <option value="">ทุกสถานะ Walk</option>
+        <option value="yes">มี Walk</option>
+        <option value="no">ยังไม่มี Walk</option>
+      </select>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Monster</th>
+          <th>Map</th>
+          <th>Stats</th>
+          <th>Behavior</th>
+          <th>Sprites</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="note">หมายเหตุ: 8 ทิศ = มีไฟล์ <code>_8dir.png</code>, Walk = มีไฟล์ <code>_walk.png</code>. มอนยิง 4 ตัวใหม่บางตัวตั้งใจเป็น static rotations จึงอาจยังไม่มี Walk animation.</div>
+
+    <h2>Boss / Miniboss Roster</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Boss</th>
+          <th>Type</th>
+          <th>Stats</th>
+          <th>Use / Spawn</th>
+          <th>Sprites</th>
+        </tr>
+      </thead>
+      <tbody id="bossRows"></tbody>
+    </table>
+  </main>
+
+  <script src="js/game-data.js"></script>
+  <script>
+    const mapNames = ['Map 1 - Bleakfield','Map 2 - Crimson Wastes','Map 3 - Void Citadel'];
+    const behaviorText = {
+      'Grave Arbalist':'ยิงตรงเร็ว ระยะไกล',
+      'Mire Hexer':'ยิงกระจาย 3 นัด',
+      'Rift Needler':'ยิง fan แคบ 5 นัด',
+      'Doom Cantor':'ยิงวงกระสุนหรือกระสุนช้าแรง',
+      'Covenant Warder':'คุ้มกันเพื่อนรอบตัวให้อมตะ',
+      'Swamp Witch':'ยิงเวทและถอยคุมระยะ',
+      'Toxic Spore':'ยิงพิษกดพื้นที่',
+      'Dark Apostle':'นักเวทระยะไกล',
+      'Abyssal Horror':'ยิงระยะไกลตัวถึก',
+      'Bog Elemental':'ตัวถึก/ระเบิดพลังหนองน้ำ',
+      'Muck Slime':'ระเบิดเมื่อเข้าใกล้หรือตาย',
+      'Plague Rat':'ระเบิดเมื่อเข้าใกล้หรือตาย',
+      'Oblivion Orb':'ศัตรูลอย/ระเบิด',
+      'Nether Drake':'พุ่งชาร์จ',
+      'Rift Phantom':'พุ่งชาร์จ',
+      'Chaos Wisp':'พุ่งชาร์จ',
+      'Willow Wisp':'พุ่งชาร์จ',
+      'Wraith':'พุ่งชาร์จ',
+      'Dire Bat':'พุ่งชาร์จ'
+    };
+    function assetUrl(key){
+      const file = MANIFEST[key] || (key + '.png');
+      return SP + file;
+    }
+    function checkImage(src){
+      return new Promise(resolve=>{
+        const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+        img.src = src + '?check=' + Date.now();
+      });
+    }
+    async function buildRows(){
+      const rows = await Promise.all(ENEMY_TYPES.map(async e=>{
+        const staticSrc = assetUrl(e.sprite);
+        const dirSrc = assetUrl(e.sprite + '_8dir');
+        const walkSrc = assetUrl(e.sprite + '_walk');
+        const has8dir = await checkImage(dirSrc);
+        const hasWalk = await checkImage(walkSrc);
+        const hasStatic = await checkImage(staticSrc);
+        const displayKey = has8dir ? e.sprite + '_8dir' : (hasWalk ? e.sprite + '_walk' : e.sprite);
+        return {
+          ...e,
+          staticSrc,
+          displaySrc: assetUrl(displayKey),
+          displayKey,
+          hasStatic,
+          has8dir,
+          hasWalk
+        };
+      }));
+      window.enemyRows = rows;
+      const bosses = [
+        ...MINIBOSS_TYPES.map(e=>({ ...e, kind:'Miniboss', use:'Map-based miniboss pool' })),
+        ...BOSS_TYPES.map(e=>({ ...e, kind:e.final?'Final Boss':'Boss', use:e.final?'Map 3 final boss':'Stage boss / merchant boss / special summon' })),
+        { name:'The Butcher', sprite:'boss_butcher', hp:'varies', atk:'varies', spd:64, xp:520, h:4.0, kind:'Special Boss', use:'Random one-time hunt, minute 6-8 if eligible' }
+      ];
+      window.bossRows = await Promise.all(bosses.map(async e=>{
+        const staticSrc = assetUrl(e.sprite);
+        const dirSrc = assetUrl(e.sprite + '_8dir');
+        const walkSrc = assetUrl(e.sprite + '_walk');
+        const has8dir = await checkImage(dirSrc);
+        const hasWalk = await checkImage(walkSrc);
+        const hasStatic = await checkImage(staticSrc);
+        const displayKey = has8dir ? e.sprite + '_8dir' : (hasWalk ? e.sprite + '_walk' : e.sprite);
+        return { ...e, staticSrc, displaySrc: assetUrl(displayKey), displayKey, hasStatic, has8dir, hasWalk };
+      }));
+      render();
+    }
+    function icon(ok, label){
+      return '<span class="'+(ok?'ok':'bad')+'">'+(ok?'✓':'×')+' '+label+'</span>';
+    }
+    function render(){
+      const q = document.getElementById('q').value.trim().toLowerCase();
+      const tier = document.getElementById('tier').value;
+      const walk = document.getElementById('walk').value;
+      let rows = (window.enemyRows || []).slice().sort((a,b)=>a.tier-b.tier || a.name.localeCompare(b.name));
+      rows = rows.filter(e=>{
+        if(tier !== '' && String(e.tier) !== tier) return false;
+        if(walk === 'yes' && !e.hasWalk) return false;
+        if(walk === 'no' && e.hasWalk) return false;
+        if(q && !(e.name.toLowerCase().includes(q) || e.sprite.toLowerCase().includes(q))) return false;
+        return true;
+      });
+      document.getElementById('rows').innerHTML = rows.map(e=>`
+        <tr>
+          <td><div class="enemy"><img class="${e.displayKey.endsWith('_8dir') || e.displayKey.endsWith('_walk') ? 'sheet' : ''}" src="${e.displaySrc}" alt="${e.name}"><div><b>${e.name}</b><small>${e.sprite}<br>shown: ${e.displayKey}</small></div></div></td>
+          <td class="map">${mapNames[e.tier] || 'Map ?'}</td>
+          <td class="stats">HP ${e.hp} / ATK ${e.atk}<br>SPD ${e.spd} / XP ${e.xp} / H ${e.h}</td>
+          <td class="behavior">${behaviorText[e.name] || 'ไล่ล่าระยะประชิด'}</td>
+          <td><div class="asset">${icon(e.hasStatic,'Static')}${icon(e.has8dir,'8-dir')}${icon(e.hasWalk,'Walk')}</div></td>
+        </tr>
+      `).join('');
+      document.getElementById('bossRows').innerHTML = (window.bossRows || []).map(e=>`
+        <tr>
+          <td><div class="enemy"><img class="${e.displayKey.endsWith('_8dir') || e.displayKey.endsWith('_walk') ? 'sheet' : ''}" src="${e.displaySrc}" alt="${e.name}"><div><b>${e.name}</b><small>${e.sprite}<br>shown: ${e.displayKey}</small></div></div></td>
+          <td class="map">${e.kind}</td>
+          <td class="stats">HP ${e.hp} / ATK ${e.atk}<br>SPD ${e.spd || '-'} / XP ${e.xp || '-'} / H ${e.h}</td>
+          <td class="behavior">${e.use}</td>
+          <td><div class="asset">${icon(e.hasStatic,'Static')}${icon(e.has8dir,'8-dir')}${icon(e.hasWalk,'Walk')}</div></td>
+        </tr>
+      `).join('');
+      const all = window.enemyRows || [];
+      const allBosses = window.bossRows || [];
+      const missingWalk = all.filter(e=>!e.hasWalk).length;
+      document.getElementById('summary').innerHTML = [
+        '<span class="pill">Total '+all.length+'</span>',
+        '<span class="pill">Bosses '+allBosses.length+'</span>',
+        '<span class="pill">Map 1 '+all.filter(e=>e.tier===0).length+'</span>',
+        '<span class="pill">Map 2 '+all.filter(e=>e.tier===1).length+'</span>',
+        '<span class="pill">Map 3 '+all.filter(e=>e.tier===2).length+'</span>',
+        '<span class="pill">Missing Walk '+missingWalk+'</span>'
+      ].join('');
+    }
+    document.getElementById('q').addEventListener('input', render);
+    document.getElementById('tier').addEventListener('change', render);
+    document.getElementById('walk').addEventListener('change', render);
+    buildRows();
+  </script>
+</body>
+</html>

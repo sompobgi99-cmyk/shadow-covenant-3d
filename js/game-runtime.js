@@ -218,7 +218,7 @@ Object.assign(ITEM_I18N,{
   execution_coin:{en:{desc:'Critical damage +8%; critical hits may drop gold'}}, phase_cloak:{en:{desc:'Dash invulnerability +0.12s, evasion +5%'}},
   battle_banner:{en:{desc:'Ground Haste/Might buffs last +35% longer'}}, butcher_token:{en:{desc:'Damage to The Butcher and Mimics +25%'}},
   big_bonk:{en:{desc:'2% chance to deal 20x damage'}}, holy_book:{en:{desc:'Max HP +100, regeneration +50'}}, soul_harvester:{en:{desc:'Kills drop extra homing XP'}},
-  spicy_meatball:{en:{desc:'Attacks have 25% chance to explode for 65% damage'}}, chonkplate:{en:{desc:'Overheal +75%, lifesteal +20%'}},
+  spicy_meatball:{en:{desc:'Attacks have 25% chance to explode for 65% damage'}}, chonkplate:{en:{desc:'Overheal +50%, heal +2 on kill'}},
   energy_core:{en:{desc:'Pulses an energy aura that damages nearby enemies'}}, power_gloves:{en:{desc:'8% chance to explode with knockback'}},
   dragonfire:{en:{desc:'Attacks have 15% chance to burn enemies over time'}}, glass_needle:{en:{desc:'Critical chance +20%, critical damage +60%, max HP -15%'}},
   royal_jelly:{en:{desc:'Luck +20%, gold +20%, XP +10%'}}
@@ -1157,6 +1157,8 @@ function guideItemCard(it){
     +'</div>';
 }
 function unitSpritePath(sprite){
+  if(MANIFEST[sprite+'_8dir']) return spriteSrc(sprite+'_8dir');
+  if(MANIFEST[sprite+'_walk']) return spriteSrc(sprite+'_walk');
   return spriteSrc(sprite);
 }
 function itemGuideTagLabel(tag){
@@ -1480,20 +1482,20 @@ function openGuide(kind){
     cards=ENEMY_TYPES.slice().sort((a,b)=>a.tier-b.tier||a.name.localeCompare(b.name)).map(e=>{
       const desc=unitBehaviorText(e)+' / '+mapName(e);
       const meta=monsterStatMeta(e);
-      return guideUnitCard(unitSpritePath(e.sprite), e.name, desc, meta, 'monster');
+      return guideUnitCard(unitSpritePath(e.sprite), e.name, desc, meta, 'monster sheet');
     }).join('');
   } else if(kind==='bosses'){
     title='สารานุกรมบอส';
     note='บอสและมินิบอส พร้อมสกิลสำคัญที่ต้องระวัง';
     const mnb=n=>(MAP_THEMES[n]&&MAP_THEMES[n].name)||('Map '+n);
     const minis=MINIBOSS_TYPES.map(e=>
-      guideUnitCard(unitSpritePath(e.sprite), e.name, 'มินิบอส / '+skillListFor(e.sprite, typeof MB_SKILLS!=='undefined'?MB_SKILLS:null), bossStatMeta(e,'mini'), 'boss')
+      guideUnitCard(unitSpritePath(e.sprite), e.name, 'มินิบอส / '+skillListFor(e.sprite, typeof MB_SKILLS!=='undefined'?MB_SKILLS:null), bossStatMeta(e,'mini'), 'boss sheet')
     ).join('');
     const bosses=BOSS_TYPES.map(e=>{
       const where=e.final?('Map 3 · '+mnb(3)+' (บอสสุดท้าย)'):e.name==='Lich King'?('Map 1 · '+mnb(1)):e.name==='Abyssal Behemoth'?('Map 1–2 · '+mnb(1)+'/'+mnb(2)):('Map 2 · '+mnb(2));
-      return guideUnitCard(unitSpritePath(e.sprite+'_8dir'), e.name, where+' / '+skillListFor(e.sprite, typeof BOSS_SKILLS!=='undefined'?BOSS_SKILLS:null), bossStatMeta(e,'boss'), 'boss sheet');
+      return guideUnitCard(unitSpritePath(e.sprite), e.name, where+' / '+skillListFor(e.sprite, typeof BOSS_SKILLS!=='undefined'?BOSS_SKILLS:null), bossStatMeta(e,'boss'), 'boss sheet');
     }).join('');
-    const butcher=guideUnitCard(unitSpritePath('boss_butcher_8dir'), 'The Butcher', 'Special Hunt / สุ่ม 20% ต่อรัน ช่วงนาที 6-8 / สกิล: '+['reaperBlink','rustedGallows','fan'].map(s=>guideText(SKILL_GUIDE_TEXT[s],s)).join(', '), 'มีเวลา 20 วิให้ฆ่าเพื่อรางวัลพิเศษ · ไม่กระเด็น แต่เลือดและความเร็วถูกลดลงแล้ว', 'boss sheet hunt');
+    const butcher=guideUnitCard(unitSpritePath('boss_butcher'), 'The Butcher', 'Special Hunt / สุ่ม 20% ต่อรัน ช่วงนาที 6-8 / สกิล: '+['reaperBlink','rustedGallows','fan'].map(s=>guideText(SKILL_GUIDE_TEXT[s],s)).join(', '), 'มีเวลา 20 วิให้ฆ่าเพื่อรางวัลพิเศษ · ไม่กระเด็น แต่เลือดและความเร็วถูกลดลงแล้ว', 'boss sheet hunt');
     cards=minis+bosses+butcher;
   } else {
     return openGuide('hub');

@@ -9,7 +9,7 @@ const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260703-ranking-toggle";
+const REQUIRED_BUILD = "20260703-codex-icons";
 
 const jsonHeaders = {
   "Content-Type": "application/json; charset=utf-8",

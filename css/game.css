@@ -353,6 +353,7 @@
   .guidegrid.characters{ grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
   .guidegrid.weapons{ grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); align-items:stretch; }
   .guidegrid.items{ grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); align-items:stretch; gap:11px; }
+  .guidegrid.monsters{ grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); align-items:stretch; }
   .guidegrid.bosses{ grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); align-items:stretch; }
   .guidegrid.pets{ grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); align-items:stretch; gap:11px; }
   .guidegrid.hub{ grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); }
@@ -367,9 +368,14 @@
   .guidecard.jump{ cursor:pointer; text-align:left; font-family:monospace; }
   .guidecard.jump:hover{ border-color:#ffcc66; background:rgba(55,22,38,.76); transform:translateY(-1px); }
   .guidecard img{ width:42px; height:42px; object-fit:contain; image-rendering:pixelated; }
+  .guidegrid.monsters .guidecard.unit{ grid-template-columns:58px 1fr; align-items:start; min-height:132px; }
+  .guidegrid.monsters .guidecard.unit img{ width:54px; height:54px; filter:drop-shadow(0 3px 5px #000); }
+  .guidegrid.monsters .guidecard.unit b{ white-space:normal; overflow:visible; text-overflow:clip; }
+  .guidegrid.monsters .guidecard.unit p,
+  .guidegrid.monsters .guidecard.unit small{ line-height:1.25; overflow-wrap:anywhere; }
   .guidegrid.bosses .guidecard.unit{ grid-template-columns:58px 1fr; align-items:start; min-height:136px; }
   .guidegrid.bosses .guidecard.unit img{ width:54px; height:54px; filter:drop-shadow(0 3px 5px #000); }
-  .guidegrid.bosses .guidecard.unit.sheet img{ object-fit:cover; object-position:center top; }
+  .guidecard.unit.sheet img{ object-fit:cover; object-position:center top; }
   .guidegrid.bosses .guidecard.unit b{ white-space:normal; overflow:visible; text-overflow:clip; }
   .guidegrid.bosses .guidecard.unit p,
   .guidegrid.bosses .guidecard.unit small{ line-height:1.25; overflow-wrap:anywhere; }
@@ -552,6 +558,8 @@
     .guidegrid.weapons{ grid-template-columns:1fr; }
     .guidegrid.weapons .guidecard{ min-height:0; }
     .guidegrid.items{ grid-template-columns:1fr; }
+    .guidegrid.monsters{ grid-template-columns:1fr; }
+    .guidegrid.monsters .guidecard.unit{ min-height:0; }
     .guidegrid.bosses{ grid-template-columns:1fr; }
     .guidegrid.bosses .guidecard.unit{ min-height:0; }
     .itemsummary{ grid-template-columns:repeat(2,minmax(0,1fr)); padding:8px; }
