@@ -4,6 +4,7 @@
   if (!isTouch()) return;
 
   document.body.classList.add('touch');
+  if (typeof window.updateRankToggleLabel === 'function') window.updateRankToggleLabel();
   window.touchMove = { active:false, x:0, z:0 };
 
   const joy = document.createElement('div');
@@ -30,20 +31,6 @@
   document.body.appendChild(dash);
   document.body.appendChild(fbtn);
   document.body.appendChild(hud);
-
-  const titleMenu = document.querySelector('#title .titlemenu');
-  if (titleMenu && !document.getElementById('mranktoggle')) {
-    const rank = document.createElement('button');
-    rank.id = 'mranktoggle';
-    rank.type = 'button';
-    rank.textContent = 'Ranking';
-    rank.addEventListener('click', e=>{
-      e.preventDefault(); e.stopPropagation();
-      document.body.classList.toggle('rank-open');
-      rank.textContent = document.body.classList.contains('rank-open') ? 'Hide Ranking' : 'Ranking';
-    });
-    titleMenu.appendChild(rank);
-  }
 
   const HUD_KEY = 'sc3_mobile_hud_mode';
   const HUD_MODES = ['full','compact','min'];

@@ -62,7 +62,7 @@ const I18N={
     'lang.th':'ไทย','lang.en':'EN','lang.label':'ภาษา',
     'title.eyebrow':'Gothic Action Survivors','title.tagline':'ฝ่าดงอสูร สะสมอาวุธ และทำลายพันธสัญญาแห่งความมืดก่อนคืนจันทราจะกลืนกินทุกสิ่ง',
     'title.meta.heroes':'12 นักล่า','title.meta.maps':'3 เขตต้องสาป','title.meta.minutes':'10 นาที/ด่าน',
-    'title.identity':'เลือกตัวตน','title.pets':'Pets / ร้านสัตว์เลี้ยง','title.guide':'คู่มือ / ข้อมูลเกม',
+    'title.identity':'เลือกตัวตน','title.pets':'Pets / ร้านสัตว์เลี้ยง','title.guide':'คู่มือ / ข้อมูลเกม','title.rank.show':'แสดง Ranking','title.rank.hide':'ซ่อน Ranking',
     'auth.chooseTitle':'เลือกวิธีเข้าเกม','auth.chooseSub':'เลือกตัวตนก่อน แล้วค่อยกดเริ่มเกมจากหน้าแรก','auth.google':'Sign in with Google','auth.googleDesc':'บันทึก Ranking และ Unlock Online','auth.guest':'Play as Guest','auth.guestDesc':'เล่นทันที บันทึกในเครื่องนี้',
     'start.needChoice':'เลือก Guest หรือ Google ก่อน','start.needChoiceStatus':'เลือกวิธีเข้าเกมก่อน','start.guestBtn':'เริ่มเกมแบบ Guest','start.guestStatus':'Guest: บันทึก unlock ในเครื่องนี้ คะแนนออนไลน์เป็น Guest','start.verifiedBtn':'เริ่มเกมแบบ Verified','start.loadingBtn':'กำลังโหลด Google Login...','start.loadingStatus':'รอระบบ Login พร้อมใช้งาน','start.notReadyBtn':'Google Login ยังไม่พร้อม','start.notReadyStatus':'ยังไม่ได้ตั้งค่า Supabase/Netlify auth สำหรับ Google Login','start.loginGoogleBtn':'Login ด้วย Google','start.loginGoogleStatus':'Google: ต้อง login ก่อนเริ่มแบบ Verified',
     'guide.open':'เปิดคู่มือ','guide.hub.title':'คู่มือ / ข้อมูลเกม','guide.hub.note':'รวมข้อมูลหลักของระบบและสิ่งที่ปลดล็อกได้','guide.characters':'ตัวละคร','guide.characters.desc':'อาวุธเริ่มต้น สกิลติดตัว และค่าสถานะพื้นฐาน','guide.weapons':'อาวุธ','guide.weapons.desc':'อาวุธพื้นฐานและร่างวิวัฒน์','guide.tomes':'Tome','guide.tomes.desc':'อัปเกรดติดตัวและคู่สำหรับวิวัฒน์อาวุธ','guide.evolution':'วิวัฒน์อาวุธ','guide.evolution.desc':'กติกาอาวุธ Lv8 พร้อม Tome ที่ตรงกัน','guide.items':'ไอเทม','guide.items.desc':'ของดรอปที่ซ้อนทับได้และระดับความหายาก','guide.relics':'Relic','guide.relics.desc':'รางวัลหลังฆ่าบอสที่เปลี่ยนแนวเล่นของรัน','guide.monsters':'สารานุกรมมอนสเตอร์','guide.monsters.desc':'ระดับและพฤติกรรมของศัตรูทั่วไป','guide.bosses':'สารานุกรมบอส','guide.bosses.desc':'สกิลสำคัญของมินิบอสและบอส','guide.events':'อีเวนต์','guide.events.desc':'เหตุการณ์พิเศษและความปั่นระหว่างรัน','guide.maps':'แผนที่','guide.maps.desc':'ความต่างของแต่ละด่าน','guide.combat':'ระบบต่อสู้','guide.combat.desc':'Crit, knockback, pierce, guard และ overtime','guide.shrine':'Shrine','guide.shrine.desc':'เสาแม่เหล็ก, Shrine, Chest, Merchant, Altar และ Portal','guide.shop':'ร้านค้า / NPC','guide.shop.desc':'การซื้อของ reroll และโอกาสพ่อค้าทรยศ','guide.pets':'Pets','guide.pets.desc':'ซื้อสัตว์เลี้ยงด้วย Soul Coins และเลือกติดตาม 1 ตัวต่อรัน','guide.achievements':'Achievements','guide.achievements.desc':'ปลดล็อกตัวละคร อาวุธ และไอเทม พร้อม sync เมื่อใช้ Google','guide.ranking':'Ranking','guide.ranking.desc':'กติกาคะแนนและ leaderboard online',
@@ -74,7 +74,7 @@ const I18N={
     'lang.th':'TH','lang.en':'English','lang.label':'Language',
     'title.eyebrow':'Gothic Action Survivors','title.tagline':'Survive cursed hordes, forge broken weapons, and shatter the shadow pact before the moon devours everything.',
     'title.meta.heroes':'12 hunters','title.meta.maps':'3 cursed zones','title.meta.minutes':'10 min / map',
-    'title.identity':'Choose identity','title.pets':'Pets / Pet Shop','title.guide':'Guide / Game Info',
+    'title.identity':'Choose identity','title.pets':'Pets / Pet Shop','title.guide':'Guide / Game Info','title.rank.show':'Show Ranking','title.rank.hide':'Hide Ranking',
     'auth.chooseTitle':'Choose Login Method','auth.chooseSub':'Pick an identity first, then start from the title screen.','auth.google':'Sign in with Google','auth.googleDesc':'Save Ranking and Unlocks online','auth.guest':'Play as Guest','auth.guestDesc':'Play now and save on this device',
     'start.needChoice':'Choose Guest or Google first','start.needChoiceStatus':'Choose a login method first','start.guestBtn':'Start as Guest','start.guestStatus':'Guest: unlocks are saved on this device; online score is marked Guest','start.verifiedBtn':'Start as Verified','start.loadingBtn':'Loading Google Login...','start.loadingStatus':'Waiting for login service','start.notReadyBtn':'Google Login unavailable','start.notReadyStatus':'Supabase/Netlify auth is not configured for Google Login yet','start.loginGoogleBtn':'Login with Google','start.loginGoogleStatus':'Google: login first to start as Verified',
     'guide.open':'Open guide','guide.hub.title':'Guide / Game Info','guide.hub.note':'Core systems, unlocks, and run mechanics','guide.characters':'Characters','guide.characters.desc':'Starting weapons, passives, and base stats','guide.weapons':'Weapons','guide.weapons.desc':'Base weapons and evolved forms','guide.tomes':'Tomes','guide.tomes.desc':'Passive upgrades and weapon evolution pairs','guide.evolution':'Weapon Evolution','guide.evolution.desc':'Lv8 weapon plus the matching Tome','guide.items':'Items','guide.items.desc':'Stackable drops and rarity tiers','guide.relics':'Relics','guide.relics.desc':'Boss rewards that reshape the run','guide.monsters':'Monster Codex','guide.monsters.desc':'Enemy tiers and behavior types','guide.bosses':'Boss Codex','guide.bosses.desc':'Major miniboss and boss skills','guide.events':'Events','guide.events.desc':'Special encounters and chaotic run twists','guide.maps':'Maps','guide.maps.desc':'How each stage changes the run','guide.combat':'Combat','guide.combat.desc':'Crit, knockback, pierce, guard, and overtime','guide.shrine':'Shrines','guide.shrine.desc':'Magnet pillars, shrines, chests, merchants, altars, and portals','guide.shop':'Shop / NPC','guide.shop.desc':'Buying, rerolling, and merchant betrayal risk','guide.pets':'Pets','guide.pets.desc':'Buy pets with Soul Coins and bring one per run','guide.achievements':'Achievements','guide.achievements.desc':'Unlock characters, weapons, and items; sync with Google','guide.ranking':'Ranking','guide.ranking.desc':'Score rules and online leaderboard',
@@ -279,13 +279,33 @@ function applyStaticI18n(){
   set('#title .eyebrow','title.eyebrow'); set('#title .ts','title.tagline'); set('.startlabel','title.identity');
   const metas=document.querySelectorAll('.titlemeta span'); if(metas[0]) metas[0].innerHTML='<i></i>'+escHtml(tr('title.meta.heroes')); if(metas[1]) metas[1].innerHTML='<i></i>'+escHtml(tr('title.meta.maps')); if(metas[2]) metas[2].innerHTML='<i></i>'+escHtml(tr('title.meta.minutes'));
   const menu=document.querySelectorAll('.titlemenu button'); if(menu[0]) menu[0].textContent=tr('title.pets'); if(menu[1]) menu[1].textContent=tr('title.guide');
+  updateRankToggleLabel();
   set('.authpanel h2','auth.chooseTitle'); set('.authpanel .authsub','auth.chooseSub');
   const g=document.querySelector('#googlechoice .mode-name'); if(g) g.textContent=tr('auth.google'); const gd=document.querySelector('#googlechoice .mode-desc'); if(gd) gd.textContent=tr('auth.googleDesc');
   const q=document.querySelector('#guestchoice .mode-name'); if(q) q.textContent=tr('auth.guest'); const qd=document.querySelector('#guestchoice .mode-desc'); if(qd) qd.textContent=tr('auth.guestDesc');
   set('#resumebtn','pause.resume'); set('#quitbtn','pause.quit'); set('#pause small','pause.hint');
   document.querySelectorAll('.langtoggle').forEach(langBox=>{ const span=langBox.querySelector('span'); if(span) span.textContent=tr('lang.label'); langBox.querySelector('[data-lang="th"]').textContent=tr('lang.th'); langBox.querySelector('[data-lang="en"]').textContent=tr('lang.en'); langBox.querySelectorAll('button').forEach(btn=>btn.classList.toggle('active', btn.dataset.lang===lang)); });
 }
-window.tr=tr; window.setGameLanguage=setGameLanguage; window.gameLang=gameLang;
+window.tr=tr; window.setGameLanguage=setGameLanguage; window.gameLang=gameLang; window.updateRankToggleLabel=updateRankToggleLabel;
+
+function isTitleRankingVisible(){
+  return document.body.classList.contains('touch')
+    ? document.body.classList.contains('rank-open')
+    : !document.body.classList.contains('rank-hidden');
+}
+function updateRankToggleLabel(){
+  const btn=document.getElementById('ranktoggle');
+  if(!btn) return;
+  btn.textContent=tr(isTitleRankingVisible() ? 'title.rank.hide' : 'title.rank.show');
+}
+function toggleTitleRanking(){
+  if(document.body.classList.contains('touch')){
+    document.body.classList.toggle('rank-open');
+  }else{
+    document.body.classList.toggle('rank-hidden');
+  }
+  updateRankToggleLabel();
+}
 
 function spawnDmg(x,z,amount,color,crit,kind){
   if(document.body.classList.contains('touch')){
@@ -2066,7 +2086,8 @@ function init() {
     buildPactSelect();
   };
   document.getElementById('pactstart').onclick = ()=>{ setActivePacts(selectedPactIds); beginSelectedRun(); };
-  document.querySelectorAll('.titlemenu button').forEach(btn=>btn.onclick=()=>openGuide(btn.dataset.guide));
+  document.querySelectorAll('.titlemenu button[data-guide]').forEach(btn=>btn.onclick=()=>openGuide(btn.dataset.guide));
+  { const rb=document.getElementById('ranktoggle'); if(rb) rb.onclick = toggleTitleRanking; }
   document.getElementById('guideclose').onclick = closeGuide;
   document.getElementById('guide').onclick = e=>{ if(e.target.id==='guide') closeGuide(); };
 
