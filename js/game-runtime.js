@@ -2308,17 +2308,36 @@ ENEMY_SHADOW_GEO.rotateX(-Math.PI/2);
 const ENEMY_SHADOW_CAP = 520;
 let enemyShadowMesh = null;
 let enemyShadowDummy = null;
+const GRID_TEXTURE_POOL_CAP = 16;
+const gridTexturePools = new Map();
 // ---- GPU memory: free per-instance geometry/material/texture when objects are removed ----
 // Shared resources are flagged so freeObj() skips them. Cloned textures are freed only by the
 // material that owns them (_ownsMap). Without this, long sessions leak GPU memory -> white screen.
 SHADOW_GEO._shared = ENEMY_SHADOW_GEO._shared = SHADOW_MAT._shared = PARTICLE_GEO._shared = TRAIL_GEO._shared = EFFECT_PLANE_GEO._shared = true;
+function returnGridTextureToPool(map){
+  if(!map || !map._poolKey) return false;
+  const key=map._poolKey;
+  map.offset.set(0,0);
+  let pool=gridTexturePools.get(key);
+  if(!pool){ pool=[]; gridTexturePools.set(key,pool); }
+  if(pool.length>=GRID_TEXTURE_POOL_CAP){ map.dispose(); return true; }
+  pool.push(map);
+  return true;
+}
 function freeObj(obj){
   if(!obj || !obj.traverse) return;
   obj.traverse(n=>{
     if(n.geometry && !n.isSprite && !n.geometry._shared) n.geometry.dispose();
     const mat=n.material; if(!mat) return;
     const mats=Array.isArray(mat)?mat:[mat];
-    for(const m of mats){ if(!m || m._shared) continue; if(m._ownsMap && m.map) m.map.dispose(); m.dispose(); }
+    for(const m of mats){
+      if(!m || m._shared) continue;
+      if(m.map && m.map._poolKey){
+        returnGridTextureToPool(m.map);
+        m.map=null;
+      } else if(m._ownsMap && m.map) m.map.dispose();
+      m.dispose();
+    }
   });
 }
 
@@ -3846,9 +3865,9 @@ function animBillboard(sheetKey, height, frames) {
 function entitySprite(baseKey, height) {
   const D = DIR_SHEETS[baseKey];
   if (D && tex[D.key]) {
-    const st = makeGridState(D);
+    const st = makeGridState(D, true);
     const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: st.map, transparent:true, alphaTest:0.4, depthWrite:true }));
-    spr.material._ownsMap = true;   // each enemy clones its own 8-dir texture -> free on death
+    spr.material._ownsMap = true;   // pooled/cloned 8-dir texture -> returned or freed on removal
     const base = tex[D.key];
     const ar = (base.image.width/D.cols) / (base.image.height/D.rows);
     spr.center.set(0.5, 0); spr.scale.set(height*ar, height, 1);
@@ -3859,10 +3878,23 @@ function entitySprite(baseKey, height) {
   return { spr: billboard(baseKey, height), anim: null };
 }
 
-function makeGridState(c) {
-  const t = tex[c.key].clone(); t.needsUpdate = true;
+function checkoutGridTexture(c){
+  const pool=gridTexturePools.get(c.key);
+  if(pool && pool.length) return pool.pop();
+  const t = tex[c.key].clone();
+  t.needsUpdate = true;
+  t._poolKey = c.key;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(1/c.cols, 1/c.rows);
+  return t;
+}
+function makeGridState(c, pooled) {
+  const t = pooled ? checkoutGridTexture(c) : tex[c.key].clone();
+  if(!pooled){
+    t.needsUpdate = true;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(1/c.cols, 1/c.rows);
+  }
   return { map:t, cols:c.cols, rows:c.rows, fps:c.fps };
 }
 
