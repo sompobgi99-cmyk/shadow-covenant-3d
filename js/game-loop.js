@@ -205,13 +205,21 @@ function update(dt) {
     if(e.burrowT>0){
       e.burrowT-=dt;
       e.flash=Math.max(e.flash,0.08);
-      if(e.spr && e.spr.material) e.spr.material.opacity=Math.max(0.10,0.35*(e.burrowT/(e.burrowMax||0.92)));
-      if(e.sh && !e.sh._instancedShadow && e.sh.material) e.sh.material.opacity=0.10;
+      const burrowP=clamp(e.burrowT/(e.burrowMax||0.92),0,1);
+      if(e.spr && e.spr.material) e.spr.material.opacity=0.35+0.25*burrowP;
+      if(e.sh && !e.sh._instancedShadow && e.sh.material) e.sh.material.opacity=0.22;
+      e.burrowFxT=(e.burrowFxT||0)-dt;
+      if(e.burrowFxT<=0){
+        e.burrowFxT=0.18;
+        spawnRing(e.x,e.z,0x6f5a91,Math.max(1.4,e.r*1.35),0.24);
+        spawnBurst(e.x,e.z,0x6f5a91,5,0.42);
+      }
       if(e.burrowT<=0 && !e.burrowDone){
         e.burrowDone=true;
         e.x=clamp(e.burrowX==null?e.x:e.burrowX,-MAP_BOUND,MAP_BOUND);
         e.z=clamp(e.burrowZ==null?e.z:e.burrowZ,-MAP_BOUND,MAP_BOUND);
         e.kx=0; e.kz=0; e.charging=0;
+        e.burrowFxT=0;
         if(e.spr && e.spr.material) e.spr.material.opacity=1;
         if(e.sh && !e.sh._instancedShadow && e.sh.material) e.sh.material.opacity=0.45;
         spawnBurst(e.x,e.z,0x9a6cff,28,1.25);

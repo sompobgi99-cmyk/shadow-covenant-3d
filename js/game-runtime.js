@@ -8,10 +8,12 @@ const obstacles = [];                       // solid scenery {x,z,r}
 const worldScenery = [];                    // base map scenery that can be removed on stage changes
 const stageProps = [];                      // scenery added/removed when changing maps
 const ENEMY_GRID_SIZE = 4;
+const ENEMY_GRID_OFFSET = 4096;
+const ENEMY_GRID_STRIDE = 8192;
 const enemyGrid = new Map();
-function enemyGridKey(cx, cz){ return cx+','+cz; }
+function enemyGridKey(cx, cz){ return (cx + ENEMY_GRID_OFFSET) * ENEMY_GRID_STRIDE + (cz + ENEMY_GRID_OFFSET); }
 function rebuildEnemyGrid(){
-  enemyGrid.clear();
+  for(const bucket of enemyGrid.values()) bucket.length=0;
   for (let i=0;i<enemies.length;i++){
     const e=enemies[i];
     if(!e.alive) continue;
