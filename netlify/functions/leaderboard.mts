@@ -9,7 +9,7 @@ const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260705-hard-buff-heal-perf";
+const REQUIRED_BUILD = "20260705-challenge-boundary";
 
 const jsonHeaders = {
   "Content-Type": "application/json; charset=utf-8",

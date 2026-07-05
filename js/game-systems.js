@@ -935,9 +935,10 @@ function spawnChallengeEnemy(){
   if(point) spawnEnemy(t,point.x,point.z);
 }
 function updateChallengeRoom(dt){
-  if(!challengeRoom || challengeRoom.completed) return;
+  if(!challengeRoom) return;
   maxEnemies=challengeRoom.cap;
   applyChallengeSoftBoundary(dt);
+  if(challengeRoom.completed) return;
   const elapsed=gameTime-challengeRoom.startedAt;
   const remain=Math.max(0,challengeRoom.duration-elapsed);
   if(!challengeRoom.warned && remain<=10){
