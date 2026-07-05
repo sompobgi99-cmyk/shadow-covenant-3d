@@ -173,14 +173,14 @@ const ITEMS = [
     apply:p=>{ p.lootMagnetBonus=(p.lootMagnetBonus||0)+2.00; p.lootPullBonus=(p.lootPullBonus||0)+0.50; } },
   { id:'spicy_meatball',name:'Spicy Meatball',desc:'โจมตีมีโอกาส 25% ระเบิด 65% ดาเมจ', rarity:'legendary', icon:'item_spicy_meatball',
     apply:p=>{ p.spicyChance=(p.spicyChance||0)+0.25; } },
-  { id:'chonkplate',  name:'Chonkplate',     desc:'Overheal 50%, ฆ่าแล้วฟื้นเลือด +2', rarity:'legendary', icon:'item_chonkplate',
-    apply:p=>{ p.overheal=(p.overheal||0)+0.50; p.lifesteal+=2; } },
+  { id:'chonkplate',  name:'Chonkplate',     desc:'Overheal +50%, ดูดเลือด 10% ของดาเมจที่ทำได้', rarity:'legendary', icon:'item_chonkplate',
+    apply:p=>{ p.overheal=(p.overheal||0)+0.50; p.lifestealPct=(p.lifestealPct||0)+0.10; } },
   { id:'energy_core', name:'Energy Core',    desc:'ออร่าพลังงานเป็นจังหวะ ทำดาเมจรอบตัว', rarity:'legendary', icon:'item_energy_core',
     apply:p=>{ p._energyCore=(p._energyCore||0)+1; } },
-  { id:'power_gloves',name:'Power Gloves',   desc:'โอกาส 8% ระเบิดพร้อมแรงผลัก', rarity:'legendary', icon:'item_power_gloves',
-    apply:p=>{ p.blastChance=(p.blastChance||0)+0.08; p.knockbackMul=(p.knockbackMul||0)+0.5; } },
-  { id:'dragonfire',  name:'Dragonfire',     desc:'โจมตีมีโอกาส 15% ติดไฟและเผาต่อเนื่อง', rarity:'legendary', icon:'item_dragonfire',
-    apply:p=>{ p.fireChance=(p.fireChance||0)+0.15; } },
+  { id:'power_gloves',name:'Storm Gauntlets',desc:'ความเร็วโจมตี +40%, ความเร็วกระสุน/วัตถุ +12%, คูลดาวน์พุ่งหลบ -8%', rarity:'legendary', icon:'item_power_gloves',
+    apply:p=>{ p.rateMul*=1.40; p.projSpeedMul*=1.12; p.dashCdMul*=0.92; } },
+  { id:'dragonfire',  name:'Golden Sword',   desc:'ดาเมจ +99%', rarity:'legendary', icon:'item_dragonfire',
+    apply:p=>{ p.dmgMul*=1.99; } },
   { id:'glass_needle',name:'Glass Needle',   desc:'โอกาสคริติคอล +25%, ดาเมจคริติคอล +75%, เลือดสูงสุด -15%', rarity:'legendary', icon:'item_glass_needle',
     apply:p=>{ p.critChance+=0.25; p.critDmg+=0.75; p.maxHp=Math.max(1,Math.round(p.maxHp*0.85)); p.hp=Math.min(p.hp,p.maxHp); } },
   { id:'royal_jelly', name:'Royal Jelly',    desc:'Luck +20%, ทอง +20%, XP +10%', rarity:'legendary', icon:'item_royal_jelly',
@@ -340,6 +340,7 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc, meta){
   if (!Number.isFinite(d) || d < 0) d = 0;
   const immune = !!(e.final && e.finalPhase && e.phaseInvuln>0);
   if (!immune && dmg > 0 && d < 1) d = 1;
+  const hpBefore=e.hp;
   if(e.final && e.finalPhase){
     if(immune) d = 0;
     const floor = (e.finalPhase>1 || e.phaseInvuln>0) ? 1 : -Infinity;
@@ -356,6 +357,12 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc, meta){
   spawnDmg(e.x, e.z, immune ? 'IMMUNE' : d, color, crit.crit && d > 0, immune ? 'immune' : '');
   recordRunDamage(d, meta);
   if(d>0) sfx(crit.crit?'crit':'hit');
+  if(d>0 && player.lifestealPct){
+    const dealt=Math.max(0,hpBefore-e.hp);
+    const before=player.hp;
+    player.hp=Math.min(healCap(player), player.hp+scaledHeal(dealt*player.lifestealPct));
+    recordRunItem('lifesteal',{ heal:Math.max(0,player.hp-before), procs:1 });
+  }
   if(d>0 && crit.crit && !immune) onCritProcs(e,d,color,meta,crit.chain);
   if(d>0 && crit.crit && player._executionCoin && Math.random()<Math.min(0.60,0.15*player._executionCoin)){
     const g=Math.max(1,mapStage);
@@ -370,10 +377,8 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc, meta){
 }
 function onHitProcs(e, d, color){
   if (player.freezeChance && Math.random() < player.freezeChance){ e.slowT = Math.max(e.slowT||0, 1.2); recordRunItem('ice_crystal',{ procs:1 }); }   // Ice Crystal
-  if (player.fireChance && Math.random() < player.fireChance){ e.burnDps = Math.max(e.burnDps||0, d*0.20); e.burnT = 3; recordRunItem('dragonfire',{ procs:1 }); }  // Dragonfire
   if (player.thunderChance && Math.random() < player.thunderChance){ recordRunItem('thunder_mitts',{ procs:1 }); aoeProc(e.x, e.z, 3.0, d*0.4, 0x9ad8ff, false, 'thunder_mitts'); }   // Thunder Mitts
   if (player.spicyChance && Math.random() < player.spicyChance){ recordRunItem('spicy_meatball',{ procs:1 }); aoeProc(e.x, e.z, 2.5, d*0.65, 0xff7a3a, false, 'spicy_meatball'); }      // Spicy Meatball
-  if (player.blastChance && Math.random() < player.blastChance){ recordRunItem('power_gloves',{ procs:1 }); aoeProc(e.x, e.z, 2.2, d*0.5, 0xffd24a, true, 'power_gloves'); } // Power Gloves
 }
 function aoeProc(x, z, radius, dmg, color, knock, itemKey){
   spawnRing(x, z, color, radius*1.6, 0.32);

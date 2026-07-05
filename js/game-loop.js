@@ -215,11 +215,11 @@ function update(dt) {
   const speedMul=enemySpeedMul();
   for (const e of enemies) {
     if (!e.alive) continue;
-    // Dragonfire burn DoT + Ice Crystal slow
+    // Burn DoT + Ice Crystal slow
     if (e.burnT>0){
       e.burnT-=dt;
       const burnDamage=(e.final&&e.phaseInvuln>0)?0:e.burnDps*dt;
-      if(burnDamage>0) recordRunDamage(burnDamage,{ item:'dragonfire' });
+      if(burnDamage>0) recordRunDamage(burnDamage,{ item:'burn' });
       const floor=(e.final&&e.finalPhase&&(e.finalPhase>1||e.phaseInvuln>0))?1:-Infinity;
       e.hp=Math.max(floor,e.hp-burnDamage);
       e.flash=Math.max(e.flash,0.04);
