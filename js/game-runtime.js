@@ -1522,11 +1522,13 @@ const SKILL_GUIDE_TEXT = {
   ancientQuake:{th:'แผ่นดินไหวเป็นแนวหน้า',en:'forward quake line'},
   stoneWall:{th:'ทุบพื้นสร้างกำแพงหินเตือนล่วงหน้า',en:'telegraphed stone wall slam'},
   rustedGallows:{th:'พุ่งพร้อมยิงลูกศร',en:'dash with arrow shots'},
+  executionMark:{th:'ตราพิพากษาเป็นแนวฟัน',en:'marked execution line'},
   graveSpikes:{th:'หนามสุสานปักรอบผู้เล่น',en:'grave spikes around the player'},
   burrowEmerge:{th:'มุดดินแล้วโผล่โจมตีตำแหน่งเตือน',en:'burrows and emerges on a warning mark'},
   cryptCall:{th:'เรียกลูกสมุนและยิงพัด',en:'summons adds and fires fans'},
   mossRegrowth:{th:'ฟื้นเลือดพร้อมยิงก้อนพิษ',en:'regenerates and fires a toxic shot'},
   ruinedBulwark:{th:'โล่ป้องกันพร้อม AOE',en:'shield plus AoE burst'},
+  wardensDecree:{th:'คำสั่งผู้คุมสร้างเขตอันตรายหลายวง',en:'multi-zone warden decree'},
   lichCross:{th:'AOE กากบาทน้ำแข็ง',en:'cross-shaped arcane AoE'},
   lichPrison:{th:'คุกเวทและวง AOE ใต้เท้า',en:'arcane prison and ground AoE'},
   behemothSlam:{th:'ทุบพื้น AOE ใหญ่',en:'large ground slam'},
@@ -4511,7 +4513,7 @@ function spawnMiniboss() {
   const sh = makeShadow(t.h*0.34);
   scene.add(spr); scene.add(sh);
   enemies.push({ x, z, hp:t.hp*hpSc, maxHp:t.hp*hpSc, atk:Math.round(t.atk*atkSc*(typeof difficultyBossAtkMul==='function'?difficultyBossAtkMul():1)), spd:t.spd*SPD_SCALE*MINIBOSS_SPEED_MUL,
-                 xp:t.xp, r:t.h*0.30, name:t.name, alive:true, cd:0, flash:0, isBoss:true, behavior:'chase', kx:0, kz:0, atkCd:0, chargeCd:0, charging:0, bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh });
+                 xp:t.xp, r:t.h*0.30, name:t.name, alive:true, cd:0, flash:0, isBoss:true, isMiniboss:true, behavior:'chase', kx:0, kz:0, atkCd:0, chargeCd:0, charging:0, bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh });
   assignSkills(enemies[enemies.length-1], MB_SKILLS[t.sprite] || ['ring','charge']);
   { const mb=enemies[enemies.length-1]; mb.aura=makeBossAura(0xff3f66, mb.r*1.85, false); mb.tint=0xffe3e8; }
   spawnObjectPulse(x,z,0xff3f66,t.h*1.8,0.75); spawnBurst(x,z,0xff6a82,18,1.0); shake(0.22,0.16);
