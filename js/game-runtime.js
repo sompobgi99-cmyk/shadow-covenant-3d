@@ -240,7 +240,7 @@ Object.assign(ITEM_I18N,{
   mirror:{en:{desc:'Reflect 30% damage back'}}, slurp_gloves:{en:{desc:'Lifesteal while attacking +7.5%'}}, eagle_claw:{en:{desc:'Damage to flying enemies +66%'}},
   execution_coin:{en:{desc:'Critical damage +12%; critical hits may drop gold'}}, phase_cloak:{en:{desc:'Dash invulnerability +0.12s, evasion +5%'}},
   battle_banner:{en:{desc:'Ground Haste/Might buffs last +35% longer'}}, butcher_token:{en:{desc:'Damage to The Butcher and Mimics +25%'}},
-  big_bonk:{en:{desc:'2% chance to deal 20x damage'}}, holy_book:{en:{desc:'Max HP +100, regeneration +50'}}, soul_harvester:{en:{desc:'Kills drop extra XP and a little extra gold'}}, singularity_core:{en:{desc:'XP/gold magnet range +100%, XP/gold pull speed +50%'}},
+  big_bonk:{en:{desc:'2% chance to deal 20x damage'}}, holy_book:{en:{desc:'Max HP +100, regeneration +50'}}, soul_harvester:{en:{desc:'Kills drop extra XP and a little extra gold'}}, singularity_core:{en:{desc:'XP/gold magnet range +200%, XP/gold pull speed +50%'}},
   spicy_meatball:{en:{desc:'Attacks have 25% chance to explode for 65% damage'}}, chonkplate:{en:{desc:'Overheal +50%, heal +2 on kill'}},
   energy_core:{en:{desc:'Pulses an energy aura that damages nearby enemies'}}, power_gloves:{en:{desc:'8% chance to explode with knockback'}},
   dragonfire:{en:{desc:'Attacks have 15% chance to burn enemies over time'}}, glass_needle:{en:{desc:'Critical chance +25%, critical damage +75%, max HP -15%'}},
