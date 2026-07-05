@@ -7,35 +7,35 @@ const PICKUP_MAGNET = 3.0, PICKUP_COLLECT = 0.7;
 // ---- Weapons (active; multiple, gained/leveled via the level-up choices) ----
 const WEAPON_TYPES = {
   bolt:   { name:'Void Bolt',      icon:'wpn_bolt',     desc:'ยิงกระสุนติดตามศัตรูที่ใกล้ที่สุด',  mode:'aim',
-            dmg:12, rate:1.6, range:11, count:1, pierce:1, speed:16, life:1.3, color:0xb98aff, shape:'orb', evolveTo:'boltX', evolveTome:'might' },
+            dmg:12, rate:1.47, range:11, count:1, pierce:1, speed:16, life:1.3, color:0xb98aff, shape:'orb', evolveTo:'boltX', evolveTome:'might' },
   spread: { name:'Hex Spread',     icon:'wpn_spread', desc:'ยิงเศษเวทกระจายเป็นพัดไปด้านหน้า',    mode:'spread',
-            dmg:8, rate:1.2, range:9, count:2, pierce:0, speed:15, life:0.9, color:0x66ccff, arc:0.38, shape:'shard', evolveTo:'spreadX', evolveTome:'multishot' },
+            dmg:8, rate:1.10, range:9, count:2, pierce:0, speed:15, life:0.9, color:0x66ccff, arc:0.38, shape:'shard', evolveTo:'spreadX', evolveTome:'multishot' },
   nova:   { name:'Nova Burst',     icon:'wpn_nova',  desc:'ระเบิดวงแหวนรอบตัว',    mode:'nova',
-            dmg:17, rate:0.85, range:0, count:1, pierce:99, speed:12, life:0.6, color:0xffaa44, radius:2.8, evolveTo:'novaX', evolveTome:'celerity' },
+            dmg:17, rate:0.78, range:0, count:1, pierce:99, speed:12, life:0.6, color:0xffaa44, radius:2.8, evolveTo:'novaX', evolveTome:'celerity' },
   orbit:  { name:'Orbiting Skull', icon:'wpn_orbit', desc:'กะโหลกวนรอบตัว โจมตีและช่วยกันดาเมจ',     mode:'orbit',
             dmg:9, count:2, color:0xff6688, orbitR:2.0, orbitSpd:3.45, tick:0.36, guardBlock:0.50, guardRecover:4.5, evolveTo:'orbitX', evolveTome:'precision' },
   arrow:  { name:"Hunter's Arrow",  icon:'wpn_arrow', desc:'ลูกธนูระยะไกลที่ยิงทะลุศัตรู',       mode:'aim',
-            dmg:14, rate:1.05, range:15, count:1, pierce:3, speed:24, life:1.6, color:0x8ef06a, shape:'arrow', evolveTo:'arrowX', evolveTome:'velocity' },
+            dmg:14, rate:0.97, range:15, count:1, pierce:3, speed:24, life:1.6, color:0x8ef06a, shape:'arrow', evolveTo:'arrowX', evolveTome:'velocity' },
   smite:  { name:'Holy Smite',      icon:'wpn_smite',  desc:'พลังศักดิ์สิทธิ์โจมตีจากด้านบน',  mode:'smite',
-            dmg:19, rate:0.82, range:10, count:1, pierce:2, speed:14, life:1.4, color:0xfff2c0, radius:1.6, evolveTo:'smiteX', evolveTome:'growth' },
+            dmg:19, rate:0.75, range:10, count:1, pierce:2, speed:14, life:1.4, color:0xfff2c0, radius:1.6, evolveTo:'smiteX', evolveTome:'growth' },
   lightning:{ name:'Lightning Strike', icon:'wpn_lightning', desc:'เรียกสายฟ้าฟาดเป้าหมายทีละตัว', mode:'smite',
-            dmg:18, rate:1.02, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25, shape:'lightning', evolveTo:'lightningX', evolveTome:'focus' },
+            dmg:18, rate:0.94, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25, shape:'lightning', evolveTo:'lightningX', evolveTome:'focus' },
   dagger: { name:'Throwing Knives', icon:'wpn_dagger', desc:'ปามีดเร็วใส่ศัตรูใกล้ตัว', mode:'aim',
-            dmg:9, rate:2.2, range:7.4, count:2, pierce:0, speed:26, life:0.9, color:0xdde7ff, shape:'dagger', evolveTo:'daggerX', evolveTome:'execution' },
+            dmg:9, rate:2.05, range:7.4, count:2, pierce:0, speed:26, life:0.9, color:0xdde7ff, shape:'dagger', evolveTo:'daggerX', evolveTome:'execution' },
   toolstab:{ name:'Multi-Tool Screwdriver', icon:'wpn_screwdriver', desc:'แทงระยะประชิดอย่างรวดเร็ว ทะลุศัตรูทั้งแนว', mode:'stab',
-            dmg:22, rate:2.55, range:3.0, count:1, pierce:99, speed:0, life:0.16, color:0x64d7ff, shape:'screwdriver', width:0.36, evolveTo:'toolstabX', evolveTome:'growth' },
+            dmg:22, rate:2.42, range:3.0, count:1, pierce:99, speed:0, life:0.16, color:0x64d7ff, shape:'screwdriver', width:0.36, evolveTo:'toolstabX', evolveTome:'growth' },
   bladewhirl:{ name:'Blade Wave',   icon:'wpn_bladewhirl',     desc:'ปล่อยคลื่นดาบโค้งระยะสั้น', mode:'slash',
-            dmg:15, rate:1.8, range:3.6, count:1, pierce:1, speed:8, life:0.38, color:0xff5566, arc:0.45, shape:'crescent', evolveTo:'bladewhirlX', evolveTome:'swiftness' },
+            dmg:15, rate:1.71, range:3.6, count:1, pierce:1, speed:8, life:0.38, color:0xff5566, arc:0.45, shape:'crescent', evolveTo:'bladewhirlX', evolveTome:'swiftness' },
   soulspiral:{ name:'Soul Spiral',  icon:'wpn_soulspiral',  desc:'ยิงวิญญาณหมุนวนรอบทิศ',       mode:'spiral',
-            dmg:9, rate:2.4, range:0, count:2, pierce:1, speed:13, life:1.4, color:0xb06aff, shape:'soul', evolveTo:'soulspiralX', evolveTome:'duration' },
+            dmg:9, rate:2.21, range:0, count:2, pierce:1, speed:13, life:1.4, color:0xb06aff, shape:'soul', evolveTo:'soulspiralX', evolveTome:'duration' },
   football:{ name:'Cursed Football', icon:'wpn_football', desc:'ลูกบอลเด้งหาเป้าหมายใหม่ต่อเนื่อง', mode:'aim',
-            dmg:11, rate:1.30, range:12, count:1, pierce:0, speed:21, life:1.45, color:0xf2f0d8, shape:'football', bounces:2, bounceRadius:9, bounceDmgMul:0.92, evolveTo:'footballX', evolveTome:'ricochet' },
+            dmg:11, rate:1.24, range:12, count:1, pierce:0, speed:21, life:1.45, color:0xf2f0d8, shape:'football', bounces:2, bounceRadius:9, bounceDmgMul:0.92, evolveTo:'footballX', evolveTome:'ricochet' },
   shieldtoss:{ name:'Shield Toss', icon:'wpn_shieldtoss', desc:'ขว้างโล่หนัก ทะลุก่อนเด้งกลับหาเป้าหมาย', mode:'aim',
-            dmg:16, rate:0.95, range:11, count:1, pierce:1, speed:18, life:1.55, color:0x9fd8ff, shape:'shield', bounces:1, bounceRadius:8, bounceDmgMul:0.90, evolveTo:'shieldtossX', evolveTome:'fortitude' },
+            dmg:16, rate:0.90, range:11, count:1, pierce:1, speed:18, life:1.55, color:0x9fd8ff, shape:'shield', bounces:1, bounceRadius:8, bounceDmgMul:0.90, evolveTo:'shieldtossX', evolveTome:'fortitude' },
   boneboomerang:{ name:'Bone Boomerang', icon:'wpn_boneboomerang', desc:'กระดูกคู่โค้งเด้งระหว่างศัตรู', mode:'spread',
-            dmg:11, rate:1.50, range:10, count:2, pierce:0, speed:17, life:1.35, color:0xe8dcc4, arc:0.36, shape:'bone_boomerang', bounces:1, bounceRadius:8, bounceDmgMul:0.86, evolveTo:'boneboomerangX', evolveTome:'duration' },
+            dmg:11, rate:1.43, range:10, count:2, pierce:0, speed:17, life:1.35, color:0xe8dcc4, arc:0.36, shape:'bone_boomerang', bounces:1, bounceRadius:8, bounceDmgMul:0.86, evolveTo:'boneboomerangX', evolveTome:'duration' },
   bouncebomb:{ name:'Bouncing Bomb', icon:'wpn_bouncebomb', desc:'ระเบิดแตกตอนชนแล้วเด้งต่อไปยังเป้าหมายอื่น', mode:'aim',
-            dmg:13, rate:0.90, range:10, count:1, pierce:0, speed:13, life:1.75, color:0xff9a4a, shape:'bomb', bounces:2, bounceRadius:8, bounceDmgMul:0.82, impactRadius:1.25, impactDmgMul:0.50, evolveTo:'bouncebombX', evolveTome:'impact' },
+            dmg:13, rate:0.86, range:10, count:1, pierce:0, speed:13, life:1.75, color:0xff9a4a, shape:'bomb', bounces:2, bounceRadius:8, bounceDmgMul:0.82, impactRadius:1.25, impactDmgMul:0.50, evolveTo:'bouncebombX', evolveTome:'impact' },
   // evolved forms (hidden from the acquire pool)
   boltX:  { name:'Doom Bolt',      icon:'wpn_bolt_evolved',     desc:'ร่างวิวัฒน์: ยิงกระสุนทะลุเป็นชุด', mode:'aim', hidden:true,
             dmg:28, rate:2.4, range:13, count:2, pierce:4, speed:20, life:1.6, color:0xff66ff, shape:'doom' },
@@ -68,6 +68,7 @@ const WEAPON_TYPES = {
   bouncebombX:{ name:'Chain Detonator', icon:'wpn_bouncebomb_evolved', desc:'ร่างวิวัฒน์: ระเบิดลูกโซ่ขนาดใหญ่ระหว่างเป้าหมาย', mode:'aim', hidden:true,
             dmg:27, rate:1.25, range:12, count:2, pierce:0, speed:15, life:2.0, color:0xffbd5f, shape:'bomb', bounces:3, bounceRadius:10, bounceDmgMul:0.86, impactRadius:2.0, impactDmgMul:0.70 },
 };
+const BONUS_COUNT_DMG_MUL = 0.65;
 const GLOBAL_WEAPON_DMG_MUL = 1.0602;
 // ---- Items (pickup from enemy drops, stack unlimited) ----
 const DROP_RATES = { common: 0.12, uncommon: 0.06, rare: 0.025, legendary: 0.005 };
@@ -202,6 +203,7 @@ function radiusRangeMul(mode){
 function wstats(key, lvl){
   const b = WEAPON_TYPES[key], s = Object.assign({}, b), k = lvl-1;
   s.sourceKey = key;
+  s.baseCount = Math.max(1, b.count||1);
   s.dmg = Math.round(b.dmg * GLOBAL_WEAPON_DMG_MUL * (1 + 0.15*k) * (player.dmgMul||1) * (1+(player.pickupDmgBoost||0)));
   const bonus=player.countBonus||0;
   if (b.mode === 'orbit'){
@@ -229,6 +231,13 @@ function wstats(key, lvl){
     if (b.impactDmgMul) s.impactDmgMul = b.impactDmgMul;
   }
   return s;
+}
+function damageForCountSlot(s,i){
+  return i < (s.baseCount||1) ? s.dmg : Math.max(1, Math.round(s.dmg*BONUS_COUNT_DMG_MUL));
+}
+function statsForCountSlot(s,i){
+  const dmg=damageForCountSlot(s,i);
+  return dmg===s.dmg ? s : Object.assign({},s,{ dmg });
 }
 function makeWeapon(key){ return { key, lvl:1, cd:0, orbs:[] }; }
 
@@ -382,7 +391,7 @@ function fireAim(s){
     const target = t.length ? t[i % t.length] : null;
     let dx,dz; if (target){ dx=target.x-player.x; dz=target.z-player.z; }
     else { const a=Math.random()*Math.PI*2; dx=Math.cos(a); dz=Math.sin(a); }
-    const l=Math.hypot(dx,dz)||1; spawnProjectile(dx/l, dz/l, s);
+    const l=Math.hypot(dx,dz)||1; spawnProjectile(dx/l, dz/l, statsForCountSlot(s,i));
   }
 }
 function fireSpread(s){
@@ -390,7 +399,7 @@ function fireSpread(s){
   const t = nearestEnemies(player.x, player.z, s.range, 1)[0];
   const base = t ? Math.atan2(t.z-player.z, t.x-player.x) : (player.face<0?Math.PI:0);
   for (let i=0;i<s.count;i++){ const a = base + (s.count>1 ? (i/(s.count-1)-0.5)*(s.arc||0.6) : 0);
-    spawnProjectile(Math.cos(a), Math.sin(a), s); }
+    spawnProjectile(Math.cos(a), Math.sin(a), statsForCountSlot(s,i)); }
 }
 const novaWaves = [];
 let pixelRingTexture=null;
@@ -425,8 +434,8 @@ function spawnNovaWave(x,z,maxR,dmg,color,areaLife,sourceKey){
   novaWaves.push({ x, z, r:0.5, maxR, speed:16/(areaLife||1), dmg, color, sourceKey, hit:new Set(), mesh:m, ring, wash:null });
 }
 function fireNova(s){ sfx('shoot'); const n=s.count, R=s.radius||6;
-  for(let i=0;i<n;i++) spawnNovaWave(player.x, player.z, R*(0.6+0.4*(i+1)/n), s.dmg, s.color, s.areaLife, s.sourceKey); }
-function fireSpiral(s){ sfx('shoot'); const base=gameTime*4; for(let i=0;i<s.count;i++){ const a=base+(i/s.count)*Math.PI*2; spawnProjectile(Math.cos(a), Math.sin(a), s); } }
+  for(let i=0;i<n;i++) spawnNovaWave(player.x, player.z, R*(0.6+0.4*(i+1)/n), damageForCountSlot(s,i), s.color, s.areaLife, s.sourceKey); }
+function fireSpiral(s){ sfx('shoot'); const base=gameTime*4; for(let i=0;i<s.count;i++){ const a=base+(i/s.count)*Math.PI*2; spawnProjectile(Math.cos(a), Math.sin(a), statsForCountSlot(s,i)); } }
 const slashFx=[];
 function fireSlash(s){
   sfx('shoot');
@@ -437,7 +446,7 @@ function fireSlash(s){
   const len=Math.hypot(dx,dz)||1, base=Math.atan2(dz/len,dx/len);
   for(let i=0;i<s.count;i++){
     const a=base+(s.count>1?(i/(s.count-1)-0.5)*(s.arc||0.45):0);
-    spawnProjectile(Math.cos(a),Math.sin(a),s);
+    spawnProjectile(Math.cos(a),Math.sin(a),statsForCountSlot(s,i));
   }
 }
 function fireStab(s){
@@ -450,7 +459,7 @@ function fireStab(s){
   const spread=s.count>1 ? 0.26 : 0;
   for(let i=0;i<s.count;i++){
     const a=base+(s.count>1?(i/(s.count-1)-0.5)*spread:0);
-    spawnStabProjectile(Math.cos(a),Math.sin(a),s);
+    spawnStabProjectile(Math.cos(a),Math.sin(a),statsForCountSlot(s,i));
   }
 }
 function fireSmite(s){
@@ -461,9 +470,10 @@ function fireSmite(s){
   for(let i=0;i<count;i++){
     const t=targets[i % targets.length];
     const tx=t.x, tz=t.z, R=s.radius||2.4;
-    hitBreakablesAt(tx,tz,R,s.dmg,s.color);
+    const slotDmg=damageForCountSlot(s,i);
+    hitBreakablesAt(tx,tz,R,slotDmg,s.color);
     forEachNearbyEnemy(tx,tz,R+1,e=>{ if(!e.alive) return;
-      if (Math.hypot(e.x-tx, e.z-tz) < R+e.r) dealEnemyDamage(e, s.dmg, s.color, e.x-tx, e.z-tz, 3.5, false, { weapon:s.sourceKey }); });
+      if (Math.hypot(e.x-tx, e.z-tz) < R+e.r) dealEnemyDamage(e, slotDmg, s.color, e.x-tx, e.z-tz, 3.5, false, { weapon:s.sourceKey }); });
     const bm=new THREE.Sprite(new THREE.SpriteMaterial({
       map:getPixelProjectileTexture(s.shape||'smite',s.color), color:0xffffff,
       transparent:true, alphaTest:0.08, depthWrite:false
@@ -522,9 +532,9 @@ function updateOrbit(w, s, dt){
     forEachNearbyEnemy(ox,oz,1.6,e=>{ if(!e.alive) return;
       if (Math.hypot(ox-e.x, oz-e.z) < e.r+0.5 && (o.hit.get(e)||0) <= gameTime){
         o.hit.set(e, gameTime + (s.tick||b.tick));
-        dealEnemyDamage(e, s.dmg, b.color, e.x-ox, e.z-oz, 3, false, { weapon:w.key });
+        dealEnemyDamage(e, damageForCountSlot(s,i), b.color, e.x-ox, e.z-oz, 3, false, { weapon:w.key });
       } });
-    hitBreakablesAt(ox,oz,0.55,s.dmg,b.color,1);
+    hitBreakablesAt(ox,oz,0.55,damageForCountSlot(s,i),b.color,1);
   }
 }
 function updateWeapon(w, dt){
