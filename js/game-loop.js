@@ -206,20 +206,20 @@ function update(dt) {
       e.burrowT-=dt;
       e.flash=Math.max(e.flash,0.08);
       if(e.spr && e.spr.material) e.spr.material.opacity=Math.max(0.10,0.35*(e.burrowT/(e.burrowMax||0.92)));
-      if(e.sh && e.sh.material) e.sh.material.opacity=0.10;
+      if(e.sh && !e.sh._instancedShadow && e.sh.material) e.sh.material.opacity=0.10;
       if(e.burrowT<=0 && !e.burrowDone){
         e.burrowDone=true;
         e.x=clamp(e.burrowX==null?e.x:e.burrowX,-MAP_BOUND,MAP_BOUND);
         e.z=clamp(e.burrowZ==null?e.z:e.burrowZ,-MAP_BOUND,MAP_BOUND);
         e.kx=0; e.kz=0; e.charging=0;
         if(e.spr && e.spr.material) e.spr.material.opacity=1;
-        if(e.sh && e.sh.material) e.sh.material.opacity=0.45;
+        if(e.sh && !e.sh._instancedShadow && e.sh.material) e.sh.material.opacity=0.45;
         spawnBurst(e.x,e.z,0x9a6cff,28,1.25);
         spawnRing(e.x,e.z,0x9a6cff,3.5,0.42);
         shake(0.26,0.18);
       }
       if(e.spr) e.spr.position.set(e.x,groundHeight(e.x,e.z)+0.08,e.z);
-      if(e.sh) e.sh.position.set(e.x,groundHeight(e.x,e.z)+0.02,e.z);
+      if(e.sh && !e.sh._instancedShadow) e.sh.position.set(e.x,groundHeight(e.x,e.z)+0.02,e.z);
       continue;
     }
     if(e.spr && e.spr.material && e.spr.material.opacity<0.98) e.spr.material.opacity=1;

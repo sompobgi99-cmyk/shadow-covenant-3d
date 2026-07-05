@@ -240,7 +240,10 @@ function killEnemy(e){
         child.splitChild=true;
         child.behavior='chase';
         if(child.spr){ child.spr.scale.multiplyScalar(0.72); child.bw=child.spr.scale.x; child.bh=child.spr.scale.y; }
-        if(child.sh) child.sh.scale.multiplyScalar(0.72);
+        if(child.sh){
+          if(child.sh._instancedShadow) child.sh.r*=0.72;
+          else child.sh.scale.multiplyScalar(0.72);
+        }
       }
     }
     spawnObjectPulse(e.x,e.z,e.name==='Blight Treant'?0x8fcf6a:0x55d66a,e.r*2.5,0.55);
@@ -450,7 +453,7 @@ function clearWorldObjects(){ for(const o of interactables){ scene.remove(o.spr)
 function spawnAddAt(x,z){
   const t=pickEnemyType({ allowWarder:false });
   const hpSc=normalHpScale(t.tier), atkSc=normalAtkScale(t.tier); const H=t.h; const { spr, anim } = entitySprite(t.sprite, H);
-  const sh=makeShadow(H*0.32); scene.add(spr); scene.add(sh);
+  const sh=makeEnemyShadow(H*0.32); scene.add(spr);
   enemies.push({ x:clamp(x,-MAP_BOUND,MAP_BOUND), z:clamp(z,-MAP_BOUND,MAP_BOUND), hp:t.hp*hpSc, maxHp:t.hp*hpSc, atk:Math.round(t.atk*atkSc), spd:t.spd*SPD_SCALE,
     xp:t.xp, r:H*0.32, name:t.name, alive:true, cd:0, flash:0, isBoss:false,
     behavior:behaviorFor(t.name), kx:0,kz:0, atkCd:1+Math.random(), chargeCd:1.5+Math.random()*2, charging:0,
@@ -460,7 +463,7 @@ function spawnMinibossMinionAt(x,z,preferredName){
   const t=ENEMY_TYPES.find(v=>v.name===preferredName) || ENEMY_TYPES.find(v=>v.name==='Bone Stalker') || pickEnemyType({ allowWarder:false });
   const hpSc=normalHpScale(t.tier), atkSc=normalAtkScale(t.tier), H=t.h*0.92;
   const { spr, anim } = entitySprite(t.sprite, H);
-  const sh=makeShadow(H*0.30); scene.add(spr); scene.add(sh);
+  const sh=makeEnemyShadow(H*0.30); scene.add(spr);
   const add={ x:clamp(x,-MAP_BOUND,MAP_BOUND), z:clamp(z,-MAP_BOUND,MAP_BOUND),
     hp:Math.round(t.hp*hpSc*0.82), maxHp:Math.round(t.hp*hpSc*0.82), atk:Math.round(t.atk*atkSc*0.86), spd:t.spd*SPD_SCALE*1.08,
     xp:Math.max(1,Math.round(t.xp*0.45)), r:H*0.30, name:t.name+' Minion', alive:true, cd:0, flash:0, isBoss:false, summoned:true,
@@ -498,7 +501,7 @@ function activateNearby(){
   else if (best.type==='challenge_door') enterChallengeDoor(best);
 }
 function clearCombatActors(){
-  for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); scene.remove(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
+  for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); removeShadow(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
   for (const p of projectiles){ scene.remove(p.mesh); freeObj(p.mesh); }
   for (const sh of enemyShots){ scene.remove(sh.mesh); freeObj(sh.mesh); }
   for (const p of particles){ scene.remove(p.mesh); freeObj(p.mesh); }
@@ -515,7 +518,7 @@ function clearCombatActors(){
   for (const f of slashFx){ scene.remove(f.mesh); freeObj(f.mesh); }
   for (const d of dmgNums) d.el.remove();
   clearChallengeRoomVisuals();
-  enemies.length=0; projectiles.length=0; enemyShots.length=0; particles.length=0; rings.length=0; bossAoEs.length=0; bossImpactFx.length=0;
+  enemies.length=0; clearEnemyShadowInstances(); projectiles.length=0; enemyShots.length=0; particles.length=0; rings.length=0; bossAoEs.length=0; bossImpactFx.length=0;
   trails.length=0; pickups.length=0; breakables.length=0; groundItems.length=0; afterimages.length=0; novaWaves.length=0; slashFx.length=0; dmgNums.length=0;
   boss=null; weaponSig=null; enemyGrid.clear();
 }
@@ -958,9 +961,9 @@ function completeChallengeRoom(success){
   room.completed=true;
   hordeRemaining=0; hordeSpawnTimer=0; hordeWarned=false;
   const cleanTitle='Challenge complete: '+room.name;
-  for(const e of enemies){ scene.remove(e.spr); freeObj(e.spr); scene.remove(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
+  for(const e of enemies){ scene.remove(e.spr); freeObj(e.spr); removeShadow(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
   for(const sh of enemyShots){ scene.remove(sh.mesh); freeObj(sh.mesh); }
-  enemies.length=0; enemyShots.length=0; boss=null; butcherActive=false;
+  enemies.length=0; clearEnemyShadowInstances(); enemyShots.length=0; boss=null; butcherActive=false;
   if(room.reward==='gold'){
     const goldReward=Math.round((120+mapStage*80)*rewardMul());
     player.gold+=goldReward;
@@ -1218,7 +1221,7 @@ function spawnMerchantBoss(x,z,opts){
 function clearEventActors(){
   for (const c of hauntedClones){
     if(c.spr){ scene.remove(c.spr); freeObj(c.spr); }
-    if(c.sh){ scene.remove(c.sh); freeObj(c.sh); }
+    if(c.sh) removeShadow(c.sh);
   }
   hauntedClones.length=0;
 }
@@ -1437,7 +1440,7 @@ function updateHauntedClones(dt){
     c.z += ((player.z+Math.sin(c.angle)*1.85)-c.z)*(1-Math.pow(0.02,dt));
     const y=groundHeight(c.x,c.z);
     c.spr.position.set(c.x,y+0.08+Math.sin(gameTime*6+i)*0.08,c.z);
-    c.sh.position.set(c.x,y+0.02,c.z);
+    if(c.sh && !c.sh._instancedShadow) c.sh.position.set(c.x,y+0.02,c.z);
     if(c.fireT<=0){
       c.fireT=0.62;
       const t=nearestEnemies(c.x,c.z,8.5,1)[0];
@@ -1448,7 +1451,7 @@ function updateHauntedClones(dt){
     }
     if(c.t<=0){
       scene.remove(c.spr); freeObj(c.spr);
-      scene.remove(c.sh); freeObj(c.sh);
+      removeShadow(c.sh);
       hauntedClones.splice(i,1);
     }
   }
@@ -1539,11 +1542,12 @@ function spawnBossImpactFx(x,z,radius,color,kind){
   const map=base.clone();
   map.magFilter=THREE.NearestFilter; map.minFilter=THREE.NearestFilter;
   map.repeat.set(1/6,1); map.offset.set(0,0); map.needsUpdate=true;
-  const geo=new THREE.PlaneGeometry(2,2); geo.rotateX(-Math.PI/2);
-  const mesh=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({
+  const mat=new THREE.MeshBasicMaterial({
     map, color:0xffffff, transparent:true, opacity:0.92,
     alphaTest:0.04, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending
-  }));
+  });
+  mat._ownsMap=true;
+  const mesh=new THREE.Mesh(EFFECT_PLANE_GEO,mat);
   mesh.position.set(x,groundHeight(x,z)+0.2,z);
   mesh.rotation.z=Math.random()*Math.PI;
   const visualRadius=kind==='burrow_emerge'?radius*1.35:
@@ -1558,16 +1562,17 @@ function spawnBossImpactFx(x,z,radius,color,kind){
 function bossAoe(e,x,z,radius,delay,dmgMul,color,knock,impact,opts){
   opts=opts||{};
   const danger=!!(opts.danger || (e && e.final));
-  const geo=new THREE.PlaneGeometry(2,2); geo.rotateX(-Math.PI/2);
+  const delayScale=opts.castScale || (e && e.isBoss ? (e.isStageBoss ? 1.28 : 1.22) : 1.35);
+  const castDelay=(delay||0.85)*delayScale;
   const mat=new THREE.MeshBasicMaterial({
     map:danger?getBossDangerTexture():getEntityAuraTexture('object'), color, transparent:true, opacity:danger?0.42:0.26,
     alphaTest:0.04, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending
   });
-  const mesh=new THREE.Mesh(geo,mat);
+  const mesh=new THREE.Mesh(EFFECT_PLANE_GEO,mat);
   mesh.rotation.z=Math.PI/4;
   mesh.position.set(x,groundHeight(x,z)+0.16,z);
   scene.add(mesh);
-  const core=new THREE.Mesh(geo.clone(),new THREE.MeshBasicMaterial({
+  const core=new THREE.Mesh(EFFECT_PLANE_GEO,new THREE.MeshBasicMaterial({
     map:getPixelRingTexture(), color:0xffffff, transparent:true, opacity:danger?0.24:0.16,
     alphaTest:0.06, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending
   }));
@@ -1575,7 +1580,7 @@ function bossAoe(e,x,z,radius,delay,dmgMul,color,knock,impact,opts){
   scene.add(core);
   let mark=null;
   if(danger){
-    mark=new THREE.Mesh(geo.clone(),new THREE.MeshBasicMaterial({
+    mark=new THREE.Mesh(EFFECT_PLANE_GEO,new THREE.MeshBasicMaterial({
       map:getBossDangerMarkTexture(), color:0xffffff, transparent:true, opacity:0.42,
       alphaTest:0.08, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending
     }));
@@ -1583,7 +1588,7 @@ function bossAoe(e,x,z,radius,delay,dmgMul,color,knock,impact,opts){
     mark.position.set(x,groundHeight(x,z)+0.205,z);
     scene.add(mark);
   }
-  bossAoEs.push({ x,z,radius,delay:delay||0.85,t:0,damage:Math.round(e.atk*(dmgMul||1)),color,knock:knock||13,impact:impact||'void',src:e,mesh,core,mark,danger,markSpin:opts.markSpin||0 });
+  bossAoEs.push({ x,z,radius,delay:castDelay,t:0,damage:Math.round(e.atk*(dmgMul||1)),color,knock:knock||13,impact:impact||'void',src:e,mesh,core,mark,danger,markSpin:opts.markSpin||0,enemyHazard:!!opts.enemyHazard });
 }
 const SK = {
   ring:    { cd:3.4, fn:(e)=>{ const n=12; for(let i=0;i<n;i++){const a=(i/n)*6.2832; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),e.atk);} e.flash=0.12; } },
@@ -1912,7 +1917,7 @@ function hurtPlayer(amt,dx,dz,force,src,kind){
   }
 }
 
-function cull(arr){ for(let i=arr.length-1;i>=0;i--){ const o=arr[i]; if(!o.alive){ if(o.spr){ scene.remove(o.spr); freeObj(o.spr); } if(o.sh) scene.remove(o.sh); if(o.mesh){ scene.remove(o.mesh); freeObj(o.mesh); } if(o.aura){ scene.remove(o.aura); freeObj(o.aura); } if(o.glow){ if(o.glow.group){ scene.remove(o.glow.group); freeObj(o.glow.group); } if(o.glow.beacon){ scene.remove(o.glow.beacon); freeObj(o.glow.beacon); } } arr.splice(i,1); } } }
+function cull(arr){ for(let i=arr.length-1;i>=0;i--){ const o=arr[i]; if(!o.alive){ if(o.spr){ scene.remove(o.spr); freeObj(o.spr); } if(o.sh) removeShadow(o.sh); if(o.mesh){ scene.remove(o.mesh); freeObj(o.mesh); } if(o.aura){ scene.remove(o.aura); freeObj(o.aura); } if(o.glow){ if(o.glow.group){ scene.remove(o.glow.group); freeObj(o.glow.group); } if(o.glow.beacon){ scene.remove(o.glow.beacon); freeObj(o.glow.beacon); } } arr.splice(i,1); } } }
 
 // ---------- view sync ----------
 // Give billboards life: spawn pop-in, idle breathe/bob, facing flip, hit punch
@@ -1962,7 +1967,7 @@ function syncMeshes() {
   if(playerLight) playerLight.position.set(player.x,py+2.4,player.z+1.2);
   for (const e of enemies){ const y=groundHeight(e.x,e.z);
     animSprite(e, e.x, y, e.z, e.flash, 0xffee66, true);
-    e.sh.position.set(e.x,y+0.02,e.z);
+    if(e.sh && !e.sh._instancedShadow) e.sh.position.set(e.x,y+0.02,e.z);
     if (e.aura){
       e.aura.position.set(e.x,y,e.z);
       const pulse=0.4+Math.sin(gameTime*(e.isStageBoss?4.2:3.2)+e.x)*0.12;
@@ -1971,6 +1976,7 @@ function syncMeshes() {
       e.aura.children[0].rotation.z=gameTime*(e.isStageBoss?0.62:0.34);
       e.aura.children[1].rotation.z=-gameTime*(e.isStageBoss?0.88:0.48);
     } }
+  updateEnemyShadowInstances();
   for (const p of projectiles) p.mesh.position.set(p.x, groundHeight(p.x,p.z)+0.9, p.z);
   for (const sh of enemyShots) sh.mesh.position.set(sh.x, groundHeight(sh.x,sh.z)+0.9, sh.z);
   for (const pk of pickups){ const y=groundHeight(pk.x,pk.z); const isBuff=pk.type==='haste'||pk.type==='might'||pk.type==='magnet';
@@ -2300,7 +2306,7 @@ function renderRunSummary(){
 function restart(){
   clearTimeout(deathCinematicTimer); deathCinematic=false;
   { const dfx=document.getElementById('deathfx'); if(dfx) dfx.style.display='none'; }
-  for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); scene.remove(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
+  for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); removeShadow(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
   for (const p of projectiles){ scene.remove(p.mesh); freeObj(p.mesh); }
   for (const a of afterimages){ scene.remove(a.spr); freeObj(a.spr); } afterimages.length=0;
   clearEventActors();
@@ -2321,7 +2327,7 @@ function restart(){
   for (const b of breakables){ if(b.spr){ scene.remove(b.spr); freeObj(b.spr); } }
   for (const gi of groundItems) { if(gi.spr){ scene.remove(gi.spr); freeObj(gi.spr); } if(gi.glow){ scene.remove(gi.glow); freeObj(gi.glow); } }
   groundItems.length = 0;
-  enemies.length=0; projectiles.length=0; pickups.length=0; breakables.length=0;
+  enemies.length=0; clearEnemyShadowInstances(); projectiles.length=0; pickups.length=0; breakables.length=0;
   if(player.weapons) for(const w of player.weapons) if(w.orbs) w.orbs.forEach(o=>{ scene.remove(o.mesh); freeObj(o.mesh); });
   if(player.pet && player.pet.spr){ scene.remove(player.pet.spr); freeObj(player.pet.spr); }
   if(player.pet && player.pet.sh){ scene.remove(player.pet.sh); }

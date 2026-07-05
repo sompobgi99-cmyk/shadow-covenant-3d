@@ -21,7 +21,7 @@ const WEAPON_TYPES = {
   lightning:{ name:'Lightning Strike', icon:'wpn_lightning', desc:'เรียกสายฟ้าฟาดเป้าหมายทีละตัว', mode:'smite',
             dmg:18, rate:1.02, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25, shape:'lightning', evolveTo:'lightningX', evolveTome:'focus' },
   dagger: { name:'Throwing Knives', icon:'wpn_dagger', desc:'ปามีดเร็วใส่ศัตรูใกล้ตัว', mode:'aim',
-            dmg:9, rate:2.2, range:10, count:2, pierce:0, speed:26, life:0.9, color:0xdde7ff, shape:'dagger', evolveTo:'daggerX', evolveTome:'execution' },
+            dmg:9, rate:2.2, range:7.4, count:2, pierce:0, speed:26, life:0.9, color:0xdde7ff, shape:'dagger', evolveTo:'daggerX', evolveTome:'execution' },
   toolstab:{ name:'Multi-Tool Screwdriver', icon:'wpn_screwdriver', desc:'แทงระยะประชิดอย่างรวดเร็ว ทะลุศัตรูทั้งแนว', mode:'stab',
             dmg:22, rate:2.55, range:3.0, count:1, pierce:99, speed:0, life:0.16, color:0x64d7ff, shape:'screwdriver', width:0.36, evolveTo:'toolstabX', evolveTome:'growth' },
   bladewhirl:{ name:'Blade Wave',   icon:'wpn_bladewhirl',     desc:'ปล่อยคลื่นดาบโค้งระยะสั้น', mode:'slash',
@@ -52,7 +52,7 @@ const WEAPON_TYPES = {
   lightningX:{ name:'Storm Tribunal', icon:'wpn_lightning_evolved', desc:'ร่างวิวัฒน์: สายฟ้าลูกโซ่พิพากษา', mode:'smite', hidden:true,
             dmg:31, rate:1.75, range:14, count:3, pierce:3, speed:14, life:1.4, color:0xa7f2ff, radius:2.2, shape:'lightning' },
   daggerX:{ name:'Execution Knives', icon:'wpn_dagger_evolved', desc:'ร่างวิวัฒน์: พายุมีดแทงทะลุ', mode:'aim', hidden:true,
-            dmg:18, rate:3.35, range:12, count:5, pierce:2, speed:32, life:1.0, color:0xffd8f2, shape:'dagger' },
+            dmg:18, rate:3.35, range:9.8, count:5, pierce:2, speed:32, life:1.0, color:0xffd8f2, shape:'dagger' },
   toolstabX:{ name:'Admin Override', icon:'wpn_screwdriver_evolved', desc:'ร่างวิวัฒน์: แทงกว้างหลายจังหวะแบบแก้ปัญหาเร่งด่วน', mode:'stab', hidden:true,
             dmg:34, rate:3.15, range:4.2, count:2, pierce:99, speed:0, life:0.18, color:0x7cffd8, shape:'screwdriver', width:0.55 },
   bladewhirlX:{ name:'Tempest Blades', icon:'wpn_bladewhirl_evolved', desc:'ร่างวิวัฒน์: พายุคลื่นดาบหลายชุด', mode:'slash', hidden:true,
@@ -292,8 +292,9 @@ function hitMul(e){
 }
 function rollCrit(){
   const base=Math.max(0, player.critChance||0);
+  const overflow=Math.max(0, base-1);
   const pity=Math.min(0.12, (player._critPity||0)*0.015);
-  const chance=Math.max(0, Math.min(0.85, base+pity));
+  const chance=Math.max(0, Math.min(1, base+pity));
   if(chance<=0 || Math.random()>=chance){
     player._critPity=Math.min(10,(player._critPity||0)+1);
     return { crit:false, mul:1, chain:0 };
@@ -303,7 +304,7 @@ function rollCrit(){
   player._critPity=0;
   player._critChain=chain;
   player._critChainUntil=now+1.1;
-  return { crit:true, mul:Math.max(1, player.critDmg||1.5)*(1+0.04*(chain-1)), chain };
+  return { crit:true, mul:Math.max(1, (player.critDmg||1.5)+overflow)*(1+0.04*(chain-1)), chain };
 }
 function onCritProcs(e,d,color,meta,chain){
   if(!e || !e.alive || d<=0) return;
@@ -414,8 +415,8 @@ function getPixelRingTexture(){
   t.generateMipmaps=false; pixelRingTexture=t; return t;
 }
 function spawnNovaWave(x,z,maxR,dmg,color,areaLife,sourceKey){
-  const geo=new THREE.PlaneGeometry(2,2); geo.rotateX(-Math.PI/2);
-  const ring=new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+  capEffectList(novaWaves, MAX_NOVA_WAVES);
+  const ring=new THREE.Mesh(EFFECT_PLANE_GEO, new THREE.MeshBasicMaterial({
     map:getPixelRingTexture(), color, transparent:true, opacity:1,
     alphaTest:0.08, side:THREE.DoubleSide, depthWrite:false
   }));
@@ -473,6 +474,7 @@ function fireSmite(s){
       bm.scale.set(1.35,5.4,1); bm.position.set(tx,3.05,tz);
     }
     const fxLife=(s.shape==='lightning'?0.18:0.28)*(s.areaLife||1);
+    capEffectList(slashFx, MAX_SLASH_FX);
     scene.add(bm); slashFx.push({ mesh:bm, life:fxLife, max:fxLife, grow:0.04, baseScale:bm.scale.clone(), fade:1 });
     if(s.shape==='lightning'){
       spawnRing(tx,tz,0xbff8ff,R*1.25,0.22*(s.areaLife||1));

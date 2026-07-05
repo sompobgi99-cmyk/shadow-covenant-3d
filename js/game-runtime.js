@@ -45,6 +45,17 @@ const enemyShots = [];                      // enemy ranged projectiles
 const particles = [];                       // hit/death bursts
 const PARTICLE_GEO = new THREE.BoxGeometry(0.14,0.14,0.14);
 const trails=[]; const TRAIL_GEO=new THREE.BoxGeometry(0.14,0.14,0.14);
+const EFFECT_PLANE_GEO = new THREE.PlaneGeometry(2,2);
+EFFECT_PLANE_GEO.rotateX(-Math.PI/2);
+const MAX_RINGS = 72;
+const MAX_NOVA_WAVES = 48;
+const MAX_SLASH_FX = 64;
+function capEffectList(list, max){
+  while(list.length>=max){
+    const old=list.shift();
+    if(old && old.mesh){ scene.remove(old.mesh); freeObj(old.mesh); }
+  }
+}
 const dmgNums=[];
 const petBubbles=[];
 const damageScreenPos=new THREE.Vector3();
@@ -477,8 +488,8 @@ const bossAoEs = [];
 const bossImpactFx = [];
 const challengeRoomVisuals = [];
 function spawnRing(x, z, color, maxR, life){
-  const geo=new THREE.PlaneGeometry(2,2); geo.rotateX(-Math.PI/2);
-  const m=new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+  capEffectList(rings, MAX_RINGS);
+  const m=new THREE.Mesh(EFFECT_PLANE_GEO, new THREE.MeshBasicMaterial({
     map:getPixelRingTexture(), color, transparent:true, opacity:0.9,
     alphaTest:0.08, side:THREE.DoubleSide, depthWrite:false
   }));
@@ -486,8 +497,8 @@ function spawnRing(x, z, color, maxR, life){
   rings.push({ mesh:m, maxR:maxR||5, life:life||0.5, max:life||0.5 });
 }
 function spawnObjectPulse(x, z, color, maxR, life){
-  const geo=new THREE.PlaneGeometry(2,2); geo.rotateX(-Math.PI/2);
-  const m=new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+  capEffectList(rings, MAX_RINGS);
+  const m=new THREE.Mesh(EFFECT_PLANE_GEO, new THREE.MeshBasicMaterial({
     map:getEntityAuraTexture('object'), color, transparent:true, opacity:0.72,
     alphaTest:0.06, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending
   }));
@@ -602,16 +613,22 @@ function updateEnemyBuffer(e,dt){
   }
 }
 function updateEnemyHazard(e,dt,d){
-  e.hazardCd=(e.hazardCd||2.0+Math.random()*2.2)-dt;
+  e.hazardCd=(e.hazardCd||3.2+Math.random()*2.8)-dt;
   if(e.hazardCd>0 || d>14) return;
+  const activeHazards=bossAoEs.filter(a=>a && a.enemyHazard).length;
+  const hazardCap=mapStage>=3?5:4;
+  if(activeHazards>=hazardCap){
+    e.hazardCd=1.4+Math.random()*1.0;
+    return;
+  }
   const slow=e.name==='Blight Treant';
-  e.hazardCd=slow?5.6+Math.random()*1.4:4.2+Math.random()*1.1;
+  e.hazardCd=slow?7.4+Math.random()*1.8:6.0+Math.random()*1.6;
   const radius=e.name==='Bog Elemental'?1.95:e.name==='Blight Treant'?1.72:1.48;
-  const delay=e.name==='Toxic Spore'?0.50:0.68;
+  const delay=e.name==='Toxic Spore'?0.75:0.92;
   const color=enemyHazardColor(e);
   const ox=e.name==='Bog Elemental'?0:Math.cos(Math.atan2(player.z-e.z,player.x-e.x))*1.6;
   const oz=e.name==='Bog Elemental'?0:Math.sin(Math.atan2(player.z-e.z,player.x-e.x))*1.6;
-  bossAoe(e,clamp(player.x-ox,-MAP_BOUND,MAP_BOUND),clamp(player.z-oz,-MAP_BOUND,MAP_BOUND),radius,delay,e.name==='Bog Elemental'?0.95:0.66,color,slow?6:9,enemyHazardImpact(e),{ danger:e.name!=='Toxic Spore', markSpin:slow?0.3:0 });
+  bossAoe(e,clamp(player.x-ox,-MAP_BOUND,MAP_BOUND),clamp(player.z-oz,-MAP_BOUND,MAP_BOUND),radius,delay,e.name==='Bog Elemental'?0.95:0.66,color,slow?6:9,enemyHazardImpact(e),{ danger:e.name!=='Toxic Spore', markSpin:slow?0.3:0, enemyHazard:true });
   spawnObjectPulse(e.x,e.z,color,e.r*1.8,0.32);
 }
 function updateEnemyPuller(e,dt,nx,nz,d){
@@ -857,12 +874,14 @@ let userPaused = false;
 function buildPauseInfo(){
   const el=document.getElementById('pauseinfo'); if(!el) return;
   const C=CHARACTERS[player.char]||{};
+  const critChance=Math.min(1, Math.max(0, player.critChance||0));
+  const critDmg=(player.critDmg||1.5)+Math.max(0,(player.critChance||0)-1);
   let h='<div class="piw">';
   for (const w of player.weapons){ const t=WEAPON_TYPES[w.key]; if(!t) continue;
     h+='<div class="piwslot'+(w.evolved?' evo':'')+'"><img src="'+escHtml(spriteSrc(t.icon))+'"><div class="pn">'+escHtml(weaponName(w.key))+'</div><div class="pl">Lv '+w.lvl+'</div></div>'; }
   h+='</div><div class="pist">'+escHtml(charField(player.char,'name',C.name||''))+' \u00b7 Lv '+player.level+' \u00b7 HP '+Math.ceil(player.hp)+'/'+player.maxHp
     +' \u00b7 SPD '+player.spd.toFixed(1)+' \u00b7 DASH '+Math.round(100*(player.dashCdMul||1))+'% CD/'+Math.round(100*(player.dashDistMul||1))+'% DIST'
-    +' \u00b7 CRIT '+Math.round((player.critChance||0)*100)+'%/'+Math.round((player.critDmg||1.5)*100)+'%</div>';
+    +' \u00b7 CRIT '+Math.round(critChance*100)+'%/'+Math.round(critDmg*100)+'%</div>';
   // items list
   if (player.items.length) {
     h+='<div style="margin-top:8px;color:#ffe08a;font-size:12px">'+escHtml(tr('common.items'))+' ('+player.items.length+')</div>';
@@ -2284,10 +2303,15 @@ function heroQuip(kind,chance,duration){
 let fpsAccum = 0, fpsFrames = 0;
 const SHADOW_GEO = new THREE.CircleGeometry(0.5, 16);
 const SHADOW_MAT = new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.32, depthWrite:false });
+const ENEMY_SHADOW_GEO = SHADOW_GEO.clone();
+ENEMY_SHADOW_GEO.rotateX(-Math.PI/2);
+const ENEMY_SHADOW_CAP = 520;
+let enemyShadowMesh = null;
+let enemyShadowDummy = null;
 // ---- GPU memory: free per-instance geometry/material/texture when objects are removed ----
 // Shared resources are flagged so freeObj() skips them. Cloned textures are freed only by the
 // material that owns them (_ownsMap). Without this, long sessions leak GPU memory -> white screen.
-SHADOW_GEO._shared = SHADOW_MAT._shared = PARTICLE_GEO._shared = TRAIL_GEO._shared = true;
+SHADOW_GEO._shared = ENEMY_SHADOW_GEO._shared = SHADOW_MAT._shared = PARTICLE_GEO._shared = TRAIL_GEO._shared = EFFECT_PLANE_GEO._shared = true;
 function freeObj(obj){
   if(!obj || !obj.traverse) return;
   obj.traverse(n=>{
@@ -2414,6 +2438,41 @@ for (const [k,f] of Object.entries(MANIFEST)) {
 mgr.onLoad = bootIfReady;
 mgr.onError = (u) => console.warn('tex load fail', u);
 
+function prewarmEffectTextures(){
+  try{
+    if(typeof getPixelRingTexture==='function') getPixelRingTexture();
+    if(typeof getCrescentTexture==='function') getCrescentTexture();
+    if(typeof getBossDangerTexture==='function') getBossDangerTexture();
+    if(typeof getBossDangerMarkTexture==='function') getBossDangerMarkTexture();
+    if(typeof ensureMagnetPillarTexture==='function') ensureMagnetPillarTexture();
+    if(typeof ensureBreakableTextures==='function') ensureBreakableTextures();
+    if(typeof ensureStagePropTextures==='function') ensureStagePropTextures();
+    if(typeof getEntityAuraTexture==='function'){
+      ['object','boss','miniboss','immune','buff'].forEach(k=>getEntityAuraTexture(k));
+    }
+    if(typeof getLootBeaconTexture==='function'){
+      [0x57e0ff,0xffb84f,0x52e7d1,0xffd86a,0x9a55ff,0xff5a5a].forEach(c=>getLootBeaconTexture(c));
+    }
+    if(typeof ensurePickupIconTexture==='function'){
+      [
+        ['icon_heal','hp'], ['icon_haste','haste'], ['icon_might','might'],
+        ['icon_magnet_buff','magnet'], ['icon_coin','gold'], ['icon_xp','xp']
+      ].forEach(([key,type])=>ensurePickupIconTexture(key,type));
+    }
+    if(typeof getPixelProjectileTexture==='function'){
+      [
+        ['smite',0xfff0a8], ['lightning',0xbff8ff], ['soul',0x9a55ff],
+        ['orb',0x7ce7ff], ['doom',0xff5a5a], ['shard',0x89d8ff],
+        ['dagger',0xffd6a8], ['screwdriver',0x7cffd8], ['arrow',0xd8f0ff],
+        ['football',0xffffff], ['shield',0x8bd8ff], ['bone_boomerang',0xf3e2b8],
+        ['bomb',0xffb84f]
+      ].forEach(([shape,color])=>getPixelProjectileTexture(shape,color));
+    }
+  }catch(err){
+    console.warn('effect texture prewarm failed', err);
+  }
+}
+
 function init() {
   document.getElementById('load').style.display = 'none';
   document.body.insertAdjacentHTML('beforeend','<div id="vig"></div>');
@@ -2444,6 +2503,8 @@ function init() {
   spawnTrees(40);
   buildScenery();
   makeBorder();
+  initEnemyShadowInstances();
+  prewarmEffectTextures();
 
   player = makePlayer();
   applyLocalPetTestUnlock();
@@ -2909,7 +2970,51 @@ function ensureMagnetPillarTexture(){
   tex.obj_magnet_pillar=t;
 }
 
+function initEnemyShadowInstances(){
+  enemyShadowMesh = new THREE.InstancedMesh(ENEMY_SHADOW_GEO, SHADOW_MAT, ENEMY_SHADOW_CAP);
+  enemyShadowMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  enemyShadowMesh.count = 0;
+  enemyShadowMesh.frustumCulled = false;
+  enemyShadowDummy = new THREE.Object3D();
+  scene.add(enemyShadowMesh);
+}
 function makeShadow(r){ const m=new THREE.Mesh(SHADOW_GEO, SHADOW_MAT); m.rotation.x=-Math.PI/2; m.scale.set(r,r,r); return m; }
+function makeEnemyShadow(r){ return { _instancedShadow:true, r:r||0.32, visible:true }; }
+function removeShadow(sh){
+  if(!sh) return;
+  if(sh._instancedShadow){ sh.visible=false; return; }
+  scene.remove(sh);
+  freeObj(sh);
+}
+function updateEnemyShadowInstances(){
+  if(!enemyShadowMesh || !enemyShadowDummy) return;
+  let idx=0;
+  for(const e of enemies){
+    const sh=e.sh;
+    if(!e.alive || !sh || !sh._instancedShadow || sh.visible===false) continue;
+    if(idx>=ENEMY_SHADOW_CAP) break;
+    const y=groundHeight(e.x,e.z)+0.02;
+    const s=sh.r||e.r||0.32;
+    enemyShadowDummy.position.set(e.x,y,e.z);
+    enemyShadowDummy.rotation.set(0,0,0);
+    enemyShadowDummy.scale.set(s,s,s);
+    enemyShadowDummy.updateMatrix();
+    enemyShadowMesh.setMatrixAt(idx++, enemyShadowDummy.matrix);
+  }
+  if(enemyShadowMesh.count>idx){
+    enemyShadowDummy.position.set(0,-9999,0);
+    enemyShadowDummy.scale.set(0,0,0);
+    enemyShadowDummy.updateMatrix();
+    for(let i=idx;i<enemyShadowMesh.count;i++) enemyShadowMesh.setMatrixAt(i, enemyShadowDummy.matrix);
+  }
+  enemyShadowMesh.count=idx;
+  enemyShadowMesh.instanceMatrix.needsUpdate=true;
+}
+function clearEnemyShadowInstances(){
+  if(!enemyShadowMesh) return;
+  enemyShadowMesh.count=0;
+  enemyShadowMesh.instanceMatrix.needsUpdate=true;
+}
 function makePlayerHealthBar(){
   const g=new THREE.Group();
   const bg=new THREE.Sprite(new THREE.SpriteMaterial({ color:0x0b0610, transparent:true, opacity:0.78, depthTest:false, depthWrite:false }));
@@ -4055,8 +4160,8 @@ function spawnEnemy(t, px, pz) {
   else { const ang=Math.random()*Math.PI*2, d=24+Math.random()*6; x=clamp(player.x+Math.cos(ang)*d,-MAP_BOUND,MAP_BOUND); z=clamp(player.z+Math.sin(ang)*d,-MAP_BOUND,MAP_BOUND); }
   const hpSc=normalHpScale(t.tier), atkSc=normalAtkScale(t.tier);
   const { spr, anim } = entitySprite(t.sprite, t.h);
-  const sh = makeShadow(t.h*0.32);
-  scene.add(spr); scene.add(sh);
+  const sh = makeEnemyShadow(t.h*0.32);
+  scene.add(spr);
   const cursedMul = 1 + (player.cursed||0);
   enemies.push({ x, z, hp:t.hp*hpSc, maxHp:t.hp*hpSc, atk:Math.round(t.atk*atkSc*cursedMul), spd:t.spd*SPD_SCALE,
                  xp:t.xp, r:t.h*0.32, name:t.name, alive:true, cd:0, flash:0, isBoss:false, behavior:behaviorFor(t.name), airborne:AIRBORNE.has(t.name), kx:0, kz:0, atkCd:1+Math.random(), chargeCd:1.5+Math.random()*2, charging:0, bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh });
