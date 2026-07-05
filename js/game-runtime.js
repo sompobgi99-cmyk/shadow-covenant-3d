@@ -4413,6 +4413,17 @@ function enemyPool(){
   }
   return pool;
 }
+function hardChallengeEnemyPool(){
+  if(activeDifficultyId!=='hard' || challengeRoom) return [];
+  let pool;
+  if(mapStage>=3) pool=ENEMY_TYPES.filter(e=>e.tier>=2);
+  else if(mapStage>=2) pool=ENEMY_TYPES.filter(e=>e.tier>=1);
+  else {
+    const tier=currentTier();
+    pool=ENEMY_TYPES.filter(e=>e.tier<=tier);
+  }
+  return pool.filter(e=>CHALLENGE_ONLY_ENEMIES.has(e.name));
+}
 function warderLimit(){ if(activeDifficultyId==='casual') return 0; return mapStage>=3 ? 2 : mapStage>=2 ? 1 : 0; }
 function activeWarderCount(){ return enemies.reduce((n,e)=>n+(e.alive && WARDERS.has(e.name) ? 1 : 0),0); }
 function pickEnemyType(opts){
@@ -4420,6 +4431,11 @@ function pickEnemyType(opts){
   let pool=enemyPool();
   if(!opts.allowWarder || activeWarderCount()>=warderLimit()) pool=pool.filter(e=>!WARDERS.has(e.name));
   if(!pool.length) pool=enemyPool().filter(e=>!WARDERS.has(e.name));
+  if(activeDifficultyId==='hard' && !opts.noChallengeRare){
+    const rare=hardChallengeEnemyPool();
+    const chance=overtimeLevel()?0.12:0.08;
+    if(rare.length && Math.random()<chance) return rare[(Math.random()*rare.length)|0];
+  }
   return pool[(Math.random()*pool.length)|0];
 }
 function maybeSpawnWarder(cx,cz){
