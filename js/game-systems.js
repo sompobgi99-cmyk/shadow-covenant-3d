@@ -914,7 +914,8 @@ function startChallengeRoom(room,nextStage){
   if(room.id==='treasure_vault'){
     for(let i=0;i<7;i++) spawnObject('chest', i<3?0:i<6?1:2);
   } else if(room.id==='cursed_shrine'){
-    for(let i=0;i<3;i++) spawnObject('shrine', Math.floor(Math.random()*5));
+    const cursedRoomShrines=[1,2,3]; // Blood / Speed / Curse: high tension without random Gamble spikes.
+    for(let i=0;i<3;i++) spawnObject('shrine', cursedRoomShrines[(Math.random()*cursedRoomShrines.length)|0]);
   } else if(room.id==='merchant_trap'){
     for(let i=0;i<2;i++) spawnObject('merchant',0);
   } else if(room.id==='butcher_arena'){
@@ -1074,10 +1075,11 @@ function activateShrine(o){
         player.speedBoost=(player.speedBoost||0)+0.4;
         player.speedBoostTimer=(player.speedBoostTimer||0)+30;
         break;
-      case 3: // Curse Shrine — harder enemies, +50% XP/Gold for rest of run
-        player.cursed=(player.cursed||0)+0.20;
+      case 3: // Curse Shrine — harder new enemies, +50% XP/Gold for rest of run
+        player.cursedAtk=(player.cursedAtk||0)+0.15;
+        player.cursedHp=(player.cursedHp||0)+0.10;
         player.xpMul*=1.5; player.goldMul*=1.5;
-        showToast('+50% XP & Gold — but enemies are stronger!',2);
+        showToast('+50% XP & Gold — new enemies gain HP/ATK!',2.4);
         break;
       case 4: // Gamble Shrine — 50/50: legendary item or 12 elites
         if(Math.random()<0.5){
@@ -1327,7 +1329,7 @@ function spawnButcher(force){
         spd:64*SPD_SCALE*BOSS_SPEED_MUL, xp:520, r:H*0.32, name:'The Butcher',
         alive:true, cd:0, flash:0, isBoss:true, isStageBoss:false, elite:true, butcher:true,
         behavior:'butcher', kx:0,kz:0, atkCd:0, chargeCd:0.75, charging:0, knockImmune:true,
-        butcherUntil:gameTime+20, bw:spr.scale.x,bh:spr.scale.y,born:gameTime,face:1,anim,spr,sh,tint:0xffc4a8 };
+        butcherUntil:gameTime+(typeof BUTCHER_HUNT_DURATION==='number'?BUTCHER_HUNT_DURATION:30), bw:spr.scale.x,bh:spr.scale.y,born:gameTime,face:1,anim,spr,sh,tint:0xffc4a8 };
       assignSkills(e,['reaperBlink','rustedGallows','fan'].filter(n=>SK[n]));
       if(!e.skills || !e.skills.length) assignSkills(e,['fan','charge']);
       e.aura=makeBossAura(0xff263f,e.r*2.05,false);
@@ -1335,7 +1337,7 @@ function spawnButcher(force){
       butcherActive=true;
       spawnObjectPulse(e.x,e.z,0xff263f,H*2.1,0.8);
       spawnBurst(e.x,e.z,0xff263f,32,1.35);
-      showToast('Kill The Butcher in 20 seconds!',3.2);
+      showToast('Kill The Butcher in '+(typeof BUTCHER_HUNT_DURATION==='number'?BUTCHER_HUNT_DURATION:30)+' seconds!',3.2);
       sfx('boss');
     }
   });
@@ -1633,6 +1635,7 @@ const SK = {
   lichPrison:{ cd:5.6, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<6;i++){ const side=i%2?-1:1, dist=1.8+(i*0.45); bossFan(e,a+side*0.95,3,0.07,0.9); bossShot(e,a+side*0.55,0.95,Math.cos(a+side*1.57)*dist,Math.sin(a+side*1.57)*dist); } bossAoe(e,player.x,player.z,3.2,0.95,1.05,0x8bd7ff,12,'arcane'); spawnObjectPulse(player.x,player.z,0x8bd7ff,3.2,0.55); e.flash=0.14; } },
   behemothSlam:{ cd:4.4, fn:(e)=>{ bossAoe(e,e.x,e.z,5.7,0.8,1.45,0xffaa44,19,'fire'); spawnRing(e.x,e.z,0xffaa44,6.2,0.55); spawnBurst(e.x,e.z,0xffaa44,18,1.3); bossRing(e,18,0,0.85); shake(0.32,0.24); e.flash=0.2; } },
   behemothQuake:{ cd:5.2, fn:(e)=>{ for(let i=0;i<3;i++){ const a=bossPlayerAngle(e)+i*0.42-0.42; const ox=Math.cos(a)*(2.3+i*1.5), oz=Math.sin(a)*(2.3+i*1.5); bossAoe(e,e.x+ox,e.z+oz,2.4+i*0.65,0.65+i*0.16,0.92,0xffd27a,13,'fire'); spawnRing(e.x+ox,e.z+oz,0xffd27a,2.5+i*0.7,0.42); bossFan(e,a,5+i*2,0.18,0.72); } shake(0.28,0.2); e.flash=0.16; } },
+  behemothRoar:{ cd:6.4, fn:(e)=>{ const base=bossPlayerAngle(e); for(let lane=-2;lane<=2;lane++){ const a=base+lane*0.18; for(let step=0;step<3;step++){ const dist=2.9+step*1.9+Math.abs(lane)*0.22; const x=e.x+Math.cos(a)*dist, z=e.z+Math.sin(a)*dist; const r=1.25+step*0.32; bossAoe(e,x,z,r,0.58+step*0.10+Math.abs(lane)*0.04,0.72+step*0.08,0xff7a2f,18,'fire',{danger:true,markRot:a}); spawnRing(x,z,0xffaa44,r*1.15,0.36); if(step===2) spawnObjectPulse(x,z,0xd84a24,r*1.7,0.48); } } bossFan(e,base,9,0.10,0.65); spawnBossImpactFx(e.x,e.z,4.1,0xff7a2f,'fire'); spawnObjectPulse(e.x,e.z,0xff7a2f,e.r*3.0,0.55); spawnBurst(e.x,e.z,0xff7a2f,26,1.15); showToast('ABYSSAL ROAR!',1.1); shake(0.36,0.24); e.flash=0.24; } },
   reaperScythes:{ cd:3.1, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<7;i++){ const o=(i-3)*0.17; bossShot(e,a+Math.PI*0.5+o,0.9); bossShot(e,a-Math.PI*0.5-o,0.9); } bossFan(e,a,7,0.12,1.0); spawnBurst(e.x,e.z,0xff3f66,16,1.0); e.flash=0.16; } },
   reaperBlink:{ cd:5.0, fn:(e)=>{ const a=bossPlayerAngle(e); const side=Math.random()<0.5?-1:1; bossAoe(e,player.x,player.z,2.8,0.62,1.05,0xff3f66,15,'void'); e.x=clamp(player.x-Math.cos(a)*3.2+Math.cos(a+side*1.57)*1.4,-MAP_BOUND,MAP_BOUND); e.z=clamp(player.z-Math.sin(a)*3.2+Math.sin(a+side*1.57)*1.4,-MAP_BOUND,MAP_BOUND); spawnBurst(e.x,e.z,0xff3f66,22,1.25); bossFan(e,a,9,0.13,0.95); shake(0.28,0.18); e.flash=0.22; } },
   wyrmBreath:{ cd:3.6, fn:(e)=>{ const a=bossPlayerAngle(e); bossFan(e,a,13,0.09,0.82); bossFan(e,a,7,0.16,1.05); spawnObjectPulse(e.x+Math.cos(a)*2.2,e.z+Math.sin(a)*2.2,0x8bd7ff,4.2,0.45); e.flash=0.16; } },
@@ -1645,7 +1648,7 @@ const SK = {
 };
 const BOSS_SKILLS = {
   boss_lich:     ['lichCross','lichPrison','summon'],
-  boss_behemoth: ['behemothSlam','behemothQuake','charge'],
+  boss_behemoth: ['behemothSlam','behemothQuake','behemothRoar','charge'],
   boss_reaper:   ['reaperScythes','reaperBlink','scatter'],
   boss_dragon:   ['wyrmBreath','wyrmMeteor','charge'],
   boss_overlord: ['overlordStar','overlordJudgment','voidChains','mirrorRift','overlordBlinkCharge','summon3'],

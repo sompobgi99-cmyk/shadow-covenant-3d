@@ -828,6 +828,7 @@ const MINIBOSS_INTERVAL = 55;
 const BUTCHER_RUN_CHANCE = 0.20;
 const BUTCHER_OVERTIME_CHANCE = 0.16;
 const BUTCHER_OVERTIME_ROLL_INTERVAL = 45;
+const BUTCHER_HUNT_DURATION = 30;
 let butcherRunEligible = Math.random() < BUTCHER_RUN_CHANCE;
 let butcherAppeared = false;
 let nextButcherAt = butcherRunEligible ? 360 + Math.random()*120 : Infinity;
@@ -1530,6 +1531,7 @@ const SKILL_GUIDE_TEXT = {
   lichPrison:{th:'คุกเวทและวง AOE ใต้เท้า',en:'arcane prison and ground AoE'},
   behemothSlam:{th:'ทุบพื้น AOE ใหญ่',en:'large ground slam'},
   behemothQuake:{th:'คลื่นแผ่นดินไหวหลายชั้น',en:'layered quake waves'},
+  behemothRoar:{th:'คำรามเปิดรอยแตก 5 แนว',en:'five-lane fissure roar'},
   reaperScythes:{th:'เคียวกระสุนสองข้าง',en:'side scythe volleys'},
   reaperBlink:{th:'วาร์ปไล่ตามพร้อม AOE',en:'blink chase with AoE'},
   wyrmBreath:{th:'ลมหายใจมังกรเป็นพัด',en:'wide breath fan'},
@@ -1814,7 +1816,7 @@ function openGuide(kind){
     cards=[
       guideTextCard('Map 1: '+((MAP_THEMES[1]&&MAP_THEMES[1].name)||'Bleakfield'),'ด่านเริ่มต้น มีเวฟช่วงต้น มินิบอสตัวแรกตอน 3:00 และเสาแม่เหล็ก 1 ต้น','ใช้ตั้งทิศทางบิลด์ช่วงต้น'),
       guideTextCard('Map 2: '+((MAP_THEMES[2]&&MAP_THEMES[2].name)||'Crimson Wastes'),'ด่านแดนร้างสีเลือด ศัตรูแรงขึ้นมาก object เยอะขึ้น และมีเสาแม่เหล็ก 1-2 ต้น','ฆ่าบอสเพื่อเปิดทางไปด่านถัดไป'),
-      guideTextCard('Map 3: '+((MAP_THEMES[3]&&MAP_THEMES[3].name)||'Void Citadel'),'ด่านบอสสุดท้าย เข้าไปแล้วเจอบอสทันทีพร้อมเวฟช่วยตีหนัก','บอสมีเลือด 3 หลอดและลูกเล่นหลายเฟส'),
+      guideTextCard('Map 3: '+((MAP_THEMES[3]&&MAP_THEMES[3].name)||'Void Citadel'),'ด่านบอสสุดท้าย เข้าไปแล้วเจอบอสทันทีพร้อมเวฟช่วยตีหนัก ต้องฆ่าบอสให้ทันภายใน 10 นาทีของด่าน','บอสมีเลือด 3 หลอด หลายเฟส และถ้าฆ่าได้ Portal จบเกมจะเปิดพร้อมเริ่ม Overtime'),
       guideTextCard('วาร์ปศัตรูไกล','ศัตรูที่อยู่ไกลเกินไปจะกลับมาเกิดรอบผู้เล่นโดยไม่ฟื้นเลือดที่เสียไป','ช่วยให้แรงกดดันไม่หาย')
     ].join('');
   } else if(kind==='combat'){
@@ -1840,7 +1842,7 @@ function openGuide(kind){
       guideCard(spriteSrc('obj_shrine_elite'),'Elite Shrine','เรียก Elite 8 ตัวออกมารอบแท่น เหมาะเมื่อพร้อมรับไฟต์เพื่อแลกรางวัลจากการฆ่า','เสี่ยงสูงช่วงต้นเกม', 'rare'),
       guideCard(spriteSrc('obj_shrine_blood'),'Blood Shrine','เสียเลือด 30% แล้วดรอปไอเทมแบบ boosted','อย่าใช้ตอนเลือดต่ำหรือมีฝูงศัตรูล้อม', 'rare'),
       guideCard(spriteSrc('obj_shrine_speed'),'Speed Shrine','เพิ่มความเร็วเคลื่อนที่ 40% เป็นเวลา 30 วินาที','ใช้หนีเวฟ เก็บของ หรือวนหลบบอส', 'uncommon'),
-      guideCard(spriteSrc('obj_shrine_curse'),'Curse Shrine','ทำให้ศัตรูโหดขึ้น แต่เพิ่ม XP และทองที่ได้รับ 50% ตลอดรัน','เหมาะกับรันที่มั่นใจและอยากเร่งสเกล', 'legendary'),
+      guideCard(spriteSrc('obj_shrine_curse'),'Curse Shrine','มอนทั่วไปที่เกิดใหม่ HP +10% / ATK +15% แต่เพิ่ม XP และทองที่ได้รับ 50% ตลอดรัน','เหมาะกับรันที่มั่นใจและอยากเร่งสเกล', 'legendary'),
       guideCard(spriteSrc('obj_shrine_gamble'),'Gamble Shrine','สุ่ม 50/50 ระหว่างได้ไอเทม legendary หรือโดน Elite 12 ตัว','สนุก แต่ไม่สุภาพกับคนเลือดน้อย', 'legendary'),
       guideSectionTitle('Chest และ Merchant','แหล่งซื้อของ/สุ่มของหลักของรัน แต่มีความเสี่ยง'),
       guideCard(spriteSrc('chest_common'),'Common Chest','ใช้ทองเปิด มีโอกาสได้ไอเทมและมีโอกาสเป็น Mimic','ราคาถูก เหมาะเปิดช่วงต้น', 'common'),
@@ -1848,8 +1850,10 @@ function openGuide(kind){
       guideCard(spriteSrc('chest_epic'),'Epic Chest','แพงที่สุด แต่โอกาส rare/legendary สูงสุด','อย่าเปิดถ้าเงินยังต้องใช้กับร้าน', 'legendary'),
       guideCard(spriteSrc('obj_merchant'),'Merchant','ขายไอเทม 3 ชิ้น สินค้าไม่รีเองจนกด Reroll','ซื้อบ่อยมีโอกาส 15% ที่พ่อค้าจะกลายเป็นบอส', 'rare'),
       guideSectionTitle('Altar และ Portal','ใช้คุมความคืบหน้าของ map และการย้ายด่าน'),
-      guideCard(spriteSrc('obj_altar'),'Boss Altar','กด F เพื่อเรียกบอสประจำด่าน เมื่อพร้อมสู้และอยากไปต่อ','ฆ่าบอสเพื่อเลือก Relic และเปิดทางไป map ถัดไป', 'legendary'),
-      guideCard(spriteSrc('obj_portal'),'Portal','ประตูสำหรับย้าย map หรือจบรันหลังเงื่อนไขสำคัญสำเร็จ','หลังฆ่าบอส/บอสสุดท้าย ให้ตาม Portal เพื่อไปต่อ', 'legendary')
+      guideCard(spriteSrc('obj_altar'),'Boss Altar','กด F เพื่อเรียกบอสประจำด่าน เมื่อพร้อมสู้และอยากไปต่อ','Map 3 จะเรียกบอสสุดท้ายให้อัตโนมัติเมื่อเข้าด่าน', 'legendary'),
+      guideCard(spriteSrc('obj_normal_portal'),'Portal ปกติ','หลังฆ่าบอส Map 1/2 และเลือก Relic แล้ว Portal ปกติจะเปิดเพื่อย้ายไป map ถัดไป','เดินชน Portal เพื่อไปต่อ ไม่ต้องกด F', 'rare'),
+      guideCard(spriteSrc('obj_portal'),'Final Portal','หลังฆ่าบอสสุดท้ายใน Map 3 ประตูจบเกมจะเปิด ใช้เพื่อเคลียร์รันและบันทึกคะแนน','ถ้าไม่เข้าทันที เกมจะเข้าสู่ Overtime หลังบอสตาย', 'legendary'),
+      guideCard(spriteSrc('obj_challenge_gate'),'Challenge Gate','หลังบอส Map 1/2 อาจมีประตูท้าทายแยกจาก Portal ปกติ เดินชนเพื่อสุ่มเข้าห้องพิเศษ','จบห้องแล้วจะมี Portal กลับไป map ถัดไป', 'legendary')
     ].join('');
   } else if(kind==='shop'){
     title='ร้านค้า / NPC';
@@ -1887,10 +1891,10 @@ function openGuide(kind){
       guideUnitCard(unitSpritePath(e.sprite), e.name, 'มินิบอส / '+skillListFor(e.sprite, typeof MB_SKILLS!=='undefined'?MB_SKILLS:null), bossStatMeta(e,'mini'), 'boss sheet')
     ).join('');
     const bosses=BOSS_TYPES.map(e=>{
-      const where=e.final?('Map 3 · '+mnb(3)+' (บอสสุดท้าย)'):e.name==='Lich King'?('Map 1 · '+mnb(1)):e.name==='Abyssal Behemoth'?('Map 1–2 · '+mnb(1)+'/'+mnb(2)):('Map 2 · '+mnb(2));
+      const where=e.final?('Map 3 · '+mnb(3)+' (บอสสุดท้าย)'):(e.name==='Lich King'||e.name==='Abyssal Behemoth')?('Map 1 · '+mnb(1)):('Map 2 · '+mnb(2));
       return guideUnitCard(unitSpritePath(e.sprite), e.name, where+' / '+skillListFor(e.sprite, typeof BOSS_SKILLS!=='undefined'?BOSS_SKILLS:null), bossStatMeta(e,'boss'), 'boss sheet');
     }).join('');
-    const butcher=guideUnitCard(unitSpritePath('boss_butcher'), 'The Butcher', 'Special Hunt / สุ่ม 20% ต่อรัน ช่วงนาที 6-8 / สกิล: '+['reaperBlink','rustedGallows','fan'].map(s=>guideText(SKILL_GUIDE_TEXT[s],s)).join(', '), 'มีเวลา 20 วิให้ฆ่าเพื่อรางวัลพิเศษ · ไม่กระเด็น แต่เลือดและความเร็วถูกลดลงแล้ว', 'boss sheet hunt');
+    const butcher=guideUnitCard(unitSpritePath('boss_butcher'), 'The Butcher', 'Special Hunt / สุ่ม 20% ต่อรัน ช่วงนาที 6-8 / สกิล: '+['reaperBlink','rustedGallows','fan'].map(s=>guideText(SKILL_GUIDE_TEXT[s],s)).join(', '), 'มีเวลา 30 วิให้ฆ่าเพื่อรางวัลพิเศษ · ไม่กระเด็น แต่เลือดและความเร็วถูกลดลงแล้ว', 'boss sheet hunt');
     cards=minis+bosses+butcher;
   } else {
     return openGuide('hub');
@@ -4461,7 +4465,7 @@ function minibossPool(){
 function bossPool(){
   // THE OVERLORD (final boss) only on the final stage — overtime no longer forces it on early stages.
   if(mapStage>=3) return [BOSS_TYPES[BOSS_TYPES.length-1]];
-  if(mapStage>=2) return BOSS_TYPES.filter(b=>['Soul Reaper','Void Wyrm','Abyssal Behemoth'].includes(b.name));
+  if(mapStage>=2) return BOSS_TYPES.filter(b=>['Soul Reaper','Void Wyrm'].includes(b.name));
   return BOSS_TYPES.filter(b=>!b.final && ['Lich King','Abyssal Behemoth'].includes(b.name));
 }
 function spawnEnemy(t, px, pz) {
@@ -4470,12 +4474,13 @@ function spawnEnemy(t, px, pz) {
   let x, z;
   if (px!==undefined){ x=clamp(px,-MAP_BOUND,MAP_BOUND); z=clamp(pz,-MAP_BOUND,MAP_BOUND); }
   else { const ang=Math.random()*Math.PI*2, d=24+Math.random()*6; x=clamp(player.x+Math.cos(ang)*d,-MAP_BOUND,MAP_BOUND); z=clamp(player.z+Math.sin(ang)*d,-MAP_BOUND,MAP_BOUND); }
-  const hpSc=normalHpScale(t.tier), atkSc=normalAtkScale(t.tier);
+  const curseHpMul = 1 + (player.cursedHp||0);
+  const curseAtkMul = 1 + (player.cursedAtk||0);
+  const hpSc=normalHpScale(t.tier)*curseHpMul, atkSc=normalAtkScale(t.tier)*curseAtkMul;
   const { spr, anim } = entitySprite(t.sprite, t.h);
   const sh = makeEnemyShadow(t.h*0.32);
   scene.add(spr);
-  const cursedMul = 1 + (player.cursed||0);
-  enemies.push({ x, z, hp:t.hp*hpSc, maxHp:t.hp*hpSc, atk:Math.round(t.atk*atkSc*cursedMul), spd:t.spd*SPD_SCALE,
+  enemies.push({ x, z, hp:t.hp*hpSc, maxHp:t.hp*hpSc, atk:Math.round(t.atk*atkSc), spd:t.spd*SPD_SCALE,
                  xp:t.xp, r:t.h*0.32, name:t.name, alive:true, cd:0, flash:0, isBoss:false, behavior:behaviorFor(t.name), airborne:AIRBORNE.has(t.name), kx:0, kz:0, atkCd:1+Math.random(), chargeCd:1.5+Math.random()*2, charging:0, bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh });
 }
 function spawnCluster(count){
