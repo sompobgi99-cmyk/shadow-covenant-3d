@@ -36,9 +36,9 @@ no ground, no base, no shadow
 `an arcane sorceress in flowing blue robes, glowing crystal staff, swirling magic`
 - อาวุธเริ่ม: Nova Burst · +damage +range, HP ต่ำ (กระจกแตก)
 
-**char_templar** — *(แทงค์/ช้า)*
-`a heavy templar knight in ornate silver plate armor, tower shield and longsword, stalwart`
-- อาวุธเริ่ม: Orbiting Skull · +HP มาก +ป้องกัน, move speed ช้าลง
+**char_templar / Oathbone** — *(bone-oath tank / skull guard)*
+`a cursed oathbone guardian in dark steel armor with ivory bone plates, red-black cloth, skull talismans, no halo, no tower shield, heavy gothic bone knight`
+- อาวุธเริ่ม: Orbiting Skull · ดาเมจ +1%, เลือด +4 / Lv · HP/เกราะสูง, เดินช้าแต่ยืนได้นาน
 
 **char_ranger** — *(คล่องแคล่ว/ดึงไอเทม)*
 `a hooded forest ranger in green and brown leather, longbow, quiver, nimble`

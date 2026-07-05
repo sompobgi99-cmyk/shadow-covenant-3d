@@ -1,6 +1,6 @@
 // ---- Tunables (world units; 1 unit ~= one 2D tile) ----
 const PLAYER_SPEED = 4.6;
-const DASH_SPEED = 26, DASH_DUR = 0.18, DASH_CD = 2.2;   // dash/dodge
+const DASH_SPEED = 26, DASH_DUR = 0.15, DASH_CD = 2.2;   // dash/dodge
 const SPD_SCALE = 1/28;          // enemy px/s -> units/s
 const MAP_BOUND = 56;            // playable half-extent
 const PICKUP_MAGNET = 3.0, PICKUP_COLLECT = 0.7;
@@ -13,7 +13,7 @@ const WEAPON_TYPES = {
   nova:   { name:'Nova Burst',     icon:'wpn_nova',  desc:'ระเบิดวงแหวนรอบตัว',    mode:'nova',
             dmg:17, rate:0.85, range:0, count:1, pierce:99, speed:12, life:0.6, color:0xffaa44, radius:2.8, evolveTo:'novaX', evolveTome:'celerity' },
   orbit:  { name:'Orbiting Skull', icon:'wpn_orbit', desc:'กะโหลกวนรอบตัว โจมตีและช่วยกันดาเมจ',     mode:'orbit',
-            dmg:8, count:2, color:0xff6688, orbitR:2.0, orbitSpd:3.2, tick:0.40, guardBlock:0.50, guardRecover:5.0, evolveTo:'orbitX', evolveTome:'precision' },
+            dmg:9, count:2, color:0xff6688, orbitR:2.0, orbitSpd:3.45, tick:0.36, guardBlock:0.50, guardRecover:4.5, evolveTo:'orbitX', evolveTome:'precision' },
   arrow:  { name:"Hunter's Arrow",  icon:'wpn_arrow', desc:'ลูกธนูระยะไกลที่ยิงทะลุศัตรู',       mode:'aim',
             dmg:14, rate:1.05, range:15, count:1, pierce:3, speed:24, life:1.6, color:0x8ef06a, shape:'arrow', evolveTo:'arrowX', evolveTome:'velocity' },
   smite:  { name:'Holy Smite',      icon:'wpn_smite',  desc:'พลังศักดิ์สิทธิ์โจมตีจากด้านบน',  mode:'smite',
@@ -21,7 +21,7 @@ const WEAPON_TYPES = {
   lightning:{ name:'Lightning Strike', icon:'wpn_lightning', desc:'เรียกสายฟ้าฟาดเป้าหมายทีละตัว', mode:'smite',
             dmg:18, rate:1.02, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25, shape:'lightning', evolveTo:'lightningX', evolveTome:'focus' },
   dagger: { name:'Throwing Knives', icon:'wpn_dagger', desc:'ปามีดเร็วใส่ศัตรูใกล้ตัว', mode:'aim',
-            dmg:10, rate:2.2, range:10, count:2, pierce:0, speed:26, life:0.9, color:0xdde7ff, shape:'dagger', evolveTo:'daggerX', evolveTome:'execution' },
+            dmg:9, rate:2.2, range:10, count:2, pierce:0, speed:26, life:0.9, color:0xdde7ff, shape:'dagger', evolveTo:'daggerX', evolveTome:'execution' },
   toolstab:{ name:'Multi-Tool Screwdriver', icon:'wpn_screwdriver', desc:'แทงระยะประชิดอย่างรวดเร็ว ทะลุศัตรูทั้งแนว', mode:'stab',
             dmg:22, rate:2.55, range:3.0, count:1, pierce:99, speed:0, life:0.16, color:0x64d7ff, shape:'screwdriver', width:0.36, evolveTo:'toolstabX', evolveTome:'growth' },
   bladewhirl:{ name:'Blade Wave',   icon:'wpn_bladewhirl',     desc:'ปล่อยคลื่นดาบโค้งระยะสั้น', mode:'slash',
@@ -29,13 +29,13 @@ const WEAPON_TYPES = {
   soulspiral:{ name:'Soul Spiral',  icon:'wpn_soulspiral',  desc:'ยิงวิญญาณหมุนวนรอบทิศ',       mode:'spiral',
             dmg:9, rate:2.4, range:0, count:2, pierce:1, speed:13, life:1.4, color:0xb06aff, shape:'soul', evolveTo:'soulspiralX', evolveTome:'duration' },
   football:{ name:'Cursed Football', icon:'wpn_football', desc:'ลูกบอลเด้งหาเป้าหมายใหม่ต่อเนื่อง', mode:'aim',
-            dmg:11, rate:1.30, range:12, count:1, pierce:0, speed:21, life:1.45, color:0xf2f0d8, shape:'football', bounces:2, bounceRadius:9, bounceDmgMul:0.88, evolveTo:'footballX', evolveTome:'ricochet' },
+            dmg:11, rate:1.30, range:12, count:1, pierce:0, speed:21, life:1.45, color:0xf2f0d8, shape:'football', bounces:2, bounceRadius:9, bounceDmgMul:0.92, evolveTo:'footballX', evolveTome:'ricochet' },
   shieldtoss:{ name:'Shield Toss', icon:'wpn_shieldtoss', desc:'ขว้างโล่หนัก ทะลุก่อนเด้งกลับหาเป้าหมาย', mode:'aim',
             dmg:16, rate:0.95, range:11, count:1, pierce:1, speed:18, life:1.55, color:0x9fd8ff, shape:'shield', bounces:1, bounceRadius:8, bounceDmgMul:0.90, evolveTo:'shieldtossX', evolveTome:'fortitude' },
   boneboomerang:{ name:'Bone Boomerang', icon:'wpn_boneboomerang', desc:'กระดูกคู่โค้งเด้งระหว่างศัตรู', mode:'spread',
             dmg:11, rate:1.50, range:10, count:2, pierce:0, speed:17, life:1.35, color:0xe8dcc4, arc:0.36, shape:'bone_boomerang', bounces:1, bounceRadius:8, bounceDmgMul:0.86, evolveTo:'boneboomerangX', evolveTome:'duration' },
   bouncebomb:{ name:'Bouncing Bomb', icon:'wpn_bouncebomb', desc:'ระเบิดแตกตอนชนแล้วเด้งต่อไปยังเป้าหมายอื่น', mode:'aim',
-            dmg:13, rate:0.90, range:10, count:1, pierce:0, speed:13, life:1.75, color:0xff9a4a, shape:'bomb', bounces:2, bounceRadius:8, bounceDmgMul:0.82, impactRadius:1.25, impactDmgMul:0.42, evolveTo:'bouncebombX', evolveTome:'impact' },
+            dmg:13, rate:0.90, range:10, count:1, pierce:0, speed:13, life:1.75, color:0xff9a4a, shape:'bomb', bounces:2, bounceRadius:8, bounceDmgMul:0.82, impactRadius:1.25, impactDmgMul:0.50, evolveTo:'bouncebombX', evolveTome:'impact' },
   // evolved forms (hidden from the acquire pool)
   boltX:  { name:'Doom Bolt',      icon:'wpn_bolt_evolved',     desc:'ร่างวิวัฒน์: ยิงกระสุนทะลุเป็นชุด', mode:'aim', hidden:true,
             dmg:28, rate:2.4, range:13, count:2, pierce:4, speed:20, life:1.6, color:0xff66ff, shape:'doom' },
@@ -44,15 +44,15 @@ const WEAPON_TYPES = {
   novaX:  { name:'Supernova',      icon:'wpn_nova_evolved',  desc:'ร่างวิวัฒน์: ระเบิดวงกว้างรุนแรง',    mode:'nova', hidden:true,
             dmg:24, rate:1.15, range:0, count:2, pierce:99, speed:15, life:0.8, color:0xffd24a, radius:4.5 },
   orbitX: { name:'Death Orbit',    icon:'wpn_orbit_evolved', desc:'ร่างวิวัฒน์: วงโคจรคู่และป้องกันดีขึ้น',      mode:'orbit', hidden:true,
-            dmg:13, count:4, color:0xff3366, orbitR:2.8, orbitSpd:4.2, tick:0.24, guardBlock:0.70, guardRecover:3.5 },
+            dmg:15, count:4, color:0xff3366, orbitR:3.0, orbitSpd:4.55, tick:0.21, guardBlock:0.72, guardRecover:3.2 },
   arrowX: { name:'Tempest Volley', icon:'wpn_arrow_evolved', desc:'ร่างวิวัฒน์: พายุลูกธนูทะลุฝูง',  mode:'aim', hidden:true,
             dmg:30, rate:1.7, range:18, count:3, pierce:6, speed:30, life:1.9, color:0xc8ff7a, shape:'arrow' },
   smiteX: { name:'Divine Judgment', icon:'wpn_smite_evolved', desc:'ร่างวิวัฒน์: พิพากษาจากสวรรค์', mode:'smite', hidden:true,
             dmg:40, rate:1.2, range:12, count:2, pierce:3, speed:14, life:1.4, color:0xffe9a0, radius:3.0 },
   lightningX:{ name:'Storm Tribunal', icon:'wpn_lightning_evolved', desc:'ร่างวิวัฒน์: สายฟ้าลูกโซ่พิพากษา', mode:'smite', hidden:true,
-            dmg:34, rate:1.75, range:14, count:3, pierce:3, speed:14, life:1.4, color:0xa7f2ff, radius:2.2, shape:'lightning' },
+            dmg:31, rate:1.75, range:14, count:3, pierce:3, speed:14, life:1.4, color:0xa7f2ff, radius:2.2, shape:'lightning' },
   daggerX:{ name:'Execution Knives', icon:'wpn_dagger_evolved', desc:'ร่างวิวัฒน์: พายุมีดแทงทะลุ', mode:'aim', hidden:true,
-            dmg:20, rate:3.35, range:12, count:5, pierce:2, speed:32, life:1.0, color:0xffd8f2, shape:'dagger' },
+            dmg:18, rate:3.35, range:12, count:5, pierce:2, speed:32, life:1.0, color:0xffd8f2, shape:'dagger' },
   toolstabX:{ name:'Admin Override', icon:'wpn_screwdriver_evolved', desc:'ร่างวิวัฒน์: แทงกว้างหลายจังหวะแบบแก้ปัญหาเร่งด่วน', mode:'stab', hidden:true,
             dmg:34, rate:3.15, range:4.2, count:2, pierce:99, speed:0, life:0.18, color:0x7cffd8, shape:'screwdriver', width:0.55 },
   bladewhirlX:{ name:'Tempest Blades', icon:'wpn_bladewhirl_evolved', desc:'ร่างวิวัฒน์: พายุคลื่นดาบหลายชุด', mode:'slash', hidden:true,
@@ -66,7 +66,7 @@ const WEAPON_TYPES = {
   boneboomerangX:{ name:'Grave Cyclone', icon:'wpn_boneboomerang_evolved', desc:'ร่างวิวัฒน์: พายุกระดูกเร็วขึ้นและเด้งเพิ่ม', mode:'spread', hidden:true,
             dmg:22, rate:2.1, range:12, count:3, pierce:1, speed:20, life:1.65, color:0xfff0ce, arc:0.55, shape:'bone_boomerang', bounces:2, bounceRadius:9, bounceDmgMul:0.90 },
   bouncebombX:{ name:'Chain Detonator', icon:'wpn_bouncebomb_evolved', desc:'ร่างวิวัฒน์: ระเบิดลูกโซ่ขนาดใหญ่ระหว่างเป้าหมาย', mode:'aim', hidden:true,
-            dmg:27, rate:1.25, range:12, count:2, pierce:0, speed:15, life:2.0, color:0xffbd5f, shape:'bomb', bounces:3, bounceRadius:10, bounceDmgMul:0.86, impactRadius:1.8, impactDmgMul:0.55 },
+            dmg:27, rate:1.25, range:12, count:2, pierce:0, speed:15, life:2.0, color:0xffbd5f, shape:'bomb', bounces:3, bounceRadius:10, bounceDmgMul:0.86, impactRadius:2.0, impactDmgMul:0.70 },
 };
 const GLOBAL_WEAPON_DMG_MUL = 1.0602;
 // ---- Items (pickup from enemy drops, stack unlimited) ----
@@ -97,8 +97,8 @@ const ITEMS = [
     apply:p=>{ p._wrench=(p._wrench||0)+1; } },
   { id:'slip_ring',   name:'Slippery Ring',  desc:'หลบหลีก +15%',            rarity:'common', icon:'item_slip_ring',
     apply:p=>{ p.evade=(p.evade||0)+0.15; } },
-  { id:'lucky_charm', name:'Lucky Charm',    desc:'โอกาสคริติคอล +4%',         rarity:'common', icon:'item_lucky_charm',
-    apply:p=>{ p.critChance+=0.04; } },
+  { id:'lucky_charm', name:'Lucky Charm',    desc:'โอกาสคริติคอล +5%',         rarity:'common', icon:'item_lucky_charm',
+    apply:p=>{ p.critChance+=0.05; } },
   { id:'dash_boots',  name:'Dash Boots',     desc:'คูลดาวน์พุ่งหลบ -10%',      rarity:'common', icon:'item_dash_boots',
     apply:p=>{ p.dashCdMul*=0.90; } },
   { id:'magnet_coil', name:'Magnet Coil',    desc:'ระยะดูดของ +18%', rarity:'common', icon:'item_magnet_coil',
@@ -126,8 +126,8 @@ const ITEMS = [
     apply:p=>{ p.thunderChance=(p.thunderChance||0)+0.10; } },
   { id:'credit_card', name:'Credit Card',    desc:'เปิดหีบแล้วดาเมจ +2.5%', rarity:'uncommon', icon:'item_credit_card',
     apply:p=>{ p._creditCard=(p._creditCard||0)+1; } },
-  { id:'sharpening_stone',name:'Sharpening Stone',desc:'ดาเมจคริติคอล +10%',   rarity:'uncommon', icon:'item_sharpening_stone',
-    apply:p=>{ p.critDmg+=0.10; } },
+  { id:'sharpening_stone',name:'Sharpening Stone',desc:'ดาเมจคริติคอล +15%',   rarity:'uncommon', icon:'item_sharpening_stone',
+    apply:p=>{ p.critDmg+=0.15; } },
   { id:'blink_feather',name:'Blink Feather', desc:'ระยะพุ่งหลบ +15%',      rarity:'uncommon', icon:'item_blink_feather',
     apply:p=>{ p.dashDistMul*=1.15; } },
   { id:'runic_lens',  name:'Runic Lens',     desc:'ขนาดสกิล +10%', rarity:'uncommon', icon:'item_runic_lens',
@@ -153,8 +153,8 @@ const ITEMS = [
     apply:p=>{ p.lifesteal+=2; } },
   { id:'eagle_claw',  name:'Eagle Claw',     desc:'ดาเมจต่อศัตรูบิน +66%',    rarity:'rare', icon:'item_eagle_claw',
     apply:p=>{ p._eagle=(p._eagle||0)+1; } },
-  { id:'execution_coin',name:'Execution Coin',desc:'ดาเมจคริติคอล +8%, คริติคอลอาจให้ทอง', rarity:'rare', icon:'item_execution_coin',
-    apply:p=>{ p.critDmg+=0.08; p._executionCoin=(p._executionCoin||0)+1; } },
+  { id:'execution_coin',name:'Execution Coin',desc:'ดาเมจคริติคอล +12%, คริติคอลอาจให้ทอง', rarity:'rare', icon:'item_execution_coin',
+    apply:p=>{ p.critDmg+=0.12; p._executionCoin=(p._executionCoin||0)+1; } },
   { id:'phase_cloak', name:'Phase Cloak',    desc:'อมตะหลังพุ่งหลบ +0.12 วิ, หลบหลีก +5%', rarity:'rare', icon:'item_phase_cloak',
     apply:p=>{ p.dashInvulnBonus=(p.dashInvulnBonus||0)+0.12; p.evade=(p.evade||0)+0.05; } },
   { id:'battle_banner',name:'Battle Banner', desc:'บัฟ Haste/Might จากพื้นอยู่นานขึ้น +35%', rarity:'rare', icon:'item_battle_banner',
@@ -166,8 +166,10 @@ const ITEMS = [
     apply:p=>{ p.bonkChance=(p.bonkChance||0)+0.02; } },
   { id:'holy_book',   name:'Holy Book',      desc:'เลือด +100, ฟื้นเลือด +50',   rarity:'legendary', icon:'item_holy_book',
     apply:p=>{ p.maxHp+=100; p.hp+=100; p.regen+=50; } },
-  { id:'soul_harvester',name:'Soul Harvester',desc:'ฆ่าศัตรูแล้วดรอป XP ติดตามเพิ่ม', rarity:'legendary', icon:'item_soul_harvester',
+  { id:'soul_harvester',name:'Soul Harvester',desc:'ฆ่าศัตรูแล้วดรอป XP เพิ่ม และทองเพิ่มเล็กน้อย', rarity:'legendary', icon:'item_soul_harvester',
     apply:p=>{ p._soulHarv=(p._soulHarv||0)+1; } },
+  { id:'singularity_core',name:'Singularity Core',desc:'ระยะดูด XP/ทอง +100%, ความเร็วดูด XP/ทอง +50%', rarity:'legendary', icon:'item_singularity_core',
+    apply:p=>{ p.lootMagnetBonus=(p.lootMagnetBonus||0)+1.00; p.lootPullBonus=(p.lootPullBonus||0)+0.50; } },
   { id:'spicy_meatball',name:'Spicy Meatball',desc:'โจมตีมีโอกาส 25% ระเบิด 65% ดาเมจ', rarity:'legendary', icon:'item_spicy_meatball',
     apply:p=>{ p.spicyChance=(p.spicyChance||0)+0.25; } },
   { id:'chonkplate',  name:'Chonkplate',     desc:'Overheal 50%, ฆ่าแล้วฟื้นเลือด +2', rarity:'legendary', icon:'item_chonkplate',
@@ -178,13 +180,25 @@ const ITEMS = [
     apply:p=>{ p.blastChance=(p.blastChance||0)+0.08; p.knockbackMul=(p.knockbackMul||0)+0.5; } },
   { id:'dragonfire',  name:'Dragonfire',     desc:'โจมตีมีโอกาส 15% ติดไฟและเผาต่อเนื่อง', rarity:'legendary', icon:'item_dragonfire',
     apply:p=>{ p.fireChance=(p.fireChance||0)+0.15; } },
-  { id:'glass_needle',name:'Glass Needle',   desc:'โอกาสคริติคอล +20%, ดาเมจคริติคอล +60%, เลือดสูงสุด -15%', rarity:'legendary', icon:'item_glass_needle',
-    apply:p=>{ p.critChance+=0.20; p.critDmg+=0.60; p.maxHp=Math.max(1,Math.round(p.maxHp*0.85)); p.hp=Math.min(p.hp,p.maxHp); } },
+  { id:'glass_needle',name:'Glass Needle',   desc:'โอกาสคริติคอล +25%, ดาเมจคริติคอล +75%, เลือดสูงสุด -15%', rarity:'legendary', icon:'item_glass_needle',
+    apply:p=>{ p.critChance+=0.25; p.critDmg+=0.75; p.maxHp=Math.max(1,Math.round(p.maxHp*0.85)); p.hp=Math.min(p.hp,p.maxHp); } },
   { id:'royal_jelly', name:'Royal Jelly',    desc:'Luck +20%, ทอง +20%, XP +10%', rarity:'legendary', icon:'item_royal_jelly',
     apply:p=>{ p.luck=(p.luck||0)+0.20; p.goldMul*=1.20; p.xpMul*=1.10; } },
 ];
 const RARITY_COLORS = { common:0x7ecf5a, uncommon:0x5a9ecf, rare:0xcf5acf, legendary:0xcfc05a };
 const RARITY_GLOW = { common:0x44ff44, uncommon:0x44aaff, rare:0xff44ff, legendary:0xffdd44 };
+function skillSizeReachMul(mode){
+  const sc=Math.max(1, player.projScale||1);
+  const gain=sc-1;
+  const factor=mode==='stab'?0.55:mode==='slash'?0.50:mode==='nova'?0.60:mode==='orbit'?0.45:0.35;
+  return Math.min(1.75, 1 + gain*factor);
+}
+function radiusRangeMul(mode){
+  const rm=Math.max(1, player.rangeMul||1);
+  if(mode==='nova') return Math.min(1.45, 1 + (rm-1)*0.45);
+  if(mode==='smite') return Math.min(1.85, 1 + (rm-1)*0.70);
+  return rm;
+}
 function wstats(key, lvl){
   const b = WEAPON_TYPES[key], s = Object.assign({}, b), k = lvl-1;
   s.sourceKey = key;
@@ -192,17 +206,20 @@ function wstats(key, lvl){
   const bonus=player.countBonus||0;
   if (b.mode === 'orbit'){
     s.count = b.count + Math.floor(k/2) + bonus;
-    s.orbitR = b.orbitR * (1 + 0.055*k) * (player.rangeMul||1);
+    s.orbitR = b.orbitR * (1 + 0.055*k) * (player.rangeMul||1) * skillSizeReachMul('orbit');
     s.tick = b.tick * Math.pow(0.90, k) / (player.rateMul||1);   // orbs hit faster per level + attack speed
   } else {
     const step=b.mode==='nova'||b.mode==='slash' ? 4 : 3;
     s.count = b.count + Math.floor(k/step) + bonus;
     s.rate  = b.rate * (1 + 0.06*k) * (player.rateMul||1);
-    s.range = b.range * (player.rangeMul||1);
+    s.range = b.range * (player.rangeMul||1) * (b.mode==='stab'||b.mode==='slash' ? skillSizeReachMul(b.mode) : 1);
     s.life  = b.life * (player.lifeMul||1);
     s.areaLife = player.areaLifeMul||1;
     s.speed = b.speed * (player.projSpeedMul||1);
-    if (b.radius) s.radius = b.radius * (1 + 0.055*k) * (player.rangeMul||1);
+    if (b.radius) {
+      s.radius = b.radius * (1 + 0.055*k) * radiusRangeMul(b.mode) * (b.mode==='nova'||b.mode==='smite' ? skillSizeReachMul(b.mode) : 1);
+      if (b.mode==='nova') s.radius = Math.min(s.radius, key==='novaX'?8.6:6.2);
+    }
     if (b.bounces != null) {
       s.bounces = Math.max(0, (b.bounces||0) + (player.ricochetBonus||0));
       s.bounceRadius = (b.bounceRadius||8) * (player.rangeMul||1);
@@ -274,9 +291,32 @@ function hitMul(e){
   return m;
 }
 function rollCrit(){
-  const chance=Math.max(0, Math.min(0.75, player.critChance||0));
-  if(chance<=0 || Math.random()>=chance) return { crit:false, mul:1 };
-  return { crit:true, mul:Math.max(1, player.critDmg||1.5) };
+  const base=Math.max(0, player.critChance||0);
+  const pity=Math.min(0.12, (player._critPity||0)*0.015);
+  const chance=Math.max(0, Math.min(0.85, base+pity));
+  if(chance<=0 || Math.random()>=chance){
+    player._critPity=Math.min(10,(player._critPity||0)+1);
+    return { crit:false, mul:1, chain:0 };
+  }
+  const now=typeof gameTime==='number'?gameTime:0;
+  const chain=now < (player._critChainUntil||0) ? Math.min(5,(player._critChain||0)+1) : 1;
+  player._critPity=0;
+  player._critChain=chain;
+  player._critChainUntil=now+1.1;
+  return { crit:true, mul:Math.max(1, player.critDmg||1.5)*(1+0.04*(chain-1)), chain };
+}
+function onCritProcs(e,d,color,meta,chain){
+  if(!e || !e.alive || d<=0) return;
+  e.bleedDps=Math.max(e.bleedDps||0, d*0.10*(1+0.12*Math.max(0,(chain||1)-1)));
+  e.bleedT=Math.max(e.bleedT||0,1.6);
+  e.bleedMeta=meta||null;
+  const now=typeof gameTime==='number'?gameTime:0;
+  if(now>(player._critFxAt||0)){
+    player._critFxAt=now+0.12;
+    spawnRing(e.x,e.z,0xffd86a,Math.max(1.2,e.r*1.7),0.20);
+    spawnBurst(e.x,e.z,0xffd86a,chain>=3?7:4,chain>=3?0.72:0.52);
+    if(chain>=3) spawnDmg(e.x,e.z,'CHAIN x'+chain,0xffd86a,false,'critproc');
+  }
 }
 function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc, meta){
   if (!e.alive) return;
@@ -306,12 +346,13 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc, meta){
   spawnDmg(e.x, e.z, immune ? 'IMMUNE' : d, color, crit.crit && d > 0, immune ? 'immune' : '');
   recordRunDamage(d, meta);
   if(d>0) sfx(crit.crit?'crit':'hit');
+  if(d>0 && crit.crit && !immune) onCritProcs(e,d,color,meta,crit.chain);
   if(d>0 && crit.crit && player._executionCoin && Math.random()<Math.min(0.60,0.15*player._executionCoin)){
     const g=Math.max(1,mapStage);
     player.gold+=g;
     recordRunItem('execution_coin',{ procs:1 });
   }
-  if (kbCap && !e.knockImmune){ const kd=Math.hypot(kx,kz)||1, kb=Math.min(kbCap, d*0.045/Math.max(0.5,e.r))*(player.knockbackMul||0);
+  if (kbCap && !e.knockImmune){ const kd=Math.hypot(kx,kz)||1, resist=e.isStageBoss?0.18:e.isBoss?0.35:e.elite?0.45:1, kb=Math.min(kbCap, d*0.045/Math.max(0.5,e.r))*(player.knockbackMul||0)*resist;
     e.kx += kx/kd*kb; e.kz += kz/kd*kb; }
   spawnBurst(e.x, e.z, color, 3, 0.5);
   if (!noProc) onHitProcs(e, d, color);
@@ -337,7 +378,8 @@ function fireAim(s){
   sfx('shoot');
   const t = nearestEnemies(player.x, player.z, s.range, s.count);
   for (let i=0;i<s.count;i++){
-    let dx,dz; if (t[i]){ dx=t[i].x-player.x; dz=t[i].z-player.z; }
+    const target = t.length ? t[i % t.length] : null;
+    let dx,dz; if (target){ dx=target.x-player.x; dz=target.z-player.z; }
     else { const a=Math.random()*Math.PI*2; dx=Math.cos(a); dz=Math.sin(a); }
     const l=Math.hypot(dx,dz)||1; spawnProjectile(dx/l, dz/l, s);
   }
@@ -412,9 +454,11 @@ function fireStab(s){
 }
 function fireSmite(s){
   sfx('shoot');
-  const targets=nearestEnemies(player.x, player.z, s.range||11, Math.max(1,s.count||1));
+  const count=Math.max(1,s.count||1);
+  const targets=nearestEnemies(player.x, player.z, s.range||11, count);
   if (!targets.length) return;
-  for(const t of targets){
+  for(let i=0;i<count;i++){
+    const t=targets[i % targets.length];
     const tx=t.x, tz=t.z, R=s.radius||2.4;
     hitBreakablesAt(tx,tz,R,s.dmg,s.color);
     forEachNearbyEnemy(tx,tz,R+1,e=>{ if(!e.alive) return;

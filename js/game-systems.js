@@ -216,11 +216,47 @@ function killEnemy(e){
     const add=Math.min(0.5*player._demonBlood, 200-(player._demonBloodGained||0));
     player._demonBloodGained=(player._demonBloodGained||0)+add; player.maxHp+=add; player.hp+=add;
   }
-  if (player._soulHarv && !e.isBoss) dropPickup(e.x, e.z, 'xp', Math.max(1, Math.round(e.xp*0.4*player._soulHarv)));
-  if (e.behavior==='exploder'){
-    spawnBurst(e.x, e.z, 0xff7a3a, 16, 1.3);
+  if (player._soulHarv && !e.isBoss){
+    const soulStacks = player._soulHarv || 1;
+    dropPickup(e.x, e.z, 'xp', Math.max(1, Math.round(e.xp*0.4*soulStacks)), 'soul_harvester');
+    dropPickup(e.x, e.z, 'gold', Math.max(1, Math.round(e.xp*0.09*soulStacks)), 'soul_harvester');
+  }
+  if (hasTrait(e,SPLITTERS) && !e.splitChild && !e.isBoss){
+    const count=e.name==='Blight Treant'?3:2;
+    const splitType=ENEMY_TYPES.find(t=>t.name===e.name);
+    for(let i=0;i<count;i++){
+      const a=(i/count)*Math.PI*2+Math.random()*0.35;
+      const before=enemies.length;
+      spawnEnemy(splitType,e.x+Math.cos(a)*0.65,e.z+Math.sin(a)*0.65);
+      const child=enemies[enemies.length-1];
+      if(child && enemies.length>before){
+        child.name=e.name==='Blight Treant'?'Splinter Sapling':'Muck Glob';
+        child.hp=Math.max(3,Math.round(e.maxHp*0.16));
+        child.maxHp=child.hp;
+        child.atk=Math.max(2,Math.round(e.atk*0.45));
+        child.spd=Math.max(child.spd,e.spd*1.15);
+        child.xp=Math.max(1,Math.round(e.xp*0.18));
+        child.r*=0.72;
+        child.splitChild=true;
+        child.behavior='chase';
+        if(child.spr){ child.spr.scale.multiplyScalar(0.72); child.bw=child.spr.scale.x; child.bh=child.spr.scale.y; }
+        if(child.sh) child.sh.scale.multiplyScalar(0.72);
+      }
+    }
+    spawnObjectPulse(e.x,e.z,e.name==='Blight Treant'?0x8fcf6a:0x55d66a,e.r*2.5,0.55);
+  }
+  if (e.stolenGold>0){
+    for(let i=0;i<Math.min(8,e.stolenGold);i++) dropPickup(e.x+(Math.random()-0.5)*0.6,e.z+(Math.random()-0.5)*0.6,'gold',Math.max(1,Math.ceil(e.stolenGold/Math.min(8,e.stolenGold))),'thief');
+    spawnObjectPulse(e.x,e.z,0xffd86a,3.0,0.45);
+    spawnBossImpactFx(e.x,e.z,2.0,0xffd86a,'gold_steal');
+  }
+  if (hasTrait(e,EXPLODERS)){
+    const color=e.name==='Chaos Wisp'?0x9a55ff:e.name==='Oblivion Orb'?0x7c8dff:0xff7a3a;
+    const radius=e.name==='Oblivion Orb'?3.1:e.name==='Chaos Wisp'?2.65:2.2;
+    spawnBurst(e.x, e.z, color, e.name==='Oblivion Orb'?24:16, 1.3);
+    spawnRing(e.x,e.z,color,radius*1.6,0.38);
     const dx=player.x-e.x, dz=player.z-e.z, d=Math.hypot(dx,dz);
-    if (d < 2.3) hurtPlayer(Math.round(e.atk*1.5),dx/(d||1),dz/(d||1),12);
+    if (d < radius) hurtPlayer(Math.round(e.atk*(e.name==='Oblivion Orb'?1.9:1.45)),dx/(d||1),dz/(d||1),e.name==='Oblivion Orb'?16:12);
   } else spawnBurst(e.x, e.z, e.isBoss?0xffd23f:0x9a6cff, e.isBoss?22:9, e.isBoss?1.4:0.8);
   // item drop — stage bosses only. Minibosses pay out XP/gold below, no items.
   if (e.butcher) {
@@ -259,6 +295,14 @@ function killEnemy(e){
     const soulMul = player._soulLantern && !e.isStageBoss && !e.elite && !e.final ? 1.5 : 1;
     for (let i=0;i<6;i++) dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm*soulMul));
     for (let i=0;i<10;i++) dropPickup(e.x, e.z, 'gold', Math.round(3*rm*soulMul));
+    if(e.secretMerchantBoss){
+      const pool=availableItemPool(Math.random()<0.35?'legendary':'rare');
+      const item=pool.length ? pool[(Math.random()*pool.length)|0] : rollItemDrop(true);
+      if(item) spawnGroundItem(e.x,e.z,item);
+      for(let i=0;i<8;i++) dropPickup(e.x+(Math.random()-0.5)*1.2,e.z+(Math.random()-0.5)*1.2,'gold',Math.round(6*rm),'merchant');
+      score+=420;
+      showToast('False Merchant defeated - bonus item dropped!',2.8);
+    }
     if (!e.elite && Math.random()<0.22) startDontMoveCurse(e.x,e.z);
   } else if (e.mimic) {
     for (let i=0;i<7;i++) dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm));
@@ -342,7 +386,7 @@ function summonBoss(){
   const H = b.h, hp = Math.round(b.hp*bossHpScale());
   const { spr, anim } = entitySprite(spriteKey, H);
   const sh = makeShadow(H*0.34); scene.add(spr); scene.add(sh);
-  boss = { x:altar.x, z:altar.z+3, hp, maxHp:hp, atk:Math.round(b.atk*sc), spd:48*SPD_SCALE*BOSS_SPEED_MUL,
+  boss = { x:altar.x, z:altar.z+3, hp, maxHp:hp, atk:Math.round(b.atk*sc*(typeof difficultyBossAtkMul==='function'?difficultyBossAtkMul():1)), spd:48*SPD_SCALE*BOSS_SPEED_MUL,
            xp:400, r:H*0.34, name:b.name, alive:true, cd:0, flash:0, isBoss:true, isStageBoss:true,
            behavior:'boss', kx:0, kz:0, atkCd:0, chargeCd:0, charging:0, patternCd:2.5, patternFlip:0, summonCd:6, final:b.final,
            bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh };
@@ -354,9 +398,31 @@ function summonBoss(){
   showToast('\u26a0 '+b.name+' RISES', 2.5);
 }
 function altarToPortal(kind,nextStage){ if(!altar) return; altar.state='portal'; altar.portalKind=kind||'victory'; altar.nextStage=nextStage||null;
-  if (altar.sprIcon && tex['obj_portal']){ altar.sprIcon.material.map=tex['obj_portal']; altar.sprIcon.material.needsUpdate=true; }
-  setAltarColor(altar.portalKind==='nextStage'?0xff5638:0x57e0ff); }
-function rewardMul(){ return Math.min(3, 1 + Math.max(0, stageTime()-RUN_TARGET)/150); }
+  const portalKey=(altar.portalKind==='nextStage'||altar.portalKind==='challengeExit') && tex.obj_normal_portal ? 'obj_normal_portal' : 'obj_portal';
+  if (altar.sprIcon && tex[portalKey]){ altar.sprIcon.material.map=tex[portalKey]; altar.sprIcon.material.needsUpdate=true; }
+  setAltarColor(altar.portalKind==='nextStage'?0xff5638:altar.portalKind==='challengeExit'?0x9a55ff:0x57e0ff); }
+function spawnChallengeDoors(nextStage){
+  if(!altar || mapStage>=3 || !nextStage || nextStage>3) return;
+  const baseAngle=Math.atan2(player.z-altar.z,player.x-altar.x);
+  const color=0xc994ff;
+  const a=baseAngle+Math.PI;
+  const r=5.2;
+  let x=clamp(altar.x+Math.cos(a)*r,-MAP_BOUND*0.88,MAP_BOUND*0.88);
+  let z=clamp(altar.z+Math.sin(a)*r,-MAP_BOUND*0.88,MAP_BOUND*0.88);
+  const open=findOpenPosition(x,z,2.4);
+  if(open){ x=open.x; z=open.z; }
+  const spr=billboard(tex.obj_challenge_gate?'obj_challenge_gate':'obj_portal',3.15);
+  if(!tex.obj_challenge_gate) spr.material.color.setHex(color);
+  spr.position.set(x,groundHeight(x,z),z);
+  scene.add(spr);
+  const glow=makeObjectGlow(color,1.45,'portal');
+  glow.position.set(x,groundHeight(x,z),z);
+  const beacon=makeLootBeacon(color,2,'portal');
+  beacon.position.set(x,groundHeight(x,z)+0.1,z);
+  interactables.push({ type:'challenge_door', nextStage, x, z, used:false, spr, glow, beacon, baseW:spr.scale.x, baseH:spr.scale.y });
+  showToast('Challenge Gate opened. Enter it to risk a random room, or use the normal portal.',3.8);
+}
+function rewardMul(){ return Math.min(3, 1 + Math.max(0, (typeof overtimeElapsed==='function'?overtimeElapsed():stageTime()-RUN_TARGET))/150); }
 const HUD_ARROWS=['\u2191','\u2197','\u2192','\u2198','\u2193','\u2199','\u2190','\u2196'];
 function arrowTo(dx,dz){ const a=Math.atan2(dx,-dz); return HUD_ARROWS[(((Math.round(a/(Math.PI/4))%8)+8)%8)]; }
 function spawnObject(type, tier){
@@ -390,6 +456,20 @@ function spawnAddAt(x,z){
     behavior:behaviorFor(t.name), kx:0,kz:0, atkCd:1+Math.random(), chargeCd:1.5+Math.random()*2, charging:0,
     bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh });
 }
+function spawnMinibossMinionAt(x,z,preferredName){
+  const t=ENEMY_TYPES.find(v=>v.name===preferredName) || ENEMY_TYPES.find(v=>v.name==='Bone Stalker') || pickEnemyType({ allowWarder:false });
+  const hpSc=normalHpScale(t.tier), atkSc=normalAtkScale(t.tier), H=t.h*0.92;
+  const { spr, anim } = entitySprite(t.sprite, H);
+  const sh=makeShadow(H*0.30); scene.add(spr); scene.add(sh);
+  const add={ x:clamp(x,-MAP_BOUND,MAP_BOUND), z:clamp(z,-MAP_BOUND,MAP_BOUND),
+    hp:Math.round(t.hp*hpSc*0.82), maxHp:Math.round(t.hp*hpSc*0.82), atk:Math.round(t.atk*atkSc*0.86), spd:t.spd*SPD_SCALE*1.08,
+    xp:Math.max(1,Math.round(t.xp*0.45)), r:H*0.30, name:t.name+' Minion', alive:true, cd:0, flash:0, isBoss:false, summoned:true,
+    behavior:behaviorFor(t.name), kx:0,kz:0, atkCd:0.8+Math.random()*0.6, chargeCd:1.3+Math.random()*1.4, charging:0,
+    bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh, tint:0xd6c08a };
+  enemies.push(add);
+  spawnObjectPulse(add.x,add.z,0xd6c08a,H*1.35,0.45);
+  return add;
+}
 function spawnElite(cx,cz){
   const t=pickEnemyType({ allowWarder:false });
   const hpSc=normalHpScale(t.tier), atkSc=normalAtkScale(t.tier); const a=Math.random()*Math.PI*2, d=2+Math.random()*3;
@@ -405,8 +485,7 @@ function activateNearby(){
   if (paused||userPaused||gameOver||won||!started) return;
   if (altar && altar.state==='idle' && Math.hypot(player.x-altar.x, player.z-altar.z)<3.0){ summonBoss(); return; }
   if (altar && altar.state==='portal' && Math.hypot(player.x-altar.x, player.z-altar.z)<2.6){
-    if(altar.portalKind==='nextStage') transitionToStage(altar.nextStage || mapStage+1);
-    else won=true;
+    enterPortal();
     return;
   }
   let best=null, bd=2.8;
@@ -416,6 +495,7 @@ function activateNearby(){
   else if (best.type==='shrine') activateShrine(best);
   else if (best.type==='merchant') openShop(best);
   else if (best.type==='magnet_pillar') activateMagnetPillar(best);
+  else if (best.type==='challenge_door') enterChallengeDoor(best);
 }
 function clearCombatActors(){
   for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); scene.remove(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
@@ -434,6 +514,7 @@ function clearCombatActors(){
   for (const w of novaWaves){ scene.remove(w.mesh); freeObj(w.mesh); }
   for (const f of slashFx){ scene.remove(f.mesh); freeObj(f.mesh); }
   for (const d of dmgNums) d.el.remove();
+  clearChallengeRoomVisuals();
   enemies.length=0; projectiles.length=0; enemyShots.length=0; particles.length=0; rings.length=0; bossAoEs.length=0; bossImpactFx.length=0;
   trails.length=0; pickups.length=0; breakables.length=0; groundItems.length=0; afterimages.length=0; novaWaves.length=0; slashFx.length=0; dmgNums.length=0;
   boss=null; weaponSig=null; enemyGrid.clear();
@@ -445,6 +526,7 @@ function transitionToStage(stage){
     const relic=document.getElementById('relicup'); if(relic) relic.style.display='none';
     const level=document.getElementById('levelup'); if(level) level.style.display='none';
     pendingRelicPortal=null; paused=false; userPaused=false;
+    challengeRoom=null;
     clearCombatActors();
     clearWorldObjects();
     removeAltar();
@@ -452,6 +534,7 @@ function transitionToStage(stage){
     stageStartTime=gameTime;   // reset the per-stage clock (timer/OT/spawn density restart)
     finalBossKilledAt=null;
     overtimeWarnStage=0;
+    overtimeAnnouncedTier=1;
     finalBossWarnStage=0;
     globalPickupMagnet=0;
     resetEventState(false);
@@ -481,6 +564,448 @@ function transitionToStage(stage){
   } finally {
     stageTransitioning=false;
   }
+}
+function enterPortal(){
+  if(!altar || altar.state!=='portal') return;
+  const kind=altar.portalKind||'victory';
+  const nextStage=altar.nextStage || mapStage+1;
+  if(kind==='nextStage'){
+    transitionToStage(nextStage);
+    return;
+  }
+  if(kind==='challengeExit'){
+    transitionToStage(nextStage);
+    return;
+  }
+  won=true;
+  finalizeScore();
+  sfx('win');
+}
+function clearChallengeRoomVisuals(){
+  for(const v of challengeRoomVisuals){
+    scene.remove(v);
+    freeObj(v);
+  }
+  challengeRoomVisuals.length=0;
+}
+function addChallengeVisual(obj){
+  scene.add(obj);
+  challengeRoomVisuals.push(obj);
+  return obj;
+}
+function challengeMat(color, opacity, additive){
+  return new THREE.MeshBasicMaterial({
+    color,
+    transparent: opacity < 1,
+    opacity,
+    depthWrite: false,
+    fog: false,
+    side: THREE.DoubleSide,
+    blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending
+  });
+}
+function challengePlane(w, h, color, opacity, x, z, y, rot, additive){
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h), challengeMat(color,opacity,additive));
+  m.rotation.x=-Math.PI/2;
+  m.rotation.z=rot||0;
+  m.position.set(x||0, (y==null?groundHeight(x||0,z||0)+0.04:y), z||0);
+  return m;
+}
+function challengeBox(w,h,d,color,opacity,x,z,y,rot){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), challengeMat(color,opacity==null?1:opacity,false));
+  m.position.set(x||0, y==null?h/2+0.02:y, z||0);
+  m.rotation.y=rot||0;
+  return m;
+}
+function challengeCylinder(r,h,color,opacity,x,z,y,segments){
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,segments||12), challengeMat(color,opacity==null?1:opacity,false));
+  m.position.set(x||0, y==null?h/2+0.02:y, z||0);
+  return m;
+}
+function addChallengeFloorMarks(group, color, accent, style){
+  group.add(challengePlane(24,24,color,0.16,0,0,groundHeight(0,0)+0.032,0,false));
+  group.add(challengePlane(18,18,accent,0.06,0,0,groundHeight(0,0)+0.036,Math.PI/4,true));
+  for(let i=-2;i<=2;i++){
+    const t=i*4;
+    group.add(challengePlane(0.055,23,accent,0.12,t,0,groundHeight(t,0)+0.052,0,true));
+    group.add(challengePlane(23,0.055,accent,0.12,0,t,groundHeight(0,t)+0.052,0,true));
+  }
+  const spokes=style==='radial'?12:8;
+  for(let i=0;i<spokes;i++){
+    const a=i*(Math.PI*2/spokes);
+    group.add(challengePlane(0.09,14,accent,0.13,Math.cos(a)*0.2,Math.sin(a)*0.2,groundHeight(0,0)+0.058,a,true));
+  }
+}
+function addChallengeTorch(group, x, z, color, stemColor){
+  group.add(challengeCylinder(0.16,1.25,stemColor||0x342034,1,x,z,0.64,10));
+  group.add(challengeCylinder(0.42,0.06,color,0.72,x,z,1.33,18));
+  const flame=new THREE.PointLight(color,0.62,8);
+  flame.position.set(x,2.1,z);
+  group.add(flame);
+}
+const CHALLENGE_ASSET_SETS = {
+  treasure: {
+    floor:'floor_challenge_treasure',
+    props:[
+      ['prop_challenge_treasure_1',-5.8,-4.3,2.1],['prop_challenge_treasure_2',5.8,-4.0,1.65],
+      ['prop_challenge_treasure_3',-6.8,4.5,1.75],['prop_challenge_treasure_4',6.5,4.8,1.45],
+      ['prop_challenge_treasure_2',0,6.8,1.55],['prop_challenge_treasure_1',0,-7.0,1.8]
+    ]
+  },
+  cursed: {
+    floor:'floor_challenge_cursed',
+    props:[
+      ['prop_challenge_cursed_1',-7.0,-5.5,2.3],['prop_challenge_cursed_2',7.0,-5.4,1.8],
+      ['prop_challenge_cursed_3',-7.2,5.6,2.35],['prop_challenge_cursed_4',7.2,5.4,1.55],
+      ['prop_challenge_cursed_1',0,7.4,2.1],['prop_challenge_cursed_3',0,-7.4,2.05]
+    ]
+  },
+  butcher: {
+    floor:'floor_challenge_butcher',
+    props:[
+      ['prop_challenge_butcher_1',-7.0,-5.6,2.2],['prop_challenge_butcher_2',7.0,-5.6,2.1],
+      ['prop_challenge_butcher_3',-7.1,5.8,1.9],['prop_challenge_butcher_4',7.2,5.7,1.75],
+      ['prop_challenge_butcher_1',0,7.5,2.0],['prop_challenge_butcher_2',0,-7.5,1.9]
+    ]
+  },
+  soul: {
+    floor:'floor_challenge_soul',
+    props:[
+      ['prop_challenge_soul_1',-7.2,-5.6,1.85],['prop_challenge_soul_2',7.2,-5.6,1.95],
+      ['prop_challenge_soul_3',-7.3,5.6,1.85],['prop_challenge_soul_4',7.3,5.6,2.15],
+      ['prop_challenge_soul_1',0,7.3,1.65],['prop_challenge_soul_2',0,-7.3,1.75]
+    ]
+  },
+  merchant: {
+    floor:'floor_challenge_merchant',
+    props:[
+      ['prop_challenge_merchant_1',-5.8,-4.6,2.1],['prop_challenge_merchant_2',5.8,-4.5,1.75],
+      ['prop_challenge_merchant_3',-6.2,4.7,1.65],['prop_challenge_merchant_4',6.2,4.7,1.65],
+      ['prop_challenge_merchant_2',0,7.0,1.55],['prop_challenge_merchant_1',0,-7.0,1.8]
+    ]
+  }
+};
+function addChallengeSpriteProp(group,key,x,z,h){
+  if(!tex[key]) return false;
+  const spr=billboard(key,h);
+  spr.position.set(x,groundHeight(x,z)+0.03,z);
+  group.add(spr);
+  return true;
+}
+function addChallengeEdgeSpriteProps(group,set){
+  if(!set || !set.props) return;
+  const radius=11.95;
+  for(let i=0;i<10;i++){
+    const a=i*Math.PI*2/10 + (i%2?0.12:-0.08);
+    const p=set.props[i%set.props.length];
+    if(!p) continue;
+    addChallengeSpriteProp(group,p[0],Math.cos(a)*radius,Math.sin(a)*radius,Math.max(1.15,(p[3]||1.6)*0.74));
+  }
+}
+function addChallengeBoundaryVisuals(group, accent, wallColor){
+  const radius=13.35;
+  const segments=28;
+  const dark=wallColor||0x171018;
+  for(let i=0;i<segments;i++){
+    const a=i*Math.PI*2/segments;
+    const x=Math.cos(a)*radius, z=Math.sin(a)*radius;
+    const tangent=a+Math.PI/2;
+    const slab=challengePlane(i%2?1.35:1.85,0.42,dark,0.68,x,z,groundHeight(x,z)+0.09,tangent,false);
+    group.add(slab);
+    const inner=challengePlane(i%2?0.72:1.0,0.12,accent,0.16,Math.cos(a)*(radius-0.45),Math.sin(a)*(radius-0.45),groundHeight(x,z)+0.105,tangent,true);
+    group.add(inner);
+    if(i%4===0){
+      const px=Math.cos(a)*(radius+0.08), pz=Math.sin(a)*(radius+0.08);
+      group.add(challengePlane(0.72,0.22,dark,0.52,px,pz,groundHeight(px,pz)+0.12,tangent,false));
+      group.add(challengePlane(0.42,0.08,accent,0.22,px,pz,groundHeight(px,pz)+0.13,tangent,true));
+    }
+  }
+  const mist=new THREE.Mesh(new THREE.RingGeometry(13.0,14.35,96), new THREE.MeshBasicMaterial({
+    color:accent, transparent:true, opacity:0.11, depthWrite:false, fog:false,
+    side:THREE.DoubleSide, blending:THREE.AdditiveBlending
+  }));
+  mist.rotation.x=-Math.PI/2;
+  mist.position.set(0,groundHeight(0,0)+0.105,0);
+  group.add(mist);
+}
+function addGeneratedChallengeAssets(group,setKey,accent){
+  const set=CHALLENGE_ASSET_SETS[setKey];
+  if(!set || !tex[set.floor]) return false;
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(25.5,25.5), new THREE.MeshBasicMaterial({
+    map:tex[set.floor], transparent:false, opacity:1, depthWrite:false, fog:false
+  }));
+  floor.rotation.x=-Math.PI/2;
+  floor.position.set(0,groundHeight(0,0)+0.025,0);
+  group.add(floor);
+  group.add(challengePlane(24.5,24.5,accent,0.045,0,0,groundHeight(0,0)+0.033,Math.PI/4,true));
+  for(const p of set.props) addChallengeSpriteProp(group,p[0],p[1],p[2],p[3]);
+  addChallengeEdgeSpriteProps(group,set);
+  addChallengeBoundaryVisuals(group,accent,setKey==='treasure'?0x4b3518:setKey==='butcher'?0x2d1116:setKey==='soul'?0x123543:setKey==='merchant'?0x382415:0x211525);
+  return true;
+}
+function addTreasureProps(group){
+  if(addGeneratedChallengeAssets(group,'treasure',0xffd86a)) return;
+  addChallengeFloorMarks(group,0x4a2a13,0xffd86a,'radial');
+  for(let i=0;i<22;i++){
+    const a=(i/22)*Math.PI*2, r=3.4+(i%5)*1.45;
+    group.add(challengeCylinder(0.16+(i%3)*0.03,0.045,0xffd86a,0.88,Math.cos(a)*r,Math.sin(a)*r,0.075,10));
+  }
+  [[-5,-3],[5,-3],[-6,4.2],[6.2,3.7],[0,6.1]].forEach((p,i)=>{
+    group.add(challengeBox(1.15,0.48,0.78,i%2?0x7b3c1a:0x8c4b22,1,p[0],p[1],null,0.25*i));
+    group.add(challengePlane(1.25,0.08,0xffd86a,0.75,p[0],p[1],0.56,0.25*i,true));
+  });
+  [[-8,-7],[8,-7],[-8,7],[8,7]].forEach(p=>addChallengeTorch(group,p[0],p[1],0xffd86a,0x5d3518));
+}
+function addCursedShrineProps(group){
+  if(addGeneratedChallengeAssets(group,'cursed',0x9a55ff)) return;
+  addChallengeFloorMarks(group,0x211238,0x9a55ff,'radial');
+  for(let i=0;i<6;i++){
+    const a=i*Math.PI*2/6;
+    const x=Math.cos(a)*7.2, z=Math.sin(a)*7.2;
+    group.add(challengeCylinder(0.34,1.75,0x35145a,1,x,z,0.9,5));
+    group.add(challengePlane(1.0,1.0,0xc79aff,0.22,x,z,groundHeight(x,z)+0.065,a,true));
+  }
+  for(let i=0;i<10;i++){
+    const a=i*Math.PI*2/10;
+    group.add(challengePlane(0.16,1.25,0xff6bd6,0.16,Math.cos(a)*4.6,Math.sin(a)*4.6,groundHeight(0,0)+0.075,a,true));
+  }
+  [[-8,-6],[8,-6],[-8,6],[8,6]].forEach(p=>addChallengeTorch(group,p[0],p[1],0x9a55ff,0x20142d));
+}
+function addButcherProps(group){
+  if(addGeneratedChallengeAssets(group,'butcher',0xff263f)) return;
+  addChallengeFloorMarks(group,0x3a0710,0xff263f,'radial');
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI*2/8;
+    group.add(challengePlane(0.22,14,0x5f070e,0.35,Math.cos(a)*0.4,Math.sin(a)*0.4,groundHeight(0,0)+0.07,a,false));
+  }
+  for(let i=0;i<14;i++){
+    const a=i*Math.PI*2/14, r=5.2+(i%4)*1.8;
+    group.add(challengePlane(1.0+(i%3)*0.35,0.52,0xb51223,0.33,Math.cos(a)*r,Math.sin(a)*r,groundHeight(0,0)+0.08,a,true));
+  }
+  [[-7.8,-6.2],[7.8,-6.2],[-7.8,6.2],[7.8,6.2]].forEach((p,i)=>{
+    group.add(challengeBox(0.22,1.45,1.35,0x2d1b1d,1,p[0],p[1],null,i*Math.PI/4));
+    group.add(challengePlane(2.2,0.12,0xd7a05a,0.45,p[0]*0.82,p[1]*0.82,groundHeight(0,0)+0.095,i*Math.PI/4,true));
+    addChallengeTorch(group,p[0],p[1],0xff263f,0x2b1518);
+  });
+}
+function addSoulTrialProps(group){
+  if(addGeneratedChallengeAssets(group,'soul',0x57e0ff)) return;
+  addChallengeFloorMarks(group,0x092b36,0x57e0ff,'radial');
+  for(let i=0;i<12;i++){
+    const a=i*Math.PI*2/12, r=4.8+(i%2)*3.0;
+    const x=Math.cos(a)*r, z=Math.sin(a)*r;
+    group.add(challengeCylinder(0.13,0.82,0x9ee7ff,0.52,x,z,0.42,12));
+    group.add(challengePlane(1.1,1.1,0x57e0ff,0.17,x,z,groundHeight(x,z)+0.09,a,true));
+  }
+  group.add(challengePlane(10.5,10.5,0xcdf7ff,0.08,0,0,groundHeight(0,0)+0.08,Math.PI/4,true));
+  [[-8,-7],[8,-7],[-8,7],[8,7]].forEach(p=>addChallengeTorch(group,p[0],p[1],0x57e0ff,0x14343c));
+}
+function addMerchantTrapProps(group){
+  if(addGeneratedChallengeAssets(group,'merchant',0xffb14a)) return;
+  addChallengeFloorMarks(group,0x3d2213,0xffb14a,'grid');
+  [[-5.8,-4.8],[5.8,-4.8],[-5.8,4.8],[5.8,4.8]].forEach((p,i)=>{
+    group.add(challengeBox(2.2,0.72,0.95,0x6b3b1d,1,p[0],p[1],null,i*Math.PI/8));
+    group.add(challengePlane(2.5,0.18,0xffd86a,0.50,p[0],p[1],0.86,i*Math.PI/8,true));
+  });
+  for(let i=0;i<12;i++){
+    const x=-7.5+(i%6)*3.0, z=i<6?7.0:-7.0;
+    group.add(challengeBox(0.75,0.62,0.75,i%2?0x8c4b22:0x513018,1,x,z,null,0.2*i));
+  }
+  [[-8,-6],[8,-6],[-8,6],[8,6]].forEach(p=>addChallengeTorch(group,p[0],p[1],0xffb14a,0x4a2d1a));
+}
+function addChallengeRoomProps(group, room){
+  if(room.id==='treasure_vault') addTreasureProps(group);
+  else if(room.id==='cursed_shrine') addCursedShrineProps(group);
+  else if(room.id==='butcher_arena') addButcherProps(group);
+  else if(room.id==='soul_trial') addSoulTrialProps(group);
+  else if(room.id==='merchant_trap') addMerchantTrapProps(group);
+  else addChallengeFloorMarks(group,0x1f1530,room.color||0x9a55ff,'grid');
+}
+function makeChallengeArenaVisuals(room){
+  clearChallengeRoomVisuals();
+  const color=room.color||0x9a55ff;
+  if(scene.fog) scene.fog.color.setHex(color);
+  const props=new THREE.Group();
+  addChallengeRoomProps(props, room);
+  addChallengeVisual(props);
+  const floor=new THREE.Mesh(new THREE.CircleGeometry(15,64), new THREE.MeshBasicMaterial({
+    color, transparent:true, opacity:0.10, depthWrite:false, fog:false,
+    side:THREE.DoubleSide, blending:THREE.AdditiveBlending
+  }));
+  floor.rotation.x=-Math.PI/2;
+  floor.position.set(0,groundHeight(0,0)+0.035,0);
+  addChallengeVisual(floor);
+  const addRing=(inner,outer,opacity)=>{
+    const ring=new THREE.Mesh(new THREE.RingGeometry(inner,outer,72), new THREE.MeshBasicMaterial({
+      color, transparent:true, opacity, depthWrite:false, fog:false,
+      side:THREE.DoubleSide, blending:THREE.AdditiveBlending
+    }));
+    ring.rotation.x=-Math.PI/2;
+    ring.position.set(0,groundHeight(0,0)+0.045,0);
+    addChallengeVisual(ring);
+  };
+  addRing(4.9,5.15,0.30);
+  addRing(10.9,11.15,0.16);
+  addRing(14.1,14.35,0.10);
+  const light=new THREE.PointLight(color,1.25,30);
+  light.position.set(0,5.2,0);
+  addChallengeVisual(light);
+  spawnObjectPulse(0,0,color,14,0.9);
+  spawnRing(0,0,0xffffff,8,0.7);
+}
+function applyChallengeSoftBoundary(dt){
+  if(!challengeRoom || !player) return;
+  const softR=12.65, hardR=14.15;
+  const d=Math.hypot(player.x,player.z);
+  if(d<=softR) return;
+  const nx=player.x/(d||1), nz=player.z/(d||1);
+  const over=d-softR;
+  const push=Math.min(over, (4.5+over*5.5)*dt);
+  player.x-=nx*push;
+  player.z-=nz*push;
+  player.knockX=(player.knockX||0)-nx*(2.0+over*0.8)*dt;
+  player.knockZ=(player.knockZ||0)-nz*(2.0+over*0.8)*dt;
+  if(d>hardR){
+    player.x=nx*hardR;
+    player.z=nz*hardR;
+  }
+  if(!challengeRoom.boundaryPulseAt || gameTime>challengeRoom.boundaryPulseAt){
+    challengeRoom.boundaryPulseAt=gameTime+0.55;
+    spawnRing(0,0,challengeRoom.color||0x9a55ff,13.8,0.42);
+  }
+}
+function enterChallengeDoor(o){
+  if(!o || o.used || challengeRoom || paused || userPaused || gameOver || won || !started) return false;
+  o.used=true;
+  const room=CHALLENGE_ROOMS[(Math.random()*CHALLENGE_ROOMS.length)|0];
+  startChallengeRoom(room,o.nextStage);
+  return true;
+}
+function startChallengeRoom(room,nextStage){
+  if(!room) return false;
+  const relic=document.getElementById('relicup'); if(relic) relic.style.display='none';
+  const level=document.getElementById('levelup'); if(level) level.style.display='none';
+  paused=false; userPaused=false; pendingRelicPortal=null;
+  clearCombatActors();
+  clearWorldObjects();
+  removeAltar();
+  resetEventState(false);
+  challengeRoom={
+    id:room.id, name:room.name, nextStage, duration:room.duration||60,
+    startedAt:gameTime, spawnTimer:0.15, reward:room.reward, enemies:room.enemies||[],
+    cap:room.cap||48, batch:room.batch||4, interval:room.interval||1.1, color:room.color||0x9a55ff,
+    damageStart:damageTaken, killsStart:kills, completed:false, warned:false, pulseTimer:0.55
+  };
+  player.x=0; player.z=0; player.kx=0; player.kz=0; player.knockX=0; player.knockZ=0;
+  maxEnemies=challengeRoom.cap;
+  hordeRemaining=0; hordeSpawnTimer=0; hordeWarned=false;
+  mbTimer=0;
+  spawnObjectPulse(player.x,player.z,challengeRoom.color,8.5,0.8);
+  spawnBurst(player.x,player.z,challengeRoom.color,30,1.15);
+  makeChallengeArenaVisuals(room);
+  shake(0.28,0.18);
+  showToast('Challenge Room: '+challengeRoom.name,3.0);
+  if(room.id==='treasure_vault'){
+    for(let i=0;i<7;i++) spawnObject('chest', i<3?0:i<6?1:2);
+  } else if(room.id==='cursed_shrine'){
+    for(let i=0;i<3;i++) spawnObject('shrine', Math.floor(Math.random()*5));
+  } else if(room.id==='merchant_trap'){
+    for(let i=0;i<2;i++) spawnObject('merchant',0);
+  } else if(room.id==='butcher_arena'){
+    butcherRunEligible=true;
+    butcherAppeared=false;
+    nextButcherAt=Infinity;
+    setTimeout(()=>spawnButcher(true),520);
+  }
+  for(let i=0;i<Math.min(12,Math.max(4,room.batch*2));i++) spawnChallengeEnemy();
+  return true;
+}
+function spawnChallengeEnemy(){
+  if(!challengeRoom || enemies.length>=challengeRoom.cap) return;
+  const pool=enemyPool();
+  if(!pool.length) return;
+  const t=pool[(Math.random()*pool.length)|0];
+  const point=pointAroundPlayer(16,24,false);
+  if(point) spawnEnemy(t,point.x,point.z);
+}
+function updateChallengeRoom(dt){
+  if(!challengeRoom || challengeRoom.completed) return;
+  maxEnemies=challengeRoom.cap;
+  applyChallengeSoftBoundary(dt);
+  const elapsed=gameTime-challengeRoom.startedAt;
+  const remain=Math.max(0,challengeRoom.duration-elapsed);
+  if(!challengeRoom.warned && remain<=10){
+    challengeRoom.warned=true;
+    showToast(challengeRoom.name+': 10 seconds left',2.3);
+  }
+  challengeRoom.spawnTimer-=dt;
+  if(challengeRoom.spawnTimer<=0 && enemies.length<challengeRoom.cap){
+    const roomBatch=Math.min(challengeRoom.batch,challengeRoom.cap-enemies.length);
+    for(let i=0;i<roomBatch;i++) spawnChallengeEnemy();
+    challengeRoom.spawnTimer=challengeRoom.interval;
+  }
+  challengeRoom.pulseTimer-=dt;
+  if(challengeRoom.pulseTimer<=0){
+    spawnRing(0,0,challengeRoom.color,11.5,0.72);
+    spawnObjectPulse(0,0,challengeRoom.color,14,0.65);
+    challengeRoom.pulseTimer=1.8;
+  }
+  if(elapsed>=challengeRoom.duration) completeChallengeRoom(true);
+}
+function completeChallengeRoom(success){
+  if(!challengeRoom || challengeRoom.completed) return;
+  const room=challengeRoom;
+  room.completed=true;
+  hordeRemaining=0; hordeSpawnTimer=0; hordeWarned=false;
+  const cleanTitle='Challenge complete: '+room.name;
+  for(const e of enemies){ scene.remove(e.spr); freeObj(e.spr); scene.remove(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
+  for(const sh of enemyShots){ scene.remove(sh.mesh); freeObj(sh.mesh); }
+  enemies.length=0; enemyShots.length=0; boss=null; butcherActive=false;
+  if(room.reward==='gold'){
+    const goldReward=Math.round((120+mapStage*80)*rewardMul());
+    player.gold+=goldReward;
+    for(let i=0;i<6;i++) dropPickup(player.x+(Math.random()-0.5)*2.0,player.z+(Math.random()-0.5)*2.0,'gold',Math.max(8,Math.round(goldReward/12)),'challenge');
+    for(let i=0;i<2;i++) spawnObject('chest',1+i);
+    showToast(cleanTitle+' +'+goldReward+' gold',3.2);
+  } else if(room.reward==='relic'){
+    grantRandomRelic('Cursed Shrine Relic');
+    showToast(cleanTitle+' - Relic claimed',3.2);
+  } else if(room.reward==='soul'){
+    const perfect=damageTaken<=room.damageStart+0.01;
+    const coins=perfect?30:10;
+    addSoulCoins(coins, perfect?'Soul Trial perfect':'Soul Trial');
+    score+=perfect?450:180;
+    showToast(cleanTitle+(perfect?' PERFECT':'')+' +'+coins+' Soul Coins',3.4);
+  } else if(room.reward==='merchant'){
+    spawnObject('merchant',0);
+    const secret=interactables[interactables.length-1];
+    if(secret && secret.type==='merchant'){
+      secret.secretShop=true;
+      secret.secretShopDiscount=0.70;
+      secret.guaranteeRare=true;
+    }
+    if(Math.random()<0.45){
+      const point=pointAroundPlayer(6,10,true) || {x:player.x+6,z:player.z};
+      telegraphSpecialSpawn(point.x,point.z,0xffb14a,'Secret merchant was a trap!',{
+        ring:3.0,pulse:4.5,burst:18,scale:0.9,shake:0.14,toast:1.8,
+        done:()=>spawnMerchantBoss(point.x,point.z,{ secretReward:true })
+      });
+    }
+    showToast(cleanTitle+' - secret shop: 30% off, rare stock guaranteed',3.2);
+  } else {
+    score+=500;
+    showToast(cleanTitle,3.0);
+  }
+  score += 350*mapStage;
+  removeAltar();
+  makeAltar();
+  if(altar){
+    altar.x=0; altar.z=8;
+    altar.group.position.set(altar.x,groundHeight(altar.x,altar.z),altar.z);
+    altarToPortal('challengeExit',room.nextStage);
+  }
+  spawnObjectPulse(player.x,player.z,room.color,8,0.7);
+  spawnBurst(player.x,player.z,room.color,24,1.0);
 }
 const SPECIAL_SPAWN_DELAY_MS = 500;
 function telegraphSpecialSpawn(x,z,color,label,opts){
@@ -577,21 +1102,22 @@ function activateMagnetPillar(o){
   shake(0.22,0.18);
 }
 function shopRerollCost(o){
-  return Math.round(40*Math.pow(1.6,(o&&o.shopRerolls)||0)*shopDiscountMul()*pactCostMul());   // each reroll ramps steeply
+  return Math.round(40*Math.pow(1.6,Math.max(0,(o&&o.shopRerolls)||0))*shopDiscountMul()*(o&&o.secretShopDiscount||1)*pactCostMul());   // each reroll ramps steeply
 }
 const SHOP_BETRAY_AFTER = 3;
 const SHOP_BETRAY_CHANCE = 0.15;
 function shopDiscountMul(){ return player && player._goldenPact ? 0.70 : 1; }
 function shopBetrayChance(){ return player && player._goldenPact ? 0.25 : SHOP_BETRAY_CHANCE; }
-function shopBuyMul(){ return Math.pow(1.18, shopPurchases)*shopDiscountMul()*pactCostMul(); }   // every purchase this run raises all shop prices
+function shopBuyMul(o){ return Math.pow(1.18, shopPurchases)*shopDiscountMul()*(o&&o.secretShopDiscount||1)*pactCostMul(); }   // every purchase this run raises all shop prices
 function rollShopStock(o){
   o.shopOffers=[];
   const rerollMul = Math.pow(1.3, (o&&o.shopRerolls)||0);   // rerolled stock costs more each time
   for (let i = 0; i < 3; i++) {
-    const shopItem = rollItemDrop();
+    const guaranteedPool=o&&o.guaranteeRare&&i===0 ? availableItemPool(Math.random()<0.25?'legendary':'rare') : null;
+    const shopItem = guaranteedPool&&guaranteedPool.length ? guaranteedPool[(Math.random()*guaranteedPool.length)|0] : rollItemDrop();
     const base = 60+(shopItem&&shopItem.rarity==='legendary'?460:shopItem&&shopItem.rarity==='rare'?280:shopItem&&shopItem.rarity==='uncommon'?160:60);
     const stableBase = Math.round(base*rerollMul);
-    if (shopItem) o.shopOffers.push({ name:shopItem.name, desc:shopItem.desc, icon:shopItem.icon, rarity:shopItem.rarity, isItem:true, item:shopItem, apply:()=>{ shopItem.apply(player); player.items.push(shopItem); }, base:stableBase, price:Math.round(stableBase*shopBuyMul()) });
+    if (shopItem) o.shopOffers.push({ name:shopItem.name, desc:shopItem.desc, icon:shopItem.icon, rarity:shopItem.rarity, isItem:true, item:shopItem, apply:()=>{ shopItem.apply(player); player.items.push(shopItem); }, base:stableBase, price:Math.round(stableBase*shopBuyMul(o)) });
   }
 }
 function openShop(o){
@@ -603,13 +1129,13 @@ function openShop(o){
 }
 function buildShop(){
   const wrap=document.getElementById('shopcards'); wrap.innerHTML='';
-  shopOffers.forEach((o,i)=>{ if(o.base!=null && !o.sold) o.price=Math.round(o.base*shopBuyMul()); const aff=player.gold>=o.price && !o.sold;
+  shopOffers.forEach((o,i)=>{ if(o.base!=null && !o.sold) o.price=Math.round(o.base*shopBuyMul(currentShopMerchant)); const aff=player.gold>=o.price && !o.sold;
     const d=document.createElement('div'); d.className='card'; d.style.opacity=o.sold?0.4:1;
     const rc = o.rarity ? {common:'#7ecf5a',uncommon:'#5a9ecf',rare:'#cf5acf',legendary:'#cfc05a'}[o.rarity] : null;
     if (rc) d.style.borderColor = rc;
     d.innerHTML='<img src="'+escHtml(spriteSrc(o.icon))+'"><div class="nm">'+o.name+'</div><div class="ds">'+o.desc+'</div><div class="key" style="color:'+(aff?'#ffe08a':'#a55')+'">\u2b24 '+o.price+(o.sold?' \u2713':'')+'</div>';
     d.onclick=()=>buyOffer(i); wrap.appendChild(d); });
-  document.getElementById('shopgold').textContent='\u2b24 '+player.gold;
+  document.getElementById('shopgold').textContent='\u2b24 '+player.gold+(currentShopMerchant&&currentShopMerchant.secretShop?' · SECRET -30%':'');
   const rr=document.getElementById('shopreroll');
   if(rr && currentShopMerchant){
     const cost=shopRerollCost(currentShopMerchant), can=player.gold>=cost;
@@ -666,7 +1192,8 @@ function tryMerchantBetrayal(m){
   });
   return true;
 }
-function spawnMerchantBoss(x,z){
+function spawnMerchantBoss(x,z,opts){
+  opts=opts||{};
   const choices=bossPool().filter(b=>!b.final);
   const t=choices.length?choices[(Math.random()*choices.length)|0]:BOSS_TYPES[0];
   const H=t.h*0.86;
@@ -674,9 +1201,9 @@ function spawnMerchantBoss(x,z){
   const sh=makeShadow(H*0.34); scene.add(spr); scene.add(sh);
   const hp=Math.round(t.hp*bossHpScale()*0.45);
   const e={ x:clamp(x,-MAP_BOUND,MAP_BOUND), z:clamp(z,-MAP_BOUND,MAP_BOUND),
-    hp, maxHp:hp, atk:Math.round(t.atk*atkTimeScale()*0.78), spd:58*SPD_SCALE*BOSS_SPEED_MUL,
+    hp, maxHp:hp, atk:Math.round(t.atk*atkTimeScale()*0.78*(typeof difficultyBossAtkMul==='function'?difficultyBossAtkMul():1)), spd:58*SPD_SCALE*BOSS_SPEED_MUL,
     xp:220, r:H*0.33, name:'False Merchant '+t.name, alive:true, cd:0, flash:0,
-    isBoss:true, isStageBoss:false, elite:true, behavior:'chase', kx:0,kz:0, atkCd:0, chargeCd:0,
+    isBoss:true, isStageBoss:false, elite:true, secretMerchantBoss:!!opts.secretReward, behavior:'chase', kx:0,kz:0, atkCd:0, chargeCd:0,
     charging:0, patternCd:1.8, patternFlip:0, summonCd:5.5, bw:spr.scale.x, bh:spr.scale.y,
     born:gameTime, face:1, anim, spr, sh };
   assignSkills(e, BOSS_SKILLS[t.sprite] || ['ring','fan','charge']);
@@ -743,7 +1270,7 @@ function spawnDebtCollector(x,z){
   scene.add(spr); scene.add(sh);
   const hp=Math.round(t.hp*minibossHpScale()*0.78);
   const e={ x:clamp(x,-MAP_BOUND,MAP_BOUND), z:clamp(z,-MAP_BOUND,MAP_BOUND), hp, maxHp:hp,
-    atk:Math.round(t.atk*atkTimeScale()*stageAtkMul()*1.25), spd:t.spd*SPD_SCALE*MINIBOSS_SPEED_MUL*1.14,
+    atk:Math.round(t.atk*atkTimeScale()*stageAtkMul()*1.25*(typeof difficultyBossAtkMul==='function'?difficultyBossAtkMul():1)), spd:t.spd*SPD_SCALE*MINIBOSS_SPEED_MUL*1.14,
     xp:Math.round(t.xp*1.2), r:H*0.31, name:'Debt Collector', alive:true, cd:0, flash:0,
     isBoss:true, isStageBoss:false, elite:true, behavior:'chase', kx:0,kz:0, atkCd:0, chargeCd:0, charging:0,
     bw:spr.scale.x,bh:spr.scale.y,born:gameTime,face:1,anim,spr,sh,tint:0xffd86a };
@@ -759,8 +1286,8 @@ function spawnDebtCollector(x,z){
 function scheduleNextButcher(delay){
   nextButcherAt=(butcherRunEligible && !butcherAppeared) ? gameTime+(delay||150)+Math.random()*150 : Infinity;
 }
-function spawnButcher(){
-  if(!butcherRunEligible || butcherAppeared || butcherActive || gameOver || won || !player || !player.alive) return false;
+function spawnButcher(force){
+  if((!force && (!butcherRunEligible || butcherAppeared)) || butcherActive || gameOver || won || !player || !player.alive) return false;
   butcherAppeared=true;
   nextButcherAt=Infinity;
   const point=pointAroundPlayer(17,23,true) || { x:clamp(player.x+18,-MAP_BOUND,MAP_BOUND), z:clamp(player.z,-MAP_BOUND,MAP_BOUND) };
@@ -775,7 +1302,7 @@ function spawnButcher(){
       const sh=makeShadow(H*0.36); scene.add(spr); scene.add(sh);
       const hp=Math.round(base.hp*bossHpScale()*0.62);
       const e={ x:point.x, z:point.z, hp, maxHp:hp,
-        atk:Math.round(base.atk*atkTimeScale()*stageAtkMul()*otPowerMul()*1.0),
+        atk:Math.round(base.atk*atkTimeScale()*stageAtkMul()*otPowerMul()*1.0*(typeof difficultyBossAtkMul==='function'?difficultyBossAtkMul():1)),
         spd:64*SPD_SCALE*BOSS_SPEED_MUL, xp:520, r:H*0.32, name:'The Butcher',
         alive:true, cd:0, flash:0, isBoss:true, isStageBoss:false, elite:true, butcher:true,
         behavior:'butcher', kx:0,kz:0, atkCd:0, chargeCd:0.75, charging:0, knockImmune:true,
@@ -994,7 +1521,19 @@ function removeBossAoeVisual(a){
   if(a.mark){ scene.remove(a.mark); freeObj(a.mark); }
 }
 function spawnBossImpactFx(x,z,radius,color,kind){
-  const key=kind==='fire'?'fx_boss_aoe_fire_gen':kind==='arcane'?'fx_boss_aoe_arcane_gen':kind==='void'?'fx_boss_aoe_void_gen':'';
+  const key=kind==='fire'?'fx_boss_aoe_fire_gen':
+            kind==='arcane'?'fx_boss_aoe_arcane_gen':
+            kind==='void'?'fx_boss_aoe_void_gen':
+            kind==='burrow_emerge'?'fx_burrow_emerge_gen':
+            kind==='executioner_gallows'?'fx_executioner_gallows_gen':
+            kind==='troll_regrowth'?'fx_troll_regrowth_gen':
+            kind==='warden_bulwark'?'fx_warden_bulwark_gen':
+            kind==='poison_hazard'?'fx_poison_hazard':
+            kind==='mud_hazard'?'fx_mud_hazard':
+            kind==='root_hazard'?'fx_root_hazard':
+            kind==='void_pull'?'fx_void_pull':
+            kind==='gold_steal'?'fx_gold_steal':
+            kind==='enemy_buff'?'fx_enemy_buff_aura':'';
   const base=key&&tex[key];
   if(!base) return;
   const map=base.clone();
@@ -1007,9 +1546,14 @@ function spawnBossImpactFx(x,z,radius,color,kind){
   }));
   mesh.position.set(x,groundHeight(x,z)+0.2,z);
   mesh.rotation.z=Math.random()*Math.PI;
-  mesh.scale.set(radius,radius,radius);
+  const visualRadius=kind==='burrow_emerge'?radius*1.35:
+                     kind==='executioner_gallows'?radius*1.18:
+                     kind==='troll_regrowth'?radius*1.22:
+                     kind==='warden_bulwark'?radius*1.28:radius;
+  mesh.scale.set(visualRadius,visualRadius,visualRadius);
   scene.add(mesh);
-  bossImpactFx.push({ x,z,radius:radius*1.12,life:0.46,t:0,frames:6,map,mesh,color });
+  const life=kind==='burrow_emerge'?0.56:kind==='warden_bulwark'?0.62:kind==='troll_regrowth'?0.58:0.46;
+  bossImpactFx.push({ x,z,radius:visualRadius*1.12,life,t:0,frames:6,map,mesh,color });
 }
 function bossAoe(e,x,z,radius,delay,dmgMul,color,knock,impact,opts){
   opts=opts||{};
@@ -1055,11 +1599,13 @@ const SK = {
   heal:    { cd:6.0, fn:(e)=>{ e.hp=Math.min(e.maxHp, e.hp+e.maxHp*0.06); spawnBurst(e.x,e.z,0x6affa0,8,0.8); } },
   shield:  { cd:7.0, fn:(e)=>{ e.shieldT=3; spawnBurst(e.x,e.z,0x8fd0ff,8,0.9); } },
   ancientQuake:{ cd:4.8, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<4;i++){ const d=2.0+i*1.55; bossAoe(e,e.x+Math.cos(a)*d,e.z+Math.sin(a)*d,2.1+i*0.24,0.58+i*0.10,0.92,0xc9a36a,15,'fire'); spawnRing(e.x+Math.cos(a)*d,e.z+Math.sin(a)*d,0xc9a36a,2.3+i*0.3,0.42); } bossRing(e,12,gameTime*0.45,0.62); spawnBurst(e.x,e.z,0xc9a36a,18,1.2); shake(0.32,0.22); e.flash=0.2; } },
-  rustedGallows:{ cd:4.2, fn:(e)=>{ const a=bossPlayerAngle(e); e.charging=0.42; e.cdx=Math.cos(a); e.cdz=Math.sin(a); for(let k=-1;k<=1;k++){ const q=a+k*0.15; spawnEnemyShot(e.x,e.z,Math.cos(q),Math.sin(q),Math.round(e.atk*0.92),{ shape:'arrow', speed:12, life:1.7, color:0xb78956, coreColor:0xffddb0, hitRadius:0.34, trailScale:0.30 }); } spawnObjectPulse(e.x,e.z,0xb78956,e.r*2.4,0.42); e.flash=0.18; } },
+  stoneWall:{ cd:7.2, fn:(e)=>{ const a=bossPlayerAngle(e), side=a+Math.PI*0.5, cx=player.x-Math.cos(a)*1.2, cz=player.z-Math.sin(a)*1.2; for(let i=-2;i<=2;i++){ const x=clamp(cx+Math.cos(side)*i*1.65,-MAP_BOUND,MAP_BOUND), z=clamp(cz+Math.sin(side)*i*1.65,-MAP_BOUND,MAP_BOUND); bossAoe(e,x,z,1.25,0.72+Math.abs(i)*0.05,0.78,0xc9a36a,17,'fire',{danger:true,markRot:side}); spawnObjectPulse(x,z,0xc9a36a,1.9,0.54); } showToast('Stone Wall!',1.1); shake(0.24,0.16); e.flash=0.2; } },
+  rustedGallows:{ cd:4.2, fn:(e)=>{ const a=bossPlayerAngle(e); e.charging=0.42; e.cdx=Math.cos(a); e.cdz=Math.sin(a); for(let k=-1;k<=1;k++){ const q=a+k*0.15; spawnEnemyShot(e.x,e.z,Math.cos(q),Math.sin(q),Math.round(e.atk*0.92),{ shape:'arrow', speed:12, life:1.7, color:0xb78956, coreColor:0xffddb0, hitRadius:0.34, trailScale:0.30 }); } spawnBossImpactFx(e.x,e.z,2.35,0xb78956,'executioner_gallows'); spawnObjectPulse(e.x,e.z,0xb78956,e.r*2.4,0.42); e.flash=0.18; } },
   graveSpikes:{ cd:4.2, fn:(e)=>{ const a=bossPlayerAngle(e); bossAoe(e,player.x,player.z,2.5,0.62,1.05,0x9a6cff,14,'void'); for(let i=-2;i<=2;i++){ const q=a+i*0.55, x=player.x+Math.cos(q)*2.8, z=player.z+Math.sin(q)*2.8; bossAoe(e,x,z,1.65,0.76+Math.abs(i)*0.05,0.86,0x6f5a91,12,'void'); } bossRing(e,10,gameTime*0.6,0.58); spawnBurst(e.x,e.z,0x9a6cff,16,1.0); e.flash=0.18; } },
-  cryptCall:{ cd:6.4, fn:(e)=>{ for(let i=0;i<3;i++){ const a=(i/3)*6.2832+gameTime; spawnAddAt(e.x+Math.cos(a)*3.6,e.z+Math.sin(a)*3.6); } bossFan(e,bossPlayerAngle(e),5,0.13,0.8); spawnObjectPulse(e.x,e.z,0xd6c08a,e.r*2.7,0.55); spawnBurst(e.x,e.z,0xd6c08a,18,1.0); e.flash=0.18; } },
-  mossRegrowth:{ cd:6.3, fn:(e,nx,nz)=>{ e.hp=Math.min(e.maxHp,e.hp+e.maxHp*0.085); spawnEnemyShot(e.x,e.z,nx,nz,Math.round(e.atk*1.22),{ speed:6.2, life:2.7, color:0x78b65d, coreColor:0xd5ff9a, glowSize:0.28, coreSize:0.12, hitRadius:0.46, trailScale:0.40 }); spawnBurst(e.x,e.z,0x78b65d,14,1.1); spawnRing(e.x,e.z,0x78b65d,e.r*2.2,0.45); e.flash=0.14; } },
-  ruinedBulwark:{ cd:6.8, fn:(e)=>{ e.shieldT=3.6; bossRing(e,18,gameTime*0.7,0.72); bossAoe(e,e.x,e.z,3.8,0.68,0.95,0x8fd0ff,16,'arcane'); spawnObjectPulse(e.x,e.z,0x8fd0ff,e.r*3.1,0.6); spawnBurst(e.x,e.z,0x8fd0ff,20,1.1); e.flash=0.22; } },
+  burrowEmerge:{ cd:6.2, fn:(e)=>{ const a=bossPlayerAngle(e), side=(Math.random()<0.5?-1:1)*(1.0+Math.random()*0.75); e.burrowT=0.92; e.burrowMax=0.92; e.burrowX=clamp(player.x-Math.cos(a)*2.8+Math.cos(a+side)*2.0,-MAP_BOUND,MAP_BOUND); e.burrowZ=clamp(player.z-Math.sin(a)*2.8+Math.sin(a+side)*2.0,-MAP_BOUND,MAP_BOUND); e.burrowDmgMul=1.22; e.burrowDone=false; bossAoe(e,e.burrowX,e.burrowZ,2.75,0.92,1.22,0x9a6cff,20,'burrow_emerge',{danger:true,markSpin:0.8}); spawnObjectPulse(e.x,e.z,0x6f5a91,e.r*2.2,0.45); spawnBurst(e.x,e.z,0x6f5a91,14,0.9); showToast('Buried Horror digs!',1.1); e.flash=0.2; } },
+  cryptCall:{ cd:6.4, fn:(e)=>{ for(let i=0;i<4;i++){ const a=(i/4)*6.2832+gameTime*0.5; spawnMinibossMinionAt(e.x+Math.cos(a)*3.6,e.z+Math.sin(a)*3.6,'Bone Stalker'); } bossFan(e,bossPlayerAngle(e),5,0.13,0.8); spawnObjectPulse(e.x,e.z,0xd6c08a,e.r*2.9,0.6); spawnBurst(e.x,e.z,0xd6c08a,22,1.05); showToast('Crypt Lord summons skeletons!',1.2); e.flash=0.18; } },
+  mossRegrowth:{ cd:6.3, fn:(e,nx,nz)=>{ e.hp=Math.min(e.maxHp,e.hp+e.maxHp*0.085); spawnEnemyShot(e.x,e.z,nx,nz,Math.round(e.atk*1.22),{ speed:6.2, life:2.7, color:0x78b65d, coreColor:0xd5ff9a, glowSize:0.28, coreSize:0.12, hitRadius:0.46, trailScale:0.40 }); spawnBossImpactFx(e.x,e.z,2.65,0x78b65d,'troll_regrowth'); spawnBurst(e.x,e.z,0x78b65d,14,1.1); spawnRing(e.x,e.z,0x78b65d,e.r*2.2,0.45); e.flash=0.14; } },
+  ruinedBulwark:{ cd:6.8, fn:(e)=>{ e.shieldT=3.6; bossRing(e,18,gameTime*0.7,0.72); bossAoe(e,e.x,e.z,3.8,0.68,0.95,0x8fd0ff,16,'warden_bulwark'); spawnBossImpactFx(e.x,e.z,3.15,0x8fd0ff,'warden_bulwark'); spawnObjectPulse(e.x,e.z,0x8fd0ff,e.r*3.1,0.6); spawnBurst(e.x,e.z,0x8fd0ff,20,1.1); e.flash=0.22; } },
   lichCross: { cd:3.2, fn:(e)=>{ const a=bossPlayerAngle(e); bossCross(e,a,1.05); bossRing(e,8,a+Math.PI/8,0.75); spawnBurst(e.x,e.z,0x8bd7ff,12,1.0); e.flash=0.16; } },
   lichPrison:{ cd:5.6, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<6;i++){ const side=i%2?-1:1, dist=1.8+(i*0.45); bossFan(e,a+side*0.95,3,0.07,0.9); bossShot(e,a+side*0.55,0.95,Math.cos(a+side*1.57)*dist,Math.sin(a+side*1.57)*dist); } bossAoe(e,player.x,player.z,3.2,0.95,1.05,0x8bd7ff,12,'arcane'); spawnObjectPulse(player.x,player.z,0x8bd7ff,3.2,0.55); e.flash=0.14; } },
   behemothSlam:{ cd:4.4, fn:(e)=>{ bossAoe(e,e.x,e.z,5.7,0.8,1.45,0xffaa44,19,'fire'); spawnRing(e.x,e.z,0xffaa44,6.2,0.55); spawnBurst(e.x,e.z,0xffaa44,18,1.3); bossRing(e,18,0,0.85); shake(0.32,0.24); e.flash=0.2; } },
@@ -1079,9 +1625,9 @@ const BOSS_SKILLS = {
   boss_overlord: ['overlordStar','overlordJudgment','summon3'],
 };
 const MB_SKILLS = {
-  miniboss_colossus:      ['ancientQuake','charge'],
+  miniboss_colossus:      ['stoneWall','ancientQuake','charge'],
   miniboss_executioner:   ['rustedGallows','fan'],
-  miniboss_horror:        ['graveSpikes','scatter'],
+  miniboss_horror:        ['burrowEmerge','graveSpikes'],
   miniboss_skeleton_lord: ['cryptCall','fan'],
   miniboss_troll:         ['mossRegrowth','shock'],
   miniboss_warden:        ['ruinedBulwark','ring'],
@@ -1244,7 +1790,11 @@ function dropPickup(x,z,type,value,eventTag){
   if (type==='hp' || type==='haste' || type==='might' || type==='magnet') ensurePickupIconTexture(key,type);
   const spr=billboard(key, type==='haste'||type==='might'||type==='magnet'?0.78:0.55);
   scene.add(spr);
-  pickups.push({ x:x+Math.cos(a)*0.3, z:z+Math.sin(a)*0.3, vx:Math.cos(a)*pop, vz:Math.sin(a)*pop, type, value, eventTag, alive:true, homing:false, spr, glow:makePickupGlow(type) });
+  pickups.push({
+    x:x+Math.cos(a)*0.3, z:z+Math.sin(a)*0.3,
+    vx:Math.cos(a)*pop, vz:Math.sin(a)*pop,
+    type, value, eventTag, alive:true, homing:false, spr, glow:makePickupGlow(type)
+  });
 }
 function breakBreakable(b, color){
   if(!b || !b.alive) return;
@@ -1313,7 +1863,7 @@ function levelUp(){
   pendingUps++; if(!paused) openUpgradeChoice(); }
 function hurtPlayer(amt,dx,dz,force,src,kind){
   if(player.invuln>0) return;
-  if(player.evade && Math.random()<Math.min(0.75,player.evade)) return;   // Slippery Ring dodge
+  if(player.evade && Math.random()<Math.min(0.70,player.evade)) return;   // dodge cap
   const guard=typeof trySkullGuard==='function' ? trySkullGuard(amt,src) : { blocked:false, amount:amt };
   amt=guard.amount;
   sfx('hurt');
@@ -1478,7 +2028,15 @@ let camGY = 0;   // smoothed ground elevation for the camera
 let shakeT = 0, shakeMag = 0;
 let camDist = 13;   // camera zoom
 const cameraTarget=new THREE.Vector3();
+function isScreenShakeOff(){
+  try { return localStorage.getItem('sc3_screen_shake_off_v1') === '1'; } catch(_) { return false; }
+}
+function setScreenShakeOff(off){
+  try { localStorage.setItem('sc3_screen_shake_off_v1', off ? '1' : '0'); } catch(_) {}
+  if(off){ shakeT = 0; shakeMag = 0; }
+}
 function shake(duration, magnitude){
+  if(isScreenShakeOff()) return;
   shakeT = Math.max(shakeT, Math.min(duration * 0.72, 0.28));
   shakeMag = Math.max(shakeMag, Math.min(magnitude * 0.58, 0.16));
 }
@@ -1516,7 +2074,8 @@ function updateHUD(dt){
   $('gold').textContent = `⬤ ${player.gold}`;
   { const rdy=player.dashCd<=0; $('dash').textContent = rdy ? '⚡ DASH [Space]' : `⚡ ${player.dashCd.toFixed(1)}s`; $('dash').style.color = rdy ? '#7CE7FF' : '#5a5a66'; }
   { const st=stageTime(), ot=overtimeElapsed();
-    if (overtimeLevel()){ $('time').textContent = '⚠ OT '+fmt(Math.max(0,ot)); $('time').style.color='#ff6a6a'; }
+    if (challengeRoom){ $('time').textContent = 'CH '+fmt(Math.max(0,(challengeRoom.startedAt+challengeRoom.duration)-gameTime)); $('time').style.color='#c994ff'; }
+    else if (overtimeLevel()){ $('time').textContent = '⚠ OT x'+otPowerMul()+' '+fmt(Math.max(0,ot)); $('time').style.color='#ff6a6a'; }
     else { $('time').textContent = fmt(st); $('time').style.color='#ffcc00'; } }
   const trackedBoss=(boss&&boss.alive)?boss:enemies.find(e=>e.alive&&e.isBoss);
   if (trackedBoss){
@@ -1546,13 +2105,14 @@ function updateHUD(dt){
       if (best){ if(best.type==='chest') ip='[F] เปิดหีบ ('+chestCost(best.tier)+')';
         else if(best.type==='shrine'){ const sn=['Elite','Blood','Speed','Curse','Gamble']; ip='[F] '+sn[best.tier||0]+' Shrine'; }
         else if(best.type==='magnet_pillar') ip='[F] Magnet Pillar';
+        else if(best.type==='challenge_door') ip='Mystery Challenge Gate';
         else ip='[F] ร้านค้า'; }
     }
   }
   $('prompt').textContent=ip; $('prompt').style.display=ip?'block':'none';
   $('kills').textContent = `Kills: ${kills}`;
   $('enemies').textContent = `Enemies: ${enemies.length}`;
-  $('biome').textContent = (MAP_THEMES[mapStage] && MAP_THEMES[mapStage].name) || BIOME_NAMES[currentTier()];
+  $('biome').textContent = challengeRoom ? challengeRoom.name : ((MAP_THEMES[mapStage] && MAP_THEMES[mapStage].name) || BIOME_NAMES[currentTier()]);
   $('charname').textContent = (CHARACTERS[player.char]||{}).name || '';
   $('toast').style.display = toastTimer>0 ? 'block' : 'none';
   updateWeaponHUD();
@@ -1562,7 +2122,8 @@ function updateHUD(dt){
   if ((gameOver && !deathCinematic) || won){ $('over').style.display='flex';
     $('overtitle').textContent = won ? 'VICTORY' : 'YOU DIED';
     $('overtitle').style.color = won ? '#7CE7FF' : '#e85b5b';
-    $('overstats').textContent = `${won?'Cleared':'Survived'} ${fmt(gameTime)} · ${kills} kills · Lv ${player.level} · Score: ${score}`;
+    const penaltyText=deathPenalty&&deathPenalty.rate>0 ? ` · Penalty -${deathPenalty.percent}%` : '';
+    $('overstats').textContent = `${won?'Cleared':'Survived'} ${fmt(gameTime)} · ${kills} kills · Lv ${player.level} · Score: ${score}${penaltyText}`;
     renderRunRanking();
     renderRunSummary();
   } else $('over').style.display='none';
@@ -1579,11 +2140,22 @@ const LEADERBOARD_KEY = 'sc3_leaderboard';
 function saveScore(){
   const character = (CHARACTERS[player.char]||{}).name || 'Unknown';
   const pact = typeof pactSummary === 'function' ? pactSummary(activePactIds) : { ids:[], multiplier:1, label:'No Pact', count:0 };
+  const diff = typeof activeDifficulty === 'function' ? activeDifficulty() : { id:'normal', name:'Normal', mult:1 };
   const pet = player.petId && typeof petById==='function' ? petById(player.petId) : null;
-  const entry = { name:cleanPlayerName(playerName), country_code:cleanCountryCode(playerCountry), character, build:window.SHADOW_BUILD_VERSION||'', score, kills, time: Math.floor(gameTime), won, level:player.level, stage:mapStage, damage:Math.round(damageTaken), items:player.items.length, petId:player.petId||'', petName:pet?pet.name:'', pactIds:pact.ids, pactMultiplier:pact.multiplier, pactLabel:pact.label, pactCount:pact.count, date: new Date().toISOString() };
+  const dp=deathPenalty || { rate:0, percent:0, baseScore:score, finalScore:score, amount:0, reason:'' };
+  const entry = { name:cleanPlayerName(playerName), country_code:cleanCountryCode(playerCountry), character, build:window.SHADOW_BUILD_VERSION||'', score, scoreBeforePenalty:dp.baseScore||score, deathPenaltyRate:Number(dp.rate||0), deathPenaltyPercent:Number(dp.percent||0), deathPenaltyAmount:Number(dp.amount||0), deathPenaltyReason:dp.reason||'', kills, time: Math.floor(gameTime), won, level:player.level, stage:mapStage, damage:Math.round(damageTaken), items:player.items.length, petId:player.petId||'', petName:pet?pet.name:'', difficultyId:diff.id||'normal', difficultyName:diff.name||'Normal', difficultyMultiplier:Number(diff.mult||1), pactIds:pact.ids, pactMultiplier:pact.multiplier, pactLabel:pact.label, pactCount:pact.count, date: new Date().toISOString() };
   if(typeof saveRunTelemetry==='function'){
     const telemetry = saveRunTelemetry(entry);
     if(telemetry && telemetry.id) entry.run_id = telemetry.id;
+  }
+  if(entry.difficultyId === 'casual'){
+    entry.rank = '-';
+    entry.personalBest = false;
+    entry.unranked = true;
+    entry.onlineStatus = 'unranked';
+    entry.onlineSaved = false;
+    entry.onlineError = 'Casual runs are unranked';
+    return entry;
   }
   let board = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || '[]');
   board.push(entry);
@@ -1611,29 +2183,37 @@ function saveScore(){
   return entry;
 }
 function loadLeaderboard(){
-  return JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || '[]');
+  return JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || '[]').filter(e=>e.difficultyId!=='casual');
 }
 function renderLeaderboard(board, source, emptyMessage){
   const el = document.getElementById('leaderboard');
   if (!el) return;
+  const rankHead = (scoreText)=>'<div class="rankhead"><span>'+escHtml(source||'Ranking')+'</span><div class="ranktools"><b>'+escHtml(scoreText)+'</b><button id="ranktoggle" class="ranktoggle" type="button">Hide Ranking</button></div></div>';
   if (!board.length) {
-    el.innerHTML='<div class="rankpanel empty"><div class="rankhead"><span>'+escHtml(source||'Ranking')+'</span><b>No records</b></div><p>'+escHtml(emptyMessage||'Finish a run to carve your name into the covenant.')+'</p></div>';
+    el.innerHTML='<div class="rankpanel empty">'+rankHead('No records')+'<p>'+escHtml(emptyMessage||'Finish a run to carve your name into the covenant.')+'</p></div>';
+    const btn=document.getElementById('ranktoggle'); if(btn && typeof toggleTitleRanking==='function') btn.onclick=toggleTitleRanking;
+    if(typeof updateRankToggleLabel==='function') updateRankToggleLabel();
     return;
   }
   const best=board[0];
-  let h = `<div class="rankpanel"><div class="rankhead"><span>${source||'Ranking'}</span><b>${(best.score||0).toLocaleString()} pts</b></div><div class="rankrows">`;
+  let h = '<div class="rankpanel">'+rankHead((best.score||0).toLocaleString()+' pts')+'<div class="rankrows">';
   board.forEach((e,i) => {
     const cls=i<3?' top':'';
     const medal = ['I','II','III'][i] || String(i+1).padStart(2,'0');
     const result=e.won?'CLEAR':'FALL';
-    const hero=e.character ? ' | '+e.character : '';
-    const pact=e.pactMultiplier&&e.pactMultiplier>1 ? ' | x'+Number(e.pactMultiplier).toFixed(2)+' · '+(e.pactCount||((e.pactIds||[]).length)||1)+' Pact' : '';
-    const flag=countryFlag(e.country_code||e.country||'TH');
-    const badge=e.verified?'<em class="rankverified">ID</em>':'';
-    h += `<div class="rankrow${cls}"><div class="rankno">${medal}</div><div class="rankwho"><b><span class="rankflag">${flag}</span><span class="rankname">${escHtml(e.name||'Player')}</span>${badge}</b><span>${result}${hero}${pact} | ${fmt(e.time||0)} | ${e.kills||0} kills | Lv ${e.level||1}</span></div><div class="rankscore">${(e.score||0).toLocaleString()}</div></div>`;
+    const hero=e.character ? " | "+e.character : "";
+    const diffName=e.difficultyName || (e.difficultyId ? String(e.difficultyId).replace(/^./,c=>c.toUpperCase()) : "Normal");
+    const diffMult=Number(e.difficultyMultiplier || (e.difficultyId==="casual"?0.6:e.difficultyId==="hard"?1.4:1));
+    const diff=" | "+diffName+" x"+diffMult.toFixed(2);
+    const pact=e.pactMultiplier&&e.pactMultiplier>1 ? " | Pact x"+Number(e.pactMultiplier).toFixed(2)+" - "+(e.pactCount||((e.pactIds||[]).length)||1) : "";
+    const flag=countryFlag(e.country_code||e.country||"TH");
+    const badge=e.verified?"<em class=\"rankverified\">ID</em>":"";
+    h += `<div class="rankrow${cls}"><div class="rankno">${medal}</div><div class="rankwho"><b><span class="rankflag">${flag}</span><span class="rankname">${escHtml(e.name||"Player")}</span>${badge}</b><span>${result}${hero}${diff}${pact} | ${fmt(e.time||0)} | ${e.kills||0} kills | Lv ${e.level||1}</span></div><div class="rankscore">${(e.score||0).toLocaleString()}</div></div>`;
   });
   h += '</div></div>';
   el.innerHTML = h;
+  const btn=document.getElementById('ranktoggle'); if(btn && typeof toggleTitleRanking==='function') btn.onclick=toggleTitleRanking;
+  if(typeof updateRankToggleLabel==='function') updateRankToggleLabel();
 }
 function showLeaderboardLegacy(){
   const board = loadLeaderboard();
@@ -1666,10 +2246,11 @@ function renderRunRanking(){
   }
   if(!el || !lastScoreEntry){ if(el) el.innerHTML=''; return; }
   const e=lastScoreEntry;
-  const onlineLabel=e.onlineStatus==='verified'?'Online verified':e.onlineStatus==='guest'?'Online guest':e.onlineStatus==='failed'?'Online failed':'Saving online...';
+  const onlineLabel=e.onlineStatus==='verified'?'Online verified':e.onlineStatus==='guest'?'Online guest':e.onlineStatus==='failed'?'Online failed':e.onlineStatus==='unranked'?'Unranked run':'Saving online...';
   const onlineCls=e.onlineStatus||'pending';
   const pactText=e.pactMultiplier&&e.pactMultiplier>1 ? 'x'+Number(e.pactMultiplier).toFixed(2) : 'x1.00';
-  el.innerHTML=`<div class="runrank"><div><span>${countryFlag(e.country_code)} ${escHtml(e.name)}</span><b>#${e.rank}</b><em class="runonline ${onlineCls}">${escHtml(onlineLabel)}</em></div><div><span>Score</span><b>${e.score.toLocaleString()}</b></div><div><span>Pact</span><b>${pactText}</b></div><div><span>Kills</span><b>${e.kills}</b></div><div><span>Time</span><b>${fmt(e.time)}</b></div><div><span>Damage</span><b>${e.damage}</b></div></div>`;
+  const diffText=(e.difficultyName||'Normal')+' x'+Number(e.difficultyMultiplier||1).toFixed(2);
+  el.innerHTML=`<div class="runrank"><div><span>${countryFlag(e.country_code)} ${escHtml(e.name)}</span><b>${e.unranked?'Unranked':'#'+e.rank}</b><em class="runonline ${onlineCls}">${escHtml(onlineLabel)}</em></div><div><span>Score</span><b>${e.score.toLocaleString()}</b></div><div><span>Difficulty</span><b>${escHtml(diffText)}</b></div><div><span>Pact</span><b>${pactText}</b></div><div><span>Kills</span><b>${e.kills}</b></div><div><span>Time</span><b>${fmt(e.time)}</b></div><div><span>Damage</span><b>${e.damage}</b></div></div>`;
 }
 function fmtStatNumber(v){
   return Math.round(v||0).toLocaleString();
@@ -1710,7 +2291,11 @@ function renderRunSummary(){
   const soulHtml=typeof soulCoinSummaryHtml==='function' ? soulCoinSummaryHtml() : '';
   const pet=player.petId && typeof petById==='function' ? petById(player.petId) : null;
   const petHtml='<section><h3>Pet</h3><div><b>'+escHtml(pet?pet.name:'No Pet')+'</b><span>'+escHtml(pet?pet.buff:'ยังไม่ได้เลือกสัตว์เลี้ยง')+'</span></div></section>';
-  el.innerHTML=`<div class="summarypanel"><div class="summaryhead"><span>Run Summary</span><b>${won?'Victory':'Death Cause'}: ${escHtml(deathText)}</b></div><div class="summarycols${unlockHtml||pactHtml||soulHtml?' hasunlock':''}"><section><h3>Weapon DPS</h3>${weaponHtml}</section><section><h3>Best Items</h3>${itemHtml}</section>${petHtml}${soulHtml}${pactHtml}${unlockHtml}</div></div>`;
+  const dp=deathPenalty || { rate:0, percent:0, baseScore:score, finalScore:score, amount:0, reason:won?'Cleared':'' };
+  const scoreHtml='<section><h3>Score</h3><div><b>'+fmtStatNumber(score)+' pts</b><span>'
+    +(dp.rate>0 ? 'Base '+fmtStatNumber(dp.baseScore)+' - Death Penalty '+dp.percent+'% ('+escHtml(dp.reason)+')' : 'No death penalty')
+    +'</span></div></section>';
+  el.innerHTML=`<div class="summarypanel"><div class="summaryhead"><span>Run Summary</span><b>${won?'Victory':'Death Cause'}: ${escHtml(deathText)}</b></div><div class="summarycols${unlockHtml||pactHtml||soulHtml?' hasunlock':''}">${scoreHtml}<section><h3>Weapon DPS</h3>${weaponHtml}</section><section><h3>Best Items</h3>${itemHtml}</section>${petHtml}${soulHtml}${pactHtml}${unlockHtml}</div></div>`;
 }
 function restart(){
   clearTimeout(deathCinematicTimer); deathCinematic=false;
@@ -1743,7 +2328,7 @@ function restart(){
   scene.remove(player.spr); freeObj(player.spr); scene.remove(player.sh); if(player.hpbar){ scene.remove(player.hpbar); freeObj(player.hpbar); }
   player = makePlayer();
   resetRunStats();
-  gameTime=0; stageStartTime=0; globalPickupMagnet=0; heroQuipAt=0; kills=0; gameOver=false; deathCinematic=false; won=false; boss=null; mapStage=1; finalBossKilledAt=null; overtimeWarnStage=0; finalBossWarnStage=0; score=0; damageTaken=0; scoreFinalized=false; lastScoreEntry=null; lastAchievementUnlocks=[]; lastPactUnlocks=[]; runBossKills=0; runMinibossKills=0; lastSoulCoinAward=null; resetEventState(true); applyMapTheme(); clearStageScenery();
+  gameTime=0; stageStartTime=0; globalPickupMagnet=0; heroQuipAt=0; kills=0; gameOver=false; deathCinematic=false; won=false; boss=null; mapStage=1; challengeRoom=null; finalBossKilledAt=null; overtimeWarnStage=0; overtimeAnnouncedTier=1; finalBossWarnStage=0; score=0; damageTaken=0; scoreFinalized=false; lastScoreEntry=null; deathPenalty=null; lastAchievementUnlocks=[]; lastPactUnlocks=[]; runBossKills=0; runMinibossKills=0; lastSoulCoinAward=null; resetEventState(true); applyMapTheme(); clearStageScenery();
   if(!worldScenery.length){ spawnTrees(40); buildScenery(); }
   waveTimer=0; waveInterval=3.2; enemiesPerWave=2; maxEnemies=18;
   nextHordeAt=240; hordeRemaining=0; hordeSpawnTimer=0; hordeNumber=0; hordeSpawned=0; hordeWarned=false; relocationCursor=0;
@@ -1754,5 +2339,6 @@ function restart(){
   document.getElementById('pause').style.display='none'; document.getElementById('pausebtn').textContent='⏸'; { const dfx=document.getElementById('deathfx'); if(dfx) dfx.style.display='none'; }
   document.getElementById('levelup').style.display='none';
   document.getElementById('relicup').style.display='none';
+  { const ds=document.getElementById('difficultyselect'); if(ds) ds.style.display='none'; }
   for (let i=0;i<4;i++) spawnEnemy();
 }

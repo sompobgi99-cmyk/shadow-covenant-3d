@@ -1,7 +1,12 @@
 // Mobile touch controls: FLOATING virtual joystick (touch anywhere on the left), dash, and interact.
 (function(){
   function isTouch(){ return ('ontouchstart' in window) || (navigator.maxTouchPoints||0) > 0; }
-  if (!isTouch()) return;
+  function isMobilePlayLayout(){
+    const shortSide=Math.min(innerWidth||0, innerHeight||0);
+    const longSide=Math.max(innerWidth||0, innerHeight||0);
+    return isTouch() && shortSide <= 700 && longSide <= 1200;
+  }
+  if (!isMobilePlayLayout()) return;
 
   document.body.classList.add('touch');
   if (typeof window.updateRankToggleLabel === 'function') window.updateRankToggleLabel();

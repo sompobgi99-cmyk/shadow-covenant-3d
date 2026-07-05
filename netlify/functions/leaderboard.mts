@@ -9,7 +9,7 @@ const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260703-codex-icons";
+const REQUIRED_BUILD = "20260705-score-overtime";
 
 const jsonHeaders = {
   "Content-Type": "application/json; charset=utf-8",
@@ -102,6 +102,10 @@ function cleanScore(input, authUser) {
     country_code: cleanCountry(input.country_code || input.country),
     character: cleanText(input.character, "Unknown", 32),
     score: cleanInt(input.score, 0, 999999999),
+    score_before_penalty: cleanInt(input.score_before_penalty || input.scoreBeforePenalty || input.score, 0, 999999999),
+    death_penalty_percent: cleanInt(input.death_penalty_percent || input.deathPenaltyPercent, 0, 100),
+    death_penalty_amount: cleanInt(input.death_penalty_amount || input.deathPenaltyAmount, 0, 999999999),
+    death_penalty_reason: cleanText(input.death_penalty_reason || input.deathPenaltyReason, "", 64),
     kills: cleanInt(input.kills, 0, 999999),
     time: cleanInt(input.time, 0, 999999),
     won: !!input.won,
@@ -109,6 +113,9 @@ function cleanScore(input, authUser) {
     stage: cleanInt(input.stage, 1, 99),
     damage: cleanInt(input.damage, 0, 9999999),
     items: cleanInt(input.items, 0, 9999),
+    difficulty_id: cleanText(input.difficulty_id || input.difficultyId, "normal", 24),
+    difficulty_name: cleanText(input.difficulty_name || input.difficultyName, "Normal", 32),
+    difficulty_multiplier: Math.max(0.1, Math.min(3, Number(input.difficulty_multiplier || input.difficultyMultiplier || 1) || 1)),
     pact_ids: pactIds,
     pact_multiplier: Math.max(1, Math.min(2.5, Number(input.pact_multiplier || input.pactMultiplier || 1) || 1)),
     pact_label: cleanText(input.pact_label || input.pactLabel, "", 160),
@@ -176,6 +183,10 @@ function publicScore(row) {
     country_code: row.country_code || "TH",
     character: row.character || "Unknown",
     score: row.score || 0,
+    score_before_penalty: row.score_before_penalty || row.score || 0,
+    death_penalty_percent: row.death_penalty_percent || 0,
+    death_penalty_amount: row.death_penalty_amount || 0,
+    death_penalty_reason: row.death_penalty_reason || "",
     kills: row.kills || 0,
     time: row.time || 0,
     won: !!row.won,
@@ -183,6 +194,9 @@ function publicScore(row) {
     stage: row.stage || 1,
     damage: row.damage || 0,
     items: row.items || 0,
+    difficulty_id: row.difficulty_id || "normal",
+    difficulty_name: row.difficulty_name || "Normal",
+    difficulty_multiplier: row.difficulty_multiplier || 1,
     pact_ids: row.pact_ids || [],
     pact_multiplier: row.pact_multiplier || 1,
     pact_label: row.pact_label || "",

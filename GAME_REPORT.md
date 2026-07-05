@@ -1,134 +1,124 @@
-# Shadow Covenant 3D — รายงานข้อมูลเกม
+# Shadow Covenant 3D - Current Game Report
 
-อัปเดต: 2026-06-20 · ไฟล์หลัก: `game-3d/index.html` (single-file, Three.js r128)
-แนวเกม: 3D pixel 2.5D survivors-like (อิง Megabonk) · ธีม gothic horror
+Updated: 2026-07-04
 
----
+## Status
 
-## 1. ภาพรวม / การควบคุม
-- เปิดเกม → **หน้า Title** (▶ เริ่มเกม) → **เลือกตัวละคร** → เล่น
-- **WASD / ลูกศร** เดิน · **Space** พุ่งหลบ (dash) · **F** โต้ตอบ (แท่น/หีบ/ศาล/พ่อค้า) · **P / Esc** หยุด
-- ตาย/ชนะ: **R** เริ่มใหม่ · **C** เลือกตัวละครใหม่
-- มุมกล้อง: top-down เอียง ~50°, สมูทแกน Y กันเวียนหัว
+Shadow Covenant 3D is now a multi-map gothic action-survivor game with online ranking, guest/Google entry flow, unlock progression, difficulty selection, pact modifiers, pets, codex pages, challenge rooms, generated sprites, and mobile support.
 
-## 2. โครงรัน (Core Loop)
-- เป้าหมาย: **ฆ่าบอส → เข้าวาป ภายใน 10 นาที** (RUN_TARGET = 600 วิ)
-- **แท่นเรียกบอส/วาป** เกิดสุ่มตำแหน่งทุกรอบ (มีลำแสง + HUD ชี้ทาง) กด F เรียกบอสได้ตลอด
-- ฆ่าบอส → แท่นเปิดเป็นวาป → เดินเข้า = **VICTORY**
-- **Overtime (>10 นาที):** มอนเพิ่มจำนวน (สูงสุด 320) + สปอว์นถี่ขึ้น + ดรอป XP/ทองมากขึ้น (×สูงสุด 3)
-- ความยาก: tier 0 (<90วิ) → tier 1 (90–180) → tier 2 (>180), มินิบอสทุก 40 วิ
-- สเกลศัตรู `timeScale = min(10, 1+gameTime/130)` (แคปกันเลขล้น)
+Recent local verification passed with:
 
-## 3. ตัวละคร (8 ตัว)
-แต่ละตัว: อาวุธประจำตัว + สเตตัสฐาน + passive โตทุกเลเวล · ใส่อาวุธได้สูงสุด **3** (signature + 2)
+- `npm run verify`
+- Desktop smoke test with Oathbone
+- Mobile select/game smoke test
+- Challenge Room smoke test
+- Map 2 and Map 3 transition smoke test
 
-| ตัวละคร | อาวุธเริ่ม | Passive (ต่อเลเวล) |
+## Current Flow
+
+1. Choose Guest or Google.
+2. Enter player name/country.
+3. Choose character.
+4. Choose difficulty: Casual, Normal, or Hard.
+5. After clearing Map 3 on Normal or Hard, choose Pact modifiers unlocked for that difficulty tier.
+6. Clear bosses, claim relics, use portals, and progress through maps.
+
+Casual is for practice and should not submit online ranking scores. Normal is the default experience. Hard enables harsher enemy pressure and is aimed at score runs.
+
+## Playable Characters
+
+The internal key for Oathbone is still `templar` for save/unlock compatibility.
+
+| Character | Start Weapon | Current Role |
 |---|---|---|
-| Paladin | Void Bolt | +0.4 HP regen |
-| Huntress | Hex Spread | +3% attack speed (HP 85, เร็ว) |
-| Sorceress | Nova Burst | +4% damage (HP 75) |
-| Templar | Orbiting Skull | +6 max HP (HP 140, ช้า, เกราะ 9) |
-| Ranger | Hunter's Arrow | +2% move speed (magnet สูง) |
-| Necromancer | Soul Spiral | +4% XP gain |
-| Slayer | Blade Whirl | +3% damage |
-| Priestess | Holy Smite | +0.3 regen & heal (HP 115) |
+| Paladin | Shield Toss | Armor-focused holy tank |
+| Ranger | Hunter's Arrow | Fast ranged starter |
+| Sorceress | Nova Burst | Fragile AoE caster |
+| Oathbone | Orbiting Skull | Bone-oath tank with skull guard |
+| Huntress | Hex Spread | Attack-speed ranged build |
+| Slayer | Blade Wave | Melee damage specialist |
+| Priestess | Holy Smite | Sustain holy caster |
+| Stormcaller | Lightning Strike | Crit-damage lightning caster |
+| Assassin | Throwing Knives | Crit and evade dagger build |
+| Necromancer | Soul Spiral | XP/soul scaling caster |
+| IT Support | Multi-Tool Screwdriver | Piercing melee utility hero |
+| Striker | Cursed Football | Ricochet projectile hero |
 
-## 4. อาวุธ (8 ตัว — ทุกตัวมีร่าง evolve แล้ว)
-auto-attack · เลเวลสูงสุด 8 · ดาเมจต่อเลเวล +15% × ตัวคูณรวม · ใส่ได้สูงสุด 3 ชิ้น/รัน
+## Oathbone Notes
 
-| อาวุธ (ตัวละคร) | รูปแบบ | Evolve (Lv8 + tome คู่ ×3) |
-|---|---|---|
-| Void Bolt (Paladin) | ยิงเป้าใกล้สุด | + Might×3 → **Doom Bolt** |
-| Hex Spread (Huntress) | กระจายเป็นพัด | + Multishot×3 → **Hex Storm** |
-| Nova Burst (Sorceress) | ระเบิดวง 360° | + Celerity×3 → **Supernova** |
-| Orbiting Skull (Templar) | ลูกโคจรรอบตัว | + Precision×3 → **Death Orbit** |
-| Hunter's Arrow (Ranger) | ลูกธนูทะลุ ระยะไกล/เร็ว | + Velocity×3 → **Tempest Volley** |
-| Holy Smite (Priestess) | ลูกหนักดาเมจสูง ยิงช้า | + Might×3 → **Divine Judgment** |
-| Blade Whirl (Slayer) | ใบมีดหมุนรอบตัว ระยะใกล้ เร็ว | + Celerity×3 → **Tempest Blades** |
-| Soul Spiral (Necromancer) | ยิงเป็นเกลียวหมุน | + Duration×3 → **Soul Tempest** |
+- Display name: Oathbone
+- Internal key: `templar`
+- Sprite files remain `char_templar_*` for compatibility.
+- Current base stats are overridden in runtime to HP 116, SPD 5.0, DEF 8, and rate multiplier 1.08.
+- Passive: Damage +1%, max HP +4 per level.
+- Starting weapon: Orbiting Skull.
+- Portrait is normalized to the same select-card frame as other characters.
+- Runtime visual scale has a small sheet-specific override so the body reads closer to other heroes in-game.
 
-> เก็บอาวุธของตัวอื่นได้ผ่านหน้าเลือกอัปเกรด (ผสมบิลด์ได้) · ครบ 8 ร่าง evolve แล้ว · Orbit สเกล tick เร็วขึ้นตามเลเวล+atk speed
+## Weapons And Evolutions
 
-## 5. Tome / Passive (15 ชนิด · เลือกได้สูงสุด 4 ชนิด/รัน, เก็บซ้อนไม่จำกัด)
-> ครบ 4 ชนิดแล้ว การ์ดอัปเลเวลจะเสนอเฉพาะ tome ที่มีอยู่ให้อัปต่อ (ไม่ออกชนิดใหม่) · `MAX_TOMES=4`
+The game currently has 30 weapons in audit. Core weapon groups include:
 
-might(+18% dmg), vitality(+25 HP), celerity(+20% atk spd), precision(+25% range), multishot(+1 นัด),
-swiftness(+12% move), regen(+0.8/วิ), magnetism(+30% เก็บ), experience(+20% XP), greed(+30% ทอง),
-fortitude(+3 เกราะ), lifesteal(+1 HP/คิล), duration(+25% อายุกระสุน), velocity(+20% เร็วกระสุน), growth(+20% ขนาดกระสุน)
+- Melee or close-range: Blade Wave, Orbiting Skull, Multi-Tool Screwdriver, Shield Toss-style close control.
+- Ranged/projectile: Hunter's Arrow, Throwing Knives, Lightning Strike, Holy Smite, Hex Spread.
+- AoE/control: Nova Burst, Soul Spiral, Bouncing Bomb, ricochet weapons.
 
-## 6. ศัตรู
-- **ศัตรูปกติ 28 ชนิด** (3 tier: Bleakfield/Fenmire/Void Rift) — สไปรซ์ 8 ทิศ
-- **พฤติกรรม:** chase (ไล่), charger (พุ่ง), shooter (ถอยยิง), exploder (ระเบิดตอนตาย)
-- ฝูงมี separation (ไม่ซ้อนกัน), อนิเมชันเดิน, knockback, เอฟเฟกต์ตาย
+Several weapons support evolved forms and separate evolved icons. Ricochet support exists for selected weapons such as Football, Shield Toss, Bone Boomerang, and Bouncing Bomb.
 
-### มินิบอส (6) — สกิล 2 ต่อตัว (โผล่ทุก 40 วิ)
-| ตัว | สกิล |
-|---|---|
-| Colossus | คลื่นกระแทก · พุ่งชาร์จ |
-| Executioner | พุ่งชาร์จ · ฟันพัด |
-| Horror | กระจายสุ่ม · วงกระสุน |
-| Skeleton Lord | เรียกลูกสมุน · ยิงพัด |
-| Troll | ขว้างหิน · ฟื้นเลือด 6% |
-| Warden | กางโล่ (ลดดาเมจ 60%/3วิ) · วงกระสุน |
+## Enemies, Bosses, And Maps
 
-### บอส (5) — สกิล 3 ต่อตัว · โกรธตอนเลือด <50% (สกิลเร็วขึ้น +เดินเร็ว)
-| บอส | สกิล |
-|---|---|
-| Lich King | วงกระสุน · ยิงพัด · เรียกลูกสมุน |
-| Abyssal Behemoth | วงใหญ่ · คลื่นกระแทก · พุ่งชาร์จ |
-| Soul Reaper | เกลียวคู่ · ยิงพัด · กระจายสุ่ม |
-| Void Wyrm | วงใหญ่ · ลูกไฟหนัก · พุ่งชาร์จ |
-| **THE OVERLORD** (สุดท้าย, ยักษ์) | เกลียวคู่ · วงใหญ่ · เรียกลูกสมุน 3 (เจอตอน overtime) |
+Current audit reports:
 
-## 7. เศรษฐกิจ / สำรวจแมพ (กด F)
-- **หีบ 3 ระดับ** (common/rare/epic) เปิดด้วยทอง ราคาฐาน [40/100/220] ×1.18 ทุกใบที่เปิด → ได้เลือกอัปเกรด 1/2/3 ใบ
-- **ศาลเจ้า** (×3) กดฟรี → เรียก elite pack (6 ตัว HP×3, ดรอป×3)
-- **พ่อค้าเร่** เดินไปเปิดร้าน (เกมหยุด) ซื้ออาวุธ/passive/ฮีลด้วยทอง
-- **ขอบแมพ** เป็นวงหิน/กำแพงพังกั้น
+- 33 enemies
+- 6 minibosses
+- 5 bosses
+- 385 manifest assets
+- 405 PNG sprites, about 11.84 MB
 
-## 8. เอฟเฟกต์ (เทคนิค)
-Three.js เรขาคณิตล้วน (ไม่มี shader/particle engine):
-- กระสุน/ระเบิด/ประกาย = SphereGeometry + MeshBasicMaterial **additive blending** (เรืองแสง)
-- **วงแหวนกระแทกขยาย** (RingGeometry) สำหรับ shock/บอสตาย
-- **กล้องสั่น** ตอนโดนตี/บอสออกท่า · แฟลชเปลี่ยนสีตอนโดน · เงา dash (afterimage)
-- พื้น: heightmap + แสงเงาเบค · ฟ้าไล่เฉดพลบ + หมอกม่วง · vignette (CSS)
+Maps:
 
-## 9. Knockback
-กระเด็นตามความแรงดาเมจ: `kb = min(16, dmg×0.16 / ขนาดศัตรู)` (ลูกโคจรผลักออกจากลูก) — ตีแรงกระเด็นไกล, ตัวใหญ่/บอสกระเด็นน้อย
+- Map 1: Bleakfield-style starting field.
+- Map 2: Crimson/red themed stage with more objects and breakables.
+- Map 3: Final boss map, immediately focused on THE OVERLORD.
 
-## 10. ค่าตั้งหลัก (Tunables)
-PLAYER_SPEED 4.6 · DASH 26/0.18วิ/คูล 2.2 · MAP_BOUND 56 · maxEnemies cap ไล่ตามเวลา (→320 overtime) ·
-miniboss ทุก 55วิ · XP เริ่ม 20 ·
-**สเกลศัตรู:** HP = timeScale (สูงสุด ×10) แต่ **ATK = atkTimeScale แยกต่างหาก (สูงสุด ×2.4)** กันวันช็อตเลทเกม
-(มินิบอส ×1.15, บอส ×1.3 ของ atkTimeScale)
+Map 2 and Map 3 enemies/bosses have higher HP scaling. Map 3 has a boss deadline condition.
 
-### Stage difficulty update 2026-06-29
-- **Map 2+ แรงขึ้นมาก:** ศัตรูปกติ Map2 HP×2.0/ATK×1.45, Map3 HP×3.4/ATK×1.9 (ซ้อนกับสเกลเวลา)
-- มินิบอส stage HP×2.1 (M2) / ×3.6 (M3) · บอส stage HP×2.3 (M2) / ×4.0 (M3)
-- **เพิ่ม stageAtkMul ให้บอส+มินิบอส** (เดิม atk ไม่คูณ stage เลย) → map สูง ตีเจ็บขึ้นจริง
+## Challenge Rooms
 
-### Economy/progression update 2026-06-29
-- **XP curve ชันขึ้น (cubic):** `20 + 10k + 4k² + 0.22k³` (k=lv-1) — Lv2≈34, Lv10≈594, Lv20≈3.1k, Lv40≈19.5k
-- **Max level = 40** (cap แข็ง, HUD โชว์ "MAX", XP เกินทิ้ง)
-- **ลดทอง:** ดรอปปกติ ×0.5→×0.3, บอส 5→3, stage boss 8→5, Greed tome +50%→+30%
-- **Merchant reroll ชันขึ้น:** `40 × 1.6^rerolls` (เดิม 35 × 1.45)
+Challenge Rooms are active and use generated doors, floors, props, and room visuals.
 
-### Balance update 2026-06-26
-- **ATK ศัตรูแยกสเกลจาก HP** — `atkTimeScale()` แคป 2.4 (เดิมใช้ timeScale ×10 → วันช็อต)
-- **เกราะ (def) เป็น % mitigation** = `dmg×100/(100+def×5)` (เดิมลบตรงๆ ไร้ผลเลทเกม)
-- **รวมระบบดาเมจไว้ที่ `dealEnemyDamage()`** — projectile/nova/orbit/smite/proc วิ่งผ่านจุดเดียว
-- **เปิดใช้ไอเทมที่เคยไม่มีผล:** Boss Buster, Brass Knuckles, Beefy Ring, Gamer Goggles, Demonic Soul/Blood,
-  Eagle Claw, Credit Card, Idle Juice, Campfire, Energy Core, Soul Harvester, Echo Shard, Wrench,
-  + on-hit proc: Dragonfire (burn), Ice Crystal (slow), Thunder Mitts/Spicy Meatball/Power Gloves (AoE), Big Bonk (×20)
-- **Perf:** nova/orbit/smite/AoE ใช้ spatial grid, ลด rebuildEnemyGrid/เฟรม, texture loader มี onError กัน 404 ค้าง
+Room concepts include:
 
-## 11. สถานะงาน
-**เสร็จ:** Title, เลือกตัวละคร, โครงรัน 10 นาที + แท่น/บอส/วาป + overtime + VICTORY,
-อาวุธ+evolution, tome 15, ตัวละคร 8 (สไปรซ์ครบ), ศัตรู 28 + 8 ทิศ, มินิบอส 6 + บอส 5 (สไปรซ์เฉพาะ + สกิล), หีบ/ศาล/พ่อค้า, เอฟเฟกต์เรือง/วงแหวน/กล้องสั่น
+- Treasure Vault
+- Cursed Shrine Room
+- Butcher Arena
+- Soul Trial
+- Merchant Trap
 
-**ยังไม่ทำ (ตัวเลือก):** เสียง/เพลง, telegraph เลเซอร์ก่อนบอสยิง, ตัวเลขดาเมจเด้ง, meta-progression ข้ามรัน, เนินสไลด์/กระโดด, บาลานซ์ละเอียดจากการเทสต์จริง
+Smoke testing confirmed Challenge Room entry can start without console errors.
 
-## 12. หมายเหตุเทคนิค
-- ไฟล์ index.html อยู่บน Windows mount ที่**เคยถูกตัดท้ายตอนเขียน** — แก้ทุกครั้งควรเช็คว่ามี `</html>` ปิดครบ
-- สไปรซ์ทั้งหมดอยู่ใน `assets/sprites/` · สไปรซ์ฉาก/หีบ/ศาล/พ่อค้าวาดเอง (PIL), ตัวละคร/ศัตรู/บอสจาก PixelLab
-- ไฟล์ prompt สำหรับ gen เพิ่ม: `PIXELLAB_*_PROMPTS.md`, `CLAUDE_CODE_*.md`, ดีไซน์: `DESIGN.md`
+## Online And Progression
+
+Systems present:
+
+- Guest mode
+- Google login mode
+- Online leaderboard path through Netlify/Supabase config
+- Achievement unlocks in localStorage
+- Cloud progress sync path for Google users
+- Soul Coins and pet ownership
+- Pact unlocks are split by difficulty: Normal clears unlock Normal Pact, Hard clears unlock Hard Pact
+
+Local dev server can play the game, but full online progress sync should be verified on Netlify because the local server intentionally does not provide full player-progress sync.
+
+## Mobile
+
+Mobile controls include joystick, DASH, F, and HUD compact controls. The current mobile-control gate requires touch support plus a mobile-sized viewport, so desktop Chrome devices that report touch capability do not show mobile buttons on large screens.
+
+## Known Follow-Up Checks
+
+- Test Google login with a real account on the Netlify URL after deploy.
+- Play one full Normal run and one Hard run manually for balance feel.
+- Play each Challenge Room long enough to judge reward fairness.
+- Recheck Codex pages after large content changes.
+- Keep generated test screenshots out of commits unless they are intentionally used as QA evidence.

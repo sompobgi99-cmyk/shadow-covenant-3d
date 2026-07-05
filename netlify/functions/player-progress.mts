@@ -23,6 +23,13 @@ const PET_IDS = new Set([
   "grave_kitten",
   "mini_mimic",
 ]);
+const PACT_IDS = new Set([
+  "blood_moon",
+  "glass_soul",
+  "cursed_economy",
+  "no_mercy",
+  "ravenous_horde",
+]);
 
 const jsonHeaders = {
   "Content-Type": "application/json; charset=utf-8",
@@ -115,6 +122,36 @@ function cleanPetState(input: unknown) {
   return { owned, selected };
 }
 
+function cleanDateMap(input: unknown, allowed: Set<string>) {
+  const src = input && typeof input === "object" ? input as Record<string, unknown> : {};
+  const out: Record<string, string> = {};
+  for (const [id, value] of Object.entries(src)) {
+    if (!allowed.has(id)) continue;
+    const t = String(value || "").slice(0, 40);
+    const parsed = Date.parse(t);
+    out[id] = Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString();
+  }
+  return out;
+}
+
+function cleanPactState(input: unknown) {
+  const src = input && typeof input === "object" ? input as Record<string, unknown> : {};
+  const doneSrc = src.done && typeof src.done === "object" ? src.done as Record<string, unknown> : src;
+  const normal = doneSrc.normal || doneSrc.hard ? cleanDateMap(doneSrc.normal, PACT_IDS) : cleanDateMap(doneSrc, PACT_IDS);
+  const hard = cleanDateMap(doneSrc.hard, PACT_IDS);
+  return { done: { normal, hard } };
+}
+
+function mergePacts(a: ReturnType<typeof cleanPactState>, b: ReturnType<typeof cleanPactState>) {
+  const out = { done: { normal: { ...a.done.normal }, hard: { ...a.done.hard } } };
+  for (const diff of ["normal", "hard"] as const) {
+    for (const [id, at] of Object.entries(b.done[diff])) {
+      if (!out.done[diff][id] || Date.parse(at) < Date.parse(out.done[diff][id])) out.done[diff][id] = at;
+    }
+  }
+  return out;
+}
+
 function mergePets(a: ReturnType<typeof cleanPetState>, b: ReturnType<typeof cleanPetState>) {
   const owned = { ...a.owned };
   let added = false;
@@ -128,9 +165,10 @@ function mergePets(a: ReturnType<typeof cleanPetState>, b: ReturnType<typeof cle
 
 async function readProgress(store: ReturnType<typeof getStore>, userId: string) {
   const data = await store.get(progressKey(userId), { type: "json" });
-  const obj = data && typeof data === "object" ? data as { done?: unknown; soulCoins?: unknown; pets?: unknown; updated_at?: string } : {};
+  const obj = data && typeof data === "object" ? data as { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown; updated_at?: string } : {};
   return {
     done: cleanDone(obj.done),
+    pacts: cleanPactState(obj.pacts),
     soulCoins: cleanCoins(obj.soulCoins),
     pets: cleanPetState(obj.pets),
     updated_at: obj.updated_at || "",
@@ -144,13 +182,13 @@ export default async (req: Request) => {
 
   if (req.method === "GET") {
     const progress = await readProgress(store, auth.userId);
-    return json({ ok: true, done: progress.done, soulCoins: progress.soulCoins, pets: progress.pets, updated_at: progress.updated_at });
+    return json({ ok: true, done: progress.done, pacts: progress.pacts, soulCoins: progress.soulCoins, pets: progress.pets, updated_at: progress.updated_at });
   }
 
   if (req.method === "POST" || req.method === "PUT") {
     const contentLength = Number.parseInt(req.headers.get("content-length") || "0", 10);
     if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) return json({ error: "Payload too large" }, 413);
-    let body: { done?: unknown; soulCoins?: unknown; pets?: unknown } = {};
+    let body: { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown } = {};
     try {
       body = await req.json();
     } catch {
@@ -158,13 +196,14 @@ export default async (req: Request) => {
     }
     const existing = await readProgress(store, auth.userId);
     const merged = mergeDone(existing.done, cleanDone(body.done));
+    const pacts = mergePacts(existing.pacts, cleanPactState(body.pacts));
     const incomingPets = cleanPetState(body.pets);
     const petMerge = mergePets(existing.pets, incomingPets);
     const incomingCoins = Object.prototype.hasOwnProperty.call(body, "soulCoins") ? cleanCoins(body.soulCoins) : existing.soulCoins;
     const soulCoins = petMerge.added && incomingCoins < existing.soulCoins ? incomingCoins : Math.max(existing.soulCoins, incomingCoins);
-    const payload = { done: merged, soulCoins, pets: petMerge.pets, updated_at: new Date().toISOString() };
+    const payload = { done: merged, pacts, soulCoins, pets: petMerge.pets, updated_at: new Date().toISOString() };
     await store.setJSON(progressKey(auth.userId), payload);
-    return json({ ok: true, done: payload.done, soulCoins: payload.soulCoins, pets: payload.pets, updated_at: payload.updated_at });
+    return json({ ok: true, done: payload.done, pacts: payload.pacts, soulCoins: payload.soulCoins, pets: payload.pets, updated_at: payload.updated_at });
   }
 
   return json({ error: "Method not allowed" }, 405);

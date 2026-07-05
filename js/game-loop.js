@@ -172,9 +172,23 @@ function update(dt) {
       }
       if(e.hp<=0){ killEnemy(e); continue; }
     }
+    if (e.bleedT>0){
+      e.bleedT-=dt;
+      const bleedDamage=(e.final&&e.phaseInvuln>0)?0:(e.bleedDps||0)*dt;
+      if(bleedDamage>0) recordRunDamage(bleedDamage,e.bleedMeta||{});
+      const floor=(e.final&&e.finalPhase&&(e.finalPhase>1||e.phaseInvuln>0))?1:-Infinity;
+      e.hp=Math.max(floor,e.hp-bleedDamage);
+      e.flash=Math.max(e.flash,0.035);
+      if(e.hp<=0 && isDeathWarded(e)){
+        e.hp=1;
+        spawnDmg(e.x,e.z,'WARD',0x9a55ff,false,'guard');
+        spawnBurst(e.x,e.z,0x9a55ff,4,0.45);
+      }
+      if(e.hp<=0){ killEnemy(e); continue; }
+    }
     if (e.slowT>0) e.slowT-=dt;
     if (e.wardT>0) e.wardT-=dt;
-    if (e.behavior==='warder') updateWarderAura(e,dt);
+    if (e.buffT>0) e.buffT-=dt;
     if(e.isBoss && e.hp>0 && e.hp<bossRegenCap(e)){
       const heal=bossRegenRate(e)*dt;
       if(heal>0){
@@ -188,6 +202,29 @@ function update(dt) {
     }
     const dx=player.x-e.x, dz=player.z-e.z, d=Math.hypot(dx,dz)||1;
     const nx=dx/d, nz=dz/d;
+    if(e.burrowT>0){
+      e.burrowT-=dt;
+      e.flash=Math.max(e.flash,0.08);
+      if(e.spr && e.spr.material) e.spr.material.opacity=Math.max(0.10,0.35*(e.burrowT/(e.burrowMax||0.92)));
+      if(e.sh && e.sh.material) e.sh.material.opacity=0.10;
+      if(e.burrowT<=0 && !e.burrowDone){
+        e.burrowDone=true;
+        e.x=clamp(e.burrowX==null?e.x:e.burrowX,-MAP_BOUND,MAP_BOUND);
+        e.z=clamp(e.burrowZ==null?e.z:e.burrowZ,-MAP_BOUND,MAP_BOUND);
+        e.kx=0; e.kz=0; e.charging=0;
+        if(e.spr && e.spr.material) e.spr.material.opacity=1;
+        if(e.sh && e.sh.material) e.sh.material.opacity=0.45;
+        spawnBurst(e.x,e.z,0x9a6cff,28,1.25);
+        spawnRing(e.x,e.z,0x9a6cff,3.5,0.42);
+        shake(0.26,0.18);
+      }
+      if(e.spr) e.spr.position.set(e.x,groundHeight(e.x,e.z)+0.08,e.z);
+      if(e.sh) e.sh.position.set(e.x,groundHeight(e.x,e.z)+0.02,e.z);
+      continue;
+    }
+    if(e.spr && e.spr.material && e.spr.material.opacity<0.98) e.spr.material.opacity=1;
+    updateEnemyTraits(e,dt,nx,nz,d);
+    resolveEnemyPull(e,dt);
     let spd = e.spd;
     if (e.behavior==='charger'){
       e.chargeCd -= dt;
@@ -212,12 +249,21 @@ function update(dt) {
     } else if (e.behavior==='warder'){
       if (d < 7) spd = -e.spd*0.35;
       else if (d < 13) spd = e.spd*0.18;
+    } else if (e.behavior==='thief'){
+      if ((e.stolenGold||0)>0) spd = -e.spd*1.2;
+      else if (d < 7) spd = e.spd*1.15;
+    } else if (e.behavior==='puller'){
+      if (d < 5.5) spd = -e.spd*0.2;
+      else if (d < 11) spd = e.spd*0.35;
+    } else if (e.behavior==='hazard'){
+      if (d < 6) spd = -e.spd*0.15;
+      else if (d < 12) spd = e.spd*0.42;
     }
     if (e.behavior!=='charger' && e.charging>0){ e.charging-=dt; spd=e.spd*2.4; }
     if (e.shieldT>0) e.shieldT-=dt;
     if (e.final) updateFinalBossPhase(e, dt);
     if (e.skills && e.hp<e.maxHp*0.5) spd*=1.25;
-    const sp = spd*speedMul*dt*(e.slowT>0?0.5:1);
+    const sp = spd*speedMul*dt*(e.slowT>0?0.5:1)*(e.buffT>0?(e.buffSpeedMul||1):1);
     let dirx=nx, dirz=nz;
     if (e.charging>0 && e.cdx!==undefined){ dirx=e.cdx; dirz=e.cdz; }   // charge straight, no homing
     const mvx=dirx*sp, mvz=dirz*sp;
@@ -243,7 +289,8 @@ function update(dt) {
     if (e.flash>0) e.flash-=dt;
     if (e.skills) runSkills(e, dt, nx, nz, d);
     if (d < e.r+0.75 && e.cd<=0){
-      hurtPlayer(e.atk,nx,nz,monsterContactKnockback(e),e,e.isBoss?'boss contact':e.elite?'miniboss contact':'monster contact');
+      const hitAtk=Math.round(e.atk*(e.buffT>0?(e.buffAtkMul||1):1));
+      hurtPlayer(hitAtk,nx,nz,monsterContactKnockback(e),e,e.isBoss?'boss contact':e.elite?'miniboss contact':'monster contact');
       e.cd=e.butcher?0.48:e.isBoss?1.15:1.35;
       e.kx-=nx*1.2; e.kz-=nz*1.2;
     }
@@ -337,8 +384,10 @@ function update(dt) {
     if (rawDistance < PICKUP_COLLECT){ collect(pk); continue; }
     const d=rawDistance||1;
     const forcedMagnet = pk.globalMagnet || (globalPickupMagnet>0 && (pk.type==='xp' || pk.type==='gold'));
-    if (forcedMagnet || pk.homing || d < player.magnet){ pk.homing=true;
-      const sp = forcedMagnet ? 34 : 8 + (1-Math.min(1,d/player.magnet))*10;
+    const lootPull = pk.type==='xp' || pk.type==='gold';
+    const magnetRange = lootPull ? player.magnet * (1 + (player.lootMagnetBonus||0)) : player.magnet;
+    if (forcedMagnet || pk.homing || d < magnetRange){ pk.homing=true;
+      const sp = forcedMagnet ? 34 : (8 + (1-Math.min(1,d/magnetRange))*10) * (lootPull ? 1 + (player.lootPullBonus||0) : 1);
       pk.x += (dx/d)*sp*dt; pk.z += (dz/d)*sp*dt;
     } else { pk.x += pk.vx*dt; pk.z += pk.vz*dt; pk.vx*=0.9; pk.vz*=0.9; }
   }
@@ -451,63 +500,72 @@ function update(dt) {
     if (a.life<=0){ scene.remove(a.spr); freeObj(a.spr); afterimages.splice(i,1); }
     else a.spr.material.opacity = 0.55*(a.life/a.max); }
 
-  const profile=progressionProfile();
-  maxEnemies=Math.min(overtimeEnemyCap(),profile.cap+(hordeRemaining>0?Math.round(45*otPowerMul()):0));
-  waveInterval=profile.interval;
-  enemiesPerWave=profile.batch;
+  if(challengeRoom){
+    updateChallengeRoom(dt);
+  } else {
+    const profile=progressionProfile();
+    maxEnemies=Math.min(overtimeEnemyCap(),profile.cap+(hordeRemaining>0?Math.round(45*otPowerMul()):0));
+    waveInterval=profile.interval;
+    enemiesPerWave=profile.batch;
 
-  // Normal pressure rises gradually; horde waves temporarily take over spawning.
-  waveTimer += dt;
-  if (hordeRemaining<=0 && waveTimer >= waveInterval) { waveTimer -= waveInterval;
-    const n = Math.min(enemiesPerWave, maxEnemies-enemies.length);
-    let rem=n; while(rem>0){ const c=Math.min(7, rem); spawnCluster(c); rem-=c; }
-  }
-
-  if(!hordeWarned && gameTime>=nextHordeAt-5 && gameTime<nextHordeAt){
-    hordeWarned=true;
-    showToast('HORDE INCOMING - 5',2.2);
-  }
-  if(gameTime>=nextHordeAt && hordeRemaining<=0){
-    hordeNumber++;
-    hordeRemaining=hordeSize(hordeNumber);
-    hordeSpawned=0;
-    hordeSpawnTimer=0;
-    hordeWarned=false;
-    nextHordeAt+=240;
-    showToast('HORDE '+hordeNumber+' - SURVIVE!',3);
-    shake(0.4,0.24);
-  }
-  if(hordeRemaining>0){
-    hordeSpawnTimer-=dt;
-    if(hordeSpawnTimer<=0 && enemies.length<maxEnemies){
-      const count=Math.min(overtimeLevel()?8:3,hordeRemaining,maxEnemies-enemies.length);
-      if(count>0){
-        spawnCluster(count);
-        hordeRemaining-=count;
-        hordeSpawned+=count;
-        if(hordeNumber>=2 && hordeSpawned%12<count){
-          const point=pointAroundPlayer(22,27,false);
-          if(point) spawnElite(point.x,point.z);
-        }
-      }
-      hordeSpawnTimer=0.42;
+    // Normal pressure rises gradually; horde waves temporarily take over spawning.
+    waveTimer += dt;
+    if (hordeRemaining<=0 && waveTimer >= waveInterval) { waveTimer -= waveInterval;
+      const n = Math.min(enemiesPerWave, maxEnemies-enemies.length);
+      let rem=n; while(rem>0){ const c=Math.min(7, rem); spawnCluster(c); rem-=c; }
     }
-  }
-  mbTimer += dt;
-  if(gameTime>=nextMinibossAt){
-    spawnMiniboss();
-    mbTimer=0;
-    nextMinibossAt+=MINIBOSS_INTERVAL;
-  }
-  if(butcherRunEligible && !butcherAppeared && gameTime>=nextButcherAt && !butcherActive && enemies.length<maxEnemies+8){
-    if(!(boss&&boss.alive)) spawnButcher();
-    else scheduleNextButcher(25);
+
+    if(!hordeWarned && gameTime>=nextHordeAt-5 && gameTime<nextHordeAt){
+      hordeWarned=true;
+      showToast('HORDE INCOMING - 5',2.2);
+    }
+    if(gameTime>=nextHordeAt && hordeRemaining<=0){
+      hordeNumber++;
+      hordeRemaining=hordeSize(hordeNumber);
+      hordeSpawned=0;
+      hordeSpawnTimer=0;
+      hordeWarned=false;
+      nextHordeAt+=240;
+      showToast('HORDE '+hordeNumber+' - SURVIVE!',3);
+      shake(0.4,0.24);
+    }
+    if(hordeRemaining>0){
+      hordeSpawnTimer-=dt;
+      if(hordeSpawnTimer<=0 && enemies.length<maxEnemies){
+        const count=Math.min(overtimeLevel()?8:3,hordeRemaining,maxEnemies-enemies.length);
+        if(count>0){
+          spawnCluster(count);
+          hordeRemaining-=count;
+          hordeSpawned+=count;
+          if(hordeNumber>=2 && hordeSpawned%12<count){
+            const point=pointAroundPlayer(22,27,false);
+            if(point) spawnElite(point.x,point.z);
+          }
+        }
+        hordeSpawnTimer=0.42;
+      }
+    }
+    mbTimer += dt;
+    if(gameTime>=nextMinibossAt){
+      spawnMiniboss();
+      mbTimer=0;
+      nextMinibossAt+=MINIBOSS_INTERVAL;
+    }
+    if(butcherRunEligible && !butcherAppeared && gameTime>=nextButcherAt && !butcherActive && enemies.length<maxEnemies+8){
+      if(!(boss&&boss.alive)) spawnButcher();
+      else scheduleNextButcher(25);
+    }
   }
 
   // enter portal -> win
   if (altar && altar.state==='portal' && Math.hypot(player.x-altar.x, player.z-altar.z) < 2.6) {
-    if(altar.portalKind==='nextStage') transitionToStage(altar.nextStage || mapStage+1);
-    else { won = true; finalizeScore(); sfx('win'); }
+    enterPortal();
+  }
+  if(!challengeRoom && !paused && !userPaused && !gameOver && !won){
+    for(const o of interactables){
+      if(o.used || o.type!=='challenge_door') continue;
+      if(Math.hypot(player.x-o.x,player.z-o.z)<2.35){ enterChallengeDoor(o); break; }
+    }
   }
 
   if (!player.alive) triggerDeathCinematic();
@@ -544,11 +602,29 @@ function finalizeScore(){
   if (damageTaken <= 0) score = Math.round(score * 2);
   if (kills >= 500) score += 1000;
   if (player.items.length >= 10) score += 500;
+  if (typeof difficultyScoreMul === 'function') score = Math.round(score * difficultyScoreMul());
   if (typeof pactMultiplier === 'number' && pactMultiplier > 1) score = Math.round(score * pactMultiplier);
+  deathPenalty = calcDeathPenalty(score);
+  if (deathPenalty && deathPenalty.rate > 0) score = deathPenalty.finalScore;
   lastScoreEntry = saveScore();
   if (typeof awardRunSoulCoins === 'function') awardRunSoulCoins();
   if (typeof evaluatePactUnlocks === 'function') evaluatePactUnlocks();
   evaluateRunAchievements();
+}
+
+function calcDeathPenalty(baseScore){
+  const base=Math.max(0,Math.round(baseScore||0));
+  if(won) return { rate:0, percent:0, baseScore:base, finalScore:base, amount:0, reason:'Cleared' };
+  let rate=0.20, reason='Death';
+  if(mapStage>=3){
+    rate=0.10;
+    reason='Death on Map 3';
+  } else if(typeof overtimeLevel==='function' && overtimeLevel()){
+    rate=0.15;
+    reason='Death after Overtime';
+  }
+  const finalScore=Math.max(0,Math.round(base*(1-rate)));
+  return { rate, percent:Math.round(rate*100), baseScore:base, finalScore, amount:base-finalScore, reason };
 }
 
 function updateEnemyRelocation(){

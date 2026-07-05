@@ -40,6 +40,10 @@ function onlineScorePayload(entry, includeBuild){
     country_code: entry.country_code || entry.country || 'TH',
     character: entry.character || entry.hero || 'Unknown',
     score: entry.score|0,
+    score_before_penalty: entry.scoreBeforePenalty|0,
+    death_penalty_percent: entry.deathPenaltyPercent|0,
+    death_penalty_amount: entry.deathPenaltyAmount|0,
+    death_penalty_reason: entry.deathPenaltyReason || '',
     kills: entry.kills|0,
     time: entry.time|0,
     won: !!entry.won,
@@ -47,6 +51,9 @@ function onlineScorePayload(entry, includeBuild){
     stage: entry.stage|0,
     damage: entry.damage|0,
     items: entry.items|0,
+    difficulty_id: entry.difficultyId || 'normal',
+    difficulty_name: entry.difficultyName || 'Normal',
+    difficulty_multiplier: Number(entry.difficultyMultiplier || 1),
     pact_ids: Array.isArray(entry.pactIds) ? entry.pactIds : [],
     pact_multiplier: Number(entry.pactMultiplier || 1),
     pact_label: entry.pactLabel || '',
@@ -93,6 +100,10 @@ async function loadOnlineLeaderboard(){
         country_code: r.country_code || 'TH',
         character: r.character || 'Unknown',
         score: r.score || 0,
+        scoreBeforePenalty: r.score_before_penalty || r.score || 0,
+        deathPenaltyPercent: r.death_penalty_percent || 0,
+        deathPenaltyAmount: r.death_penalty_amount || 0,
+        deathPenaltyReason: r.death_penalty_reason || '',
         kills: r.kills || 0,
         time: r.time || 0,
         won: !!r.won,
@@ -100,6 +111,9 @@ async function loadOnlineLeaderboard(){
         stage: r.stage || 1,
         damage: r.damage || 0,
         items: r.items || 0,
+        difficultyId: r.difficulty_id || 'normal',
+        difficultyName: r.difficulty_name || 'Normal',
+        difficultyMultiplier: r.difficulty_multiplier || 1,
         pactIds: r.pact_ids || [],
         pactMultiplier: r.pact_multiplier || 1,
         pactLabel: r.pact_label || '',
@@ -111,7 +125,7 @@ async function loadOnlineLeaderboard(){
     }
     if(!ONLINE_LEADERBOARD.supabaseUrl || !ONLINE_LEADERBOARD.supabaseAnonKey) return [];
   }
-  const q = '?select=player_name,country_code,character,score,kills,time,won,level,stage,damage,items,pact_ids,pact_multiplier,pact_label,pact_count,created_at&order=score.desc&limit='+ONLINE_LEADERBOARD.limit;
+  const q = '?select=player_name,country_code,character,score,score_before_penalty,death_penalty_percent,death_penalty_amount,death_penalty_reason,kills,time,won,level,stage,damage,items,difficulty_id,difficulty_name,difficulty_multiplier,pact_ids,pact_multiplier,pact_label,pact_count,created_at&order=score.desc&limit='+ONLINE_LEADERBOARD.limit;
   const res = await fetch(onlineEndpoint(q), { headers: onlineHeaders() });
   if(!res.ok) throw new Error('Online leaderboard load failed: '+res.status);
   const rows = await res.json();
@@ -120,6 +134,10 @@ async function loadOnlineLeaderboard(){
     country_code: r.country_code || 'TH',
     character: r.character || 'Unknown',
     score: r.score || 0,
+    scoreBeforePenalty: r.score_before_penalty || r.score || 0,
+    deathPenaltyPercent: r.death_penalty_percent || 0,
+    deathPenaltyAmount: r.death_penalty_amount || 0,
+    deathPenaltyReason: r.death_penalty_reason || '',
     kills: r.kills || 0,
     time: r.time || 0,
     won: !!r.won,
@@ -127,6 +145,9 @@ async function loadOnlineLeaderboard(){
     stage: r.stage || 1,
     damage: r.damage || 0,
     items: r.items || 0,
+    difficultyId: r.difficulty_id || 'normal',
+    difficultyName: r.difficulty_name || 'Normal',
+    difficultyMultiplier: r.difficulty_multiplier || 1,
     pactIds: r.pact_ids || [],
     pactMultiplier: r.pact_multiplier || 1,
     pactLabel: r.pact_label || '',
