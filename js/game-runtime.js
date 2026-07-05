@@ -317,6 +317,7 @@ function applyStaticI18n(){
   if(document.getElementById('firsthelp')&&document.getElementById('firsthelp').style.display==='flex') renderFirstHelp();
   if(document.getElementById('whatsnew')&&document.getElementById('whatsnew').style.display==='flex') renderWhatsNew();
   updateScreenShakeButton();
+  updateAudioButtons();
   document.querySelectorAll('.langtoggle').forEach(langBox=>{ const span=langBox.querySelector('span'); if(span) span.textContent=tr('lang.label'); langBox.querySelector('[data-lang="th"]').textContent=tr('lang.th'); langBox.querySelector('[data-lang="en"]').textContent=tr('lang.en'); langBox.querySelectorAll('button').forEach(btn=>btn.classList.toggle('active', btn.dataset.lang===lang)); });
 }
 window.tr=tr; window.setGameLanguage=setGameLanguage; window.gameLang=gameLang; window.updateRankToggleLabel=updateRankToggleLabel;
@@ -773,7 +774,7 @@ let runStats = null;
 let stageStartTime = 0;                       // gameTime when the current stage began
 function stageTime(){ return gameTime - stageStartTime; }   // per-stage clock (resets each map)
 function healCap(p){ return Math.round(p.maxHp*(1+(p.overheal||0))); }   // Chonkplate lets HP exceed max
-// Overtime starts at x2, then climbs x3, x4, x5... with difficulty-specific pacing.
+// Overtime starts at x2, then climbs x3, x4, x5... on a shared cadence.
 function overtimeThreshold(){ return activeDifficulty().otStart || RUN_TARGET; }
 function overtimeStep(){ return activeDifficulty().otStep || 60; }
 function overtimeCapBase(){ return activeDifficulty().otCapBase || 220; }
@@ -805,9 +806,12 @@ let mbTimer = 0;
 let nextMinibossAt = 180;
 const MINIBOSS_INTERVAL = 55;
 const BUTCHER_RUN_CHANCE = 0.20;
+const BUTCHER_OVERTIME_CHANCE = 0.16;
+const BUTCHER_OVERTIME_ROLL_INTERVAL = 45;
 let butcherRunEligible = Math.random() < BUTCHER_RUN_CHANCE;
 let butcherAppeared = false;
 let nextButcherAt = butcherRunEligible ? 360 + Math.random()*120 : Infinity;
+let nextButcherOvertimeRollAt = Infinity;
 let butcherActive = false;
 let butcherKills = 0;
 const CHALLENGE_ONLY_ENEMIES = new Set([
@@ -858,14 +862,14 @@ let activePactIds = [];
 let pactMultiplier = 1;
 const DIFFICULTIES = [
   { id:'casual', name:'Casual', badge:'ฝึก · ไม่นับ Ranking', mult:0.6, hp:0.82, atk:0.82, bossHp:0.88, bossAtk:0.88, spawnCap:0.78, spawnInterval:1.22, spawnBatch:0.82,
-    otStart:600, otStep:60, otCapBase:170, otCapStep:24,
-    desc:'โหมดฝึกลองตัวละครและบิลด์ มอนพิเศษลดลง ปิด Pact และไม่ขึ้น Ranking', meta:'Score x0.60 · Unranked · OT 10:00 / x2 แล้ว +1 ทุก 60 วิ' },
+    otStart:600, otStep:30, otCapBase:170, otCapStep:24,
+    desc:'โหมดฝึกลองตัวละครและบิลด์ มอนพิเศษลดลง ปิด Pact และไม่ขึ้น Ranking', meta:'Score x0.60 · Unranked · OT 10:00 / x2 แล้ว +1 ทุก 30 วิ' },
   { id:'normal', name:'Normal', badge:'เริ่มที่นี่', mult:1.0, hp:1, atk:1, bossHp:1, bossAtk:1, spawnCap:1, spawnInterval:1, spawnBatch:1,
-    otStart:600, otStep:60, otCapBase:220, otCapStep:40,
-    desc:'โหมดมาตรฐานสำหรับเล่นจริง เคลียร์ Map 3 เพื่อปลดล็อก Pact ระดับ Normal', meta:'Score x1.00 · ใช้ Pact ได้ · OT 10:00 / x2 แล้ว +1 ทุก 60 วิ' },
+    otStart:600, otStep:30, otCapBase:220, otCapStep:40,
+    desc:'โหมดมาตรฐานสำหรับเล่นจริง เคลียร์ Map 3 เพื่อปลดล็อก Pact ระดับ Normal', meta:'Score x1.00 · ใช้ Pact ได้ · OT 10:00 / x2 แล้ว +1 ทุก 30 วิ' },
   { id:'hard', name:'Hard', badge:'เอาคะแนน', mult:1.4, hp:1.18, atk:1.15, bossHp:1.16, bossAtk:1.12, spawnCap:1.18, spawnInterval:0.88, spawnBatch:1.22,
-    otStart:600, otStep:60, otCapBase:250, otCapStep:52,
-    desc:'มอนโหดขึ้น และ Pact ระดับ Hard ต้องปลดด้วยการเคลียร์ Hard เท่านั้น', meta:'Score x1.40 · Hard enemy pool · OT 10:00 / x2 แล้ว +1 ทุก 60 วิ' }
+    otStart:600, otStep:30, otCapBase:250, otCapStep:52,
+    desc:'มอนโหดขึ้น และ Pact ระดับ Hard ต้องปลดด้วยการเคลียร์ Hard เท่านั้น', meta:'Score x1.40 · Hard enemy pool · OT 10:00 / x2 แล้ว +1 ทุก 30 วิ' }
 ] ;
 let activeDifficultyId = 'normal';
 let lastPactUnlocks = [];
@@ -903,7 +907,7 @@ function buildPauseInfo(){
 function togglePause(){
   if (gameOver || paused) return;            // don't toggle during level-up
   userPaused = !userPaused;
-  if (userPaused) { buildPauseInfo(); updateScreenShakeButton(); }
+  if (userPaused) { buildPauseInfo(); updateScreenShakeButton(); updateAudioButtons(); }
   document.getElementById('pause').style.display = userPaused ? 'flex' : 'none';
   document.getElementById('pausebtn').textContent = userPaused ? '▶' : '⏸';
   document.body.classList.toggle('user-paused', userPaused);
@@ -926,8 +930,33 @@ function toggleScreenShakeSetting(){
   else localStorage.setItem('sc3_screen_shake_off_v1', off ? '1' : '0');
   updateScreenShakeButton();
 }
+function audioMutedSetting(){
+  return typeof isAudioMuted==='function' ? isAudioMuted() : localStorage.getItem('sc3_audio_muted_v1') === '1';
+}
+function updateAudioButtons(){
+  const off=audioMutedSetting();
+  const label='Sound: '+(off?'OFF':'ON');
+  const pauseBtn=document.getElementById('audiobtn');
+  if(pauseBtn){
+    pauseBtn.textContent=label;
+    pauseBtn.classList.toggle('off', off);
+  }
+  const hudBtn=document.getElementById('mutebtn');
+  if(hudBtn){
+    hudBtn.textContent=off ? 'MUTE' : 'SND';
+    hudBtn.title=label;
+    hudBtn.setAttribute('aria-label', label);
+    hudBtn.classList.toggle('off', off);
+  }
+}
+function toggleAudioSetting(){
+  if(typeof toggleAudioMuted==='function') toggleAudioMuted();
+  else localStorage.setItem('sc3_audio_muted_v1', audioMutedSetting() ? '0' : '1');
+  updateAudioButtons();
+}
 document.addEventListener('click', e=>{
   if(e.target && e.target.id==='screenshakebtn') toggleScreenShakeSetting();
+  if(e.target && (e.target.id==='audiobtn' || e.target.id==='mutebtn')) toggleAudioSetting();
 });
 // Dash trigger shared by keyboard (Space) and the mobile Dash button.
 function tryDash(){
@@ -1020,7 +1049,7 @@ function closeAuthChoice(){
 function whatsNewItems(){
   if(gameLang()==='en') return [
     ['Death penalty','Dying now reduces final score: -20% normally, -15% after Overtime, and -10% on Map 3. Clears are not penalized.'],
-    ['Overtime rules','All difficulties now start Overtime at 10:00. Enemy pressure begins at x2, then rises to x3, x4, x5 and keeps climbing every 60 seconds.'],
+    ['Overtime rules','All difficulties now start Overtime at 10:00. Enemy pressure begins at x2, then rises to x3, x4, x5 and keeps climbing every 30 seconds.'],
     ['Score summary','Run Summary now shows final score, base score, and Death Penalty so you can see exactly why points changed. Ranking uses the final score.'],
     ['Difficulty balance','Casual, Normal, and Hard keep their own enemy/score settings, but Overtime timing is shared so runs are easier to compare.'],
     ['Challenge rooms','Mystery gates can lead to Treasure Vault, Cursed Shrine Room, Butcher Arena, Soul Trial, or Merchant Trap.'],
@@ -1028,7 +1057,7 @@ function whatsNewItems(){
   ];
   return [
     ['คะแนนเมื่อตาย','ตายแล้วคะแนนสุดท้ายจะลดลง: ปกติ -20%, หลัง Overtime -15%, และ Map 3 -10% ถ้าเคลียร์สำเร็จจะไม่โดนหัก'],
-    ['กติกา Overtime','ทุกระดับความยากเริ่ม Overtime ที่ 10:00 เหมือนกัน เริ่ม x2 แล้วเพิ่มเป็น x3, x4, x5 ต่อไปทุก 60 วินาที'],
+    ['กติกา Overtime','ทุกระดับความยากเริ่ม Overtime ที่ 10:00 เหมือนกัน เริ่ม x2 แล้วเพิ่มเป็น x3, x4, x5 ต่อไปทุก 30 วินาที'],
     ['สรุปคะแนนชัดขึ้น','หน้า Run Summary แสดงคะแนนสุดท้าย คะแนนก่อนหัก และ Death Penalty เพื่อให้รู้ว่าคะแนนหายไปเท่าไหร่ Ranking ใช้คะแนนหลังหัก'],
     ['ปรับสมดุลระดับความยาก','Casual, Normal และ Hard ยังมีค่าสถานะ/คะแนนต่างกัน แต่เวลา Overtime เท่ากันเพื่อให้เปรียบเทียบรันง่ายขึ้น'],
     ['Challenge Room','ประตูลึกลับพาไป Treasure Vault, Cursed Shrine Room, Butcher Arena, Soul Trial หรือ Merchant Trap'],
@@ -1779,7 +1808,7 @@ function openGuide(kind){
       guideTextCard('บิลด์ Ricochet','Football เด้งต่อเป้าหมาย, Shield Toss ทะลุก่อนเด้ง, Bone Boomerang ยิงเป็นโค้งคู่, Bouncing Bomb ทิ้งแรงระเบิด','Ricochet ไม่ส่งผลกับ melee, nova, orbit, smite หรือ lightning'),
       guideTextCard('Knockback','แรงผลักศัตรู ยิ่งเข้า Overtime ศัตรูยิ่งต้านแรงผลักมากขึ้น','ผู้เล่นเองก็โดนมอนสเตอร์ตีจนกระเด็นได้'),
       guideTextCard('Guard','Orbiting Skull บล็อกดาเมจได้ หัวกะโหลกจะหายไปเมื่อบล็อกแล้วค่อยฟื้นตามคูลดาวน์','มีกะโหลกมากเท่ากับกันตายได้มากขึ้น'),
-      guideTextCard('Overtime','หลัง 10:00 ศัตรูจะเริ่มที่ x2 แล้วเพิ่มเป็น x3, x4, x5 ต่อเนื่อง Map 3 เริ่มหลังบอสสุดท้ายตาย','ทุกโหมดเริ่ม Overtime และเพิ่มระดับทุก 60 วิเหมือนกัน เพื่อให้คะแนนเทียบกันง่ายขึ้น')
+      guideTextCard('Overtime','หลัง 10:00 ศัตรูจะเริ่มที่ x2 แล้วเพิ่มเป็น x3, x4, x5 ต่อเนื่อง Map 3 เริ่มหลังบอสสุดท้ายตาย','ทุกโหมดเริ่ม Overtime และเพิ่มระดับทุก 30 วิเหมือนกัน เพื่อให้คะแนนเทียบกันง่ายขึ้น')
     ].join('');
   } else if(kind==='shrine'){
     title='Shrine';

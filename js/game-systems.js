@@ -316,11 +316,13 @@ function killEnemy(e){
   } else {
     dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm));
     dropPickup(e.x, e.z, 'gold', Math.max(1, Math.round(e.xp*0.3*rm)));
-    // 5% chance to drop HP orb (8-15 HP)
-    if (Math.random() < 0.05) dropPickup(e.x, e.z, 'hp', 8+Math.floor(Math.random()*8));
-    const buffRoll=Math.random();
-    if (buffRoll < 0.012) dropPickup(e.x, e.z, 'haste', 12);
-    else if (buffRoll < 0.024) dropPickup(e.x, e.z, 'might', 12);
+    if (!overtimeLevel()) {
+      // 5% chance to drop HP orb (8-15 HP) before overtime.
+      if (Math.random() < 0.05) dropPickup(e.x, e.z, 'hp', 8+Math.floor(Math.random()*8));
+      const buffRoll=Math.random();
+      if (buffRoll < 0.003) dropPickup(e.x, e.z, 'haste', 12);
+      else if (buffRoll < 0.006) dropPickup(e.x, e.z, 'might', 12);
+    }
   }
 }
 function makeBorder(){
@@ -1230,6 +1232,7 @@ function resetEventState(full){
   goldRainT=0; goldRainDropT=0; goldRainSpawnT=0; goldRainCollected=0; goldRainElite=false;
   dontMoveT=0; dontMoveWarnT=0;
   butcherActive=false;
+  nextButcherOvertimeRollAt=Infinity;
   clearEventActors();
   if(full){
     nextGoldRainAt=150;
@@ -1289,6 +1292,19 @@ function spawnDebtCollector(x,z){
 }
 function scheduleNextButcher(delay){
   nextButcherAt=(butcherRunEligible && !butcherAppeared) ? gameTime+(delay||150)+Math.random()*150 : Infinity;
+}
+function updateOvertimeButcherRoll(){
+  if(butcherAppeared || butcherActive || gameOver || won || !player || !player.alive) return;
+  if(!overtimeLevel()){
+    nextButcherOvertimeRollAt=Infinity;
+    return;
+  }
+  if(nextButcherOvertimeRollAt===Infinity) nextButcherOvertimeRollAt=gameTime+10+Math.random()*12;
+  if(gameTime<nextButcherOvertimeRollAt) return;
+  nextButcherOvertimeRollAt=gameTime+BUTCHER_OVERTIME_ROLL_INTERVAL+Math.random()*25;
+  if(Math.random()>=BUTCHER_OVERTIME_CHANCE) return;
+  butcherRunEligible=true;
+  nextButcherAt=Math.min(nextButcherAt,gameTime+1.5+Math.random()*3.5);
 }
 function spawnButcher(force){
   if((!force && (!butcherRunEligible || butcherAppeared)) || butcherActive || gameOver || won || !player || !player.alive) return false;
@@ -1622,13 +1638,16 @@ const SK = {
   wyrmMeteor:{ cd:5.8, fn:(e)=>{ const base=bossPlayerAngle(e); for(let i=0;i<7;i++){ const a=base+(i-3)*0.20, sx=e.x+Math.cos(a+Math.PI*0.5)*(i-3)*0.62, sz=e.z+Math.sin(a+Math.PI*0.5)*(i-3)*0.62; spawnEnemyShot(sx,sz,Math.cos(a),Math.sin(a),Math.round(e.atk*(i%3===0?1.15:0.9))); if(i%3===0) bossAoe(e,sx+Math.cos(a)*3.4,sz+Math.sin(a)*3.4,2.1,0.9+i*0.03,1.15,0x55ddff,12,'arcane'); } bossRing(e,12,gameTime*0.7,0.72); spawnBurst(e.x,e.z,0x55ddff,18,1.1); e.flash=0.16; } },
   overlordStar:{ cd:3.8, fn:(e)=>{ const a=gameTime*0.9; bossRing(e,20,a,0.8); bossCross(e,a+Math.PI/8,1.0); bossFan(e,bossPlayerAngle(e),9,0.11,1.05); spawnObjectPulse(e.x,e.z,0x9a55ff,e.r*3.4,0.48); e.flash=0.2; } },
   overlordJudgment:{ cd:6.2, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<4;i++) bossFan(e,a+i*Math.PI*0.5,7,0.12,0.9); bossRing(e,28,a+Math.PI/28,0.78); bossAoe(e,player.x,player.z,3.7,1.05,1.25,0xff3355,16,'void',{danger:true,markSpin:0.65}); for(let i=0;i<4;i++){ const q=a+i*Math.PI*0.5; bossAoe(e,e.x+Math.cos(q)*5.2,e.z+Math.sin(q)*5.2,2.7,1.15,1.0,0x78dfff,13,'void',{danger:true,markRot:q,markSpin:-0.45}); } if((e.finalPhase||3)<=2) for(let i=0;i<2;i++){ const q=a+(i?1:-1)*1.2; spawnAddAt(e.x+Math.cos(q)*5,e.z+Math.sin(q)*5); } spawnBurst(e.x,e.z,0xff3355,32,1.35); shake(0.42,0.3); e.flash=0.24; } },
+  voidChains:{ cd:5.4, fn:(e)=>{ const a=bossPlayerAngle(e); bossAoe(e,player.x,player.z,2.25,0.55,0.82,0x8d55ff,18,'void',{danger:true,markSpin:0.8}); for(let k=-2;k<=2;k++){ const q=a+k*0.36, x=player.x+Math.cos(q)*2.6, z=player.z+Math.sin(q)*2.6; bossAoe(e,x,z,1.45,0.72+Math.abs(k)*0.04,0.70,0x8d55ff,15,'void',{danger:true,markRot:q}); } spawnObjectPulse(player.x,player.z,0x8d55ff,4.8,0.55); spawnBurst(player.x,player.z,0x8d55ff,16,0.9); showToast('VOID CHAINS!',1.0); e.flash=0.22; } },
+  mirrorRift:{ cd:5.8, fn:(e)=>{ const base=bossPlayerAngle(e)+Math.PI*0.5, n=(e.finalPhase||3)<=2?3:2; for(let i=0;i<n;i++){ const side=i-(n-1)/2, x=clamp(player.x+Math.cos(base)*side*3.4+Math.cos(base+Math.PI*0.5)*2.2,-MAP_BOUND,MAP_BOUND), z=clamp(player.z+Math.sin(base)*side*3.4+Math.sin(base+Math.PI*0.5)*2.2,-MAP_BOUND,MAP_BOUND); spawnObjectPulse(x,z,0x78dfff,2.4,0.55); spawnRing(x,z,0x78dfff,2.0,0.36); for(let k=-2;k<=2;k++){ const a=bossPlayerAngle({x,z})+k*0.18; spawnEnemyShot(x,z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.85),{ speed:10.5, life:2.2, color:0x78dfff, coreColor:0xf0ffff, hitRadius:0.34, trailScale:0.34 }); } } e.flash=0.18; } },
+  overlordBlinkCharge:{ cd:4.4, fn:(e)=>{ const a=bossPlayerAngle(e); const side=(Math.random()<0.5?-1:1)*1.35; const ox=Math.cos(a+side)*2.0, oz=Math.sin(a+side)*2.0; spawnBurst(e.x,e.z,0x9a55ff,18,1.0); e.x=clamp(player.x-Math.cos(a)*4.2+ox,-MAP_BOUND,MAP_BOUND); e.z=clamp(player.z-Math.sin(a)*4.2+oz,-MAP_BOUND,MAP_BOUND); e.charging=0.58; e.cdx=Math.cos(a); e.cdz=Math.sin(a); bossAoe(e,e.x+e.cdx*3.0,e.z+e.cdz*3.0,2.35,0.5,0.86,0xff3355,16,'void',{danger:true,markRot:a}); spawnObjectPulse(e.x,e.z,0x9a55ff,e.r*2.6,0.42); spawnBurst(e.x,e.z,0xff3355,22,1.15); shake(0.30,0.18); e.flash=0.24; } },
 };
 const BOSS_SKILLS = {
   boss_lich:     ['lichCross','lichPrison','summon'],
   boss_behemoth: ['behemothSlam','behemothQuake','charge'],
   boss_reaper:   ['reaperScythes','reaperBlink','scatter'],
   boss_dragon:   ['wyrmBreath','wyrmMeteor','charge'],
-  boss_overlord: ['overlordStar','overlordJudgment','summon3'],
+  boss_overlord: ['overlordStar','overlordJudgment','voidChains','mirrorRift','overlordBlinkCharge','summon3'],
 };
 const MB_SKILLS = {
   miniboss_colossus:      ['stoneWall','ancientQuake','charge'],
@@ -1647,7 +1666,7 @@ function setupFinalBoss(e){
   e.phaseSummonDone={};
   e.finalPulseT=1.2;
   e.damageTakenMul=0.42;
-  e.spd=42*SPD_SCALE*BOSS_SPEED_MUL;
+  e.spd=52*SPD_SCALE*BOSS_SPEED_MUL;
   e.atk=Math.round(e.atk*1.18);
 }
 function spawnBossAddAt(cx,cz,type,stageBoss){
@@ -1704,7 +1723,7 @@ function updateFinalBossPhase(e,dt){
     e.hp=Math.max(e.hp,e.phaseHp*(nextPhase-1)+1);
     e.spd*=nextPhase===2?1.12:1.18;
     e.atk=Math.round(e.atk*(nextPhase===2?1.1:1.16));
-    e.skills = nextPhase===2 ? [SK.overlordStar,SK.bigRing,SK.scatter,SK.summon3,SK.charge].filter(Boolean) : [SK.overlordJudgment,SK.overlordStar,SK.spiral,SK.bigRing,SK.fan,SK.charge,SK.summon3].filter(Boolean);
+    e.skills = nextPhase===2 ? [SK.overlordStar,SK.voidChains,SK.mirrorRift,SK.bigRing,SK.scatter,SK.summon3,SK.overlordBlinkCharge].filter(Boolean) : [SK.overlordJudgment,SK.voidChains,SK.mirrorRift,SK.overlordStar,SK.spiral,SK.bigRing,SK.fan,SK.overlordBlinkCharge,SK.summon3].filter(Boolean);
     e.skillT=e.skills.map((s,i)=>0.4+i*0.42);
     summonFinalBossWave(e,nextPhase);
   }
@@ -1731,12 +1750,16 @@ function spawnTelegraph(e){
   spawnRing(e.x,e.z,0xffffff,radius*0.62,0.42);
   e.flash=Math.max(e.flash,0.16);
 }
+function finalBossSkillPace(e){
+  if(!e || !e.final) return 1;
+  return e.finalPhase===1 ? 0.58 : e.finalPhase===2 ? 0.68 : 0.75;
+}
 function runSkills(e, dt, nx, nz, d){
   const fast = e.hp < e.maxHp*0.5 ? 0.62 : 1;   // enrage -> faster skills
   if (e.castT>0){ e.castT-=dt; if (e.castT<=0 && e.castSkill) e.castSkill.fn(e, nx, nz, d); return; }
   for (let i=0;i<e.skills.length;i++){
     e.skillT[i] -= dt;
-    if (e.skillT[i] <= 0){ e.castSkill=e.skills[i]; e.castT=e.isStageBoss?0.7:0.52; e.skillT[i]=e.skills[i].cd*fast; spawnTelegraph(e); break; }
+    if (e.skillT[i] <= 0){ e.castSkill=e.skills[i]; e.castT=e.final?0.52:(e.isStageBoss?0.7:0.52); e.skillT[i]=e.skills[i].cd*fast*finalBossSkillPace(e); spawnTelegraph(e); break; }
   }
 }
 function ensurePickupIconTexture(key,type){

@@ -715,6 +715,11 @@
              font-family:monospace; font-size:16px; line-height:1; padding:5px 11px; z-index:7; }
   body.user-paused #pausebtn{ border-color:#ffcc66; color:#fff8e8; background:rgba(65,28,48,.92); }
   #pausebtn:hover{ border-color:#ffcc00; color:#fff; }
+  #mutebtn{ position:absolute; top:12px; left:calc(50% + 50px); min-width:44px; transform:translateX(-50%); pointer-events:auto; cursor:pointer;
+             background:rgba(20,14,30,.82); color:#cdbff0; border:1px solid #5a4a8a; border-radius:6px;
+             font-family:monospace; font-size:11px; line-height:1; padding:7px 9px; z-index:7; }
+  #mutebtn.off{ border-color:#4d88b4; color:#9fd8ff; background:rgba(16,29,45,.92); }
+  #mutebtn:hover{ border-color:#ffcc00; color:#fff; }
   #updatebtn{ display:none; position:absolute; top:48px; left:50%; transform:translateX(-50%); z-index:7; pointer-events:auto; cursor:pointer;
               background:#982a42; color:#fff8e8; border:2px solid #e5b55a; border-radius:5px;
               font-family:monospace; font-size:12px; font-weight:bold; padding:7px 12px;
@@ -728,6 +733,7 @@
     margin:0; box-sizing:border-box; display:inline-flex; align-items:center; justify-content:center;
     background:#351121; color:#ffe08a; border:1px solid #8a4a5a; font-family:monospace; font-size:14px; font-weight:bold; line-height:1.15; }
   .pauseactions #screenshakebtn.off{ color:#9fd8ff; border-color:#4d88b4; background:#101d2d; }
+  .pauseactions #audiobtn.off{ color:#9fd8ff; border-color:#4d88b4; background:#101d2d; }
   .pauseactions button:hover{ color:#fff8e8; border-color:#ffcc66; background:#552034; }
   #c { display: block; width: 100vw; height: 100vh; }
   #hud { position: fixed; inset: 0; pointer-events: none; color: #fff; }
@@ -834,6 +840,7 @@
     #topright .t{ font-size:15px; }
     #charname,#fps{ display:none; }
     #pausebtn{ top:calc(7px + env(safe-area-inset-top)); padding:6px 10px; min-width:38px; min-height:32px; font-size:13px; border-radius:7px; }
+    #mutebtn{ top:calc(7px + env(safe-area-inset-top)); left:calc(50% + 45px); min-width:38px; min-height:32px; padding:6px 8px; font-size:10px; border-radius:7px; }
     #updatebtn{ top:calc(66px + env(safe-area-inset-top)); left:50%; right:auto; transform:translateX(-50%); max-width:150px; min-height:30px; padding:5px 8px; font-size:10px; }
     #bossbar{ top:calc(38px + env(safe-area-inset-top)); width:68%; height:13px; }
     #bossbar span{ font-size:8px; line-height:11px; }

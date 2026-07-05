@@ -6,6 +6,27 @@ function monsterContactKnockback(e){
   const base = e && e.isBoss ? 13 : e && e.elite ? 11 : 8.5;
   return base * PLAYER_CONTACT_KNOCKBACK_MUL;
 }
+function separateNearbyEnemies(a, i){
+  const radius=4;
+  const minX=Math.floor((a.x-radius)/ENEMY_GRID_SIZE), maxX=Math.floor((a.x+radius)/ENEMY_GRID_SIZE);
+  const minZ=Math.floor((a.z-radius)/ENEMY_GRID_SIZE), maxZ=Math.floor((a.z+radius)/ENEMY_GRID_SIZE);
+  for(let cx=minX;cx<=maxX;cx++) for(let cz=minZ;cz<=maxZ;cz++){
+    const bucket=enemyGrid.get(enemyGridKey(cx,cz));
+    if(!bucket) continue;
+    for(let bi=0;bi<bucket.length;bi++){
+      const b=bucket[bi];
+      if(!b.alive) continue;
+      const j=b.gridIndex;
+      if(j<=i) continue;
+      let ddx=b.x-a.x, ddz=b.z-a.z, dd=ddx*ddx+ddz*ddz, mr=(a.r+b.r)*0.92;
+      if(dd<1e-4){ const ang=((i*37+j*71)%360)*Math.PI/180; ddx=Math.cos(ang)*0.02; ddz=Math.sin(ang)*0.02; dd=0.0004; }
+      if(dd<mr*mr){ const di=Math.sqrt(dd), push=(mr-di)*0.52, ux=ddx/di, uz=ddz/di;
+        const aw=b.isBoss?0.75:1, bw=a.isBoss?0.75:1, total=aw+bw;
+        a.x-=ux*push*aw/total; a.z-=uz*push*aw/total;
+        b.x+=ux*push*bw/total; b.z+=uz*push*bw/total; }
+    }
+  }
+}
 function rotateProjectileToVelocity(p){
   if(p && p.orient && p.mesh && p.mesh.material) p.mesh.material.rotation=-Math.atan2(p.dz,p.dx);
 }
@@ -13,13 +34,50 @@ function ricochetTarget(p, origin){
   if(!p || !origin || !p.bounceRadius) return null;
   let best=null, bd=(p.bounceRadius||8);
   forEachNearbyEnemy(origin.x, origin.z, bd+2, e=>{
-    if(!e.alive || p.hit.has(e)) return;
+    if(!e.alive) return;
     const dx=e.x-origin.x, dz=e.z-origin.z;
     const d=Math.hypot(dx,dz);
     if(d<0.25 || d>bd+e.r) return;
+    if(p.hit.has(e)) return;
     if(!best || d<bd){ best=e; bd=d; }
   });
   return best;
+}
+function startPlayerRicochet(p, fromEnemy){
+  if(!player || !player.alive) return false;
+  const dx=player.x-p.x, dz=player.z-p.z, len=Math.hypot(dx,dz);
+  if(len<0.9) return false;
+  p.dx=dx/len; p.dz=dz/len;
+  p.returningToPlayer=true;
+  p.lastRicochetEnemy=fromEnemy||null;
+  p.dmg=Math.max(1, Math.round(p.dmg*(p.bounceDmgMul||0.88)));
+  p.bouncesLeft--;
+  p.life=Math.max(p.life, Math.min(1.1, Math.max(0.35, len/Math.max(1,p.speed)+0.24)));
+  rotateProjectileToVelocity(p);
+  const shape=p.shape||'orb';
+  spawnRing(fromEnemy.x, fromEnemy.z, p.color||0xffffff, shape==='shield'?1.45:1.15, 0.18);
+  spawnBurst(fromEnemy.x, fromEnemy.z, p.color||0xffffff, shape==='shield'?6:4, shape==='shield'?0.5:0.42);
+  return true;
+}
+function finishPlayerRicochet(p){
+  if(!p || !p.returningToPlayer) return false;
+  const dx=p.x-player.x, dz=p.z-player.z;
+  const touch=0.82+(p.hitRadius||0.4)*(p.scale||1);
+  if(dx*dx+dz*dz>touch*touch) return false;
+  if(p.hit) p.hit.clear();
+  const target=ricochetTarget(p,{ x:player.x, z:player.z, r:0, alive:true }) || (p.lastRicochetEnemy&&p.lastRicochetEnemy.alive?p.lastRicochetEnemy:null);
+  if(!target){ p.alive=false; return true; }
+  const tx=target.x-player.x, tz=target.z-player.z, len=Math.hypot(tx,tz)||1;
+  p.x=player.x+tx/len*(touch+0.12);
+  p.z=player.z+tz/len*(touch+0.12);
+  p.dx=tx/len; p.dz=tz/len;
+  p.returningToPlayer=false;
+  p.lastRicochetEnemy=null;
+  p.life=Math.max(p.life, Math.min(0.9, Math.max(0.28, len/Math.max(1,p.speed)+0.16)));
+  rotateProjectileToVelocity(p);
+  spawnRing(player.x, player.z, p.color||0xffffff, 0.9, 0.14);
+  spawnBurst(player.x, player.z, p.color||0xffffff, 4, 0.32);
+  return true;
 }
 function projectileImpactSplash(p, e){
   if(!p || !e || !p.impactRadius) return;
@@ -54,7 +112,7 @@ function projectileHitFlash(p, e){
 function tryProjectileRicochet(p, fromEnemy){
   if(!p || (p.bouncesLeft||0)<=0) return false;
   const target=ricochetTarget(p, fromEnemy);
-  if(!target) return false;
+  if(!target) return startPlayerRicochet(p, fromEnemy);
   const dx=target.x-p.x, dz=target.z-p.z, len=Math.hypot(dx,dz)||1;
   p.dx=dx/len; p.dz=dz/len;
   p.dmg=Math.max(1, Math.round(p.dmg*(p.bounceDmgMul||0.88)));
@@ -309,16 +367,7 @@ function update(dt) {
   rebuildEnemyGrid();
   for(let pass=0;pass<2;pass++){
     for (let i=0;i<enemies.length;i++){ const a=enemies[i]; if(!a.alive) continue;
-      forEachNearbyEnemy(a.x,a.z,4,b=>{
-        const j=b.gridIndex;
-        if(j<=i) return;
-        let ddx=b.x-a.x, ddz=b.z-a.z, dd=ddx*ddx+ddz*ddz, mr=(a.r+b.r)*0.92;
-        if(dd<1e-4){ const ang=((i*37+j*71)%360)*Math.PI/180; ddx=Math.cos(ang)*0.02; ddz=Math.sin(ang)*0.02; dd=0.0004; }
-        if(dd<mr*mr){ const di=Math.sqrt(dd), push=(mr-di)*0.52, ux=ddx/di, uz=ddz/di;
-          const aw=b.isBoss?0.75:1, bw=a.isBoss?0.75:1, total=aw+bw;
-          a.x-=ux*push*aw/total; a.z-=uz*push*aw/total;
-          b.x+=ux*push*bw/total; b.z+=uz*push*bw/total; }
-      });
+      separateNearbyEnemies(a, i);
     }
   }
   rebuildEnemyGrid();
@@ -354,6 +403,7 @@ function update(dt) {
     p.x += p.dx*p.speed*dt; p.z += p.dz*p.speed*dt; p.life-=dt;
     if(p.spin && p.mesh.material) p.mesh.material.rotation+=p.spin*dt;
     if (!p.noTrail && frameN%(p.trailEvery||2)===0) spawnTrail(p.x-p.dx*0.12, p.z-p.dz*0.12, p.color||0xffffff, (p.trailScale||((p.scale||1)*0.9)));
+    if(finishPlayerRicochet(p)) continue;
     if (p.life<=0){ p.alive=false; continue; }
     if (blocked(p.x, p.z)){ if(!p.noTrail) spawnBurst(p.x,p.z,p.color||0xffffff,3,0.34); p.alive=false; continue; }   // hit scenery -> stop
     if(!p.breakHit) p.breakHit=new Set();
@@ -559,6 +609,7 @@ function update(dt) {
       mbTimer=0;
       nextMinibossAt+=MINIBOSS_INTERVAL;
     }
+    updateOvertimeButcherRoll();
     if(butcherRunEligible && !butcherAppeared && gameTime>=nextButcherAt && !butcherActive && enemies.length<maxEnemies+8){
       if(!(boss&&boss.alive)) spawnButcher();
       else scheduleNextButcher(25);

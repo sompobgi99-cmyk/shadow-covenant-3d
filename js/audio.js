@@ -1,15 +1,35 @@
 // ---- Sound Effects (Web Audio API, procedural, no external files) ----
 let audioCtx = null;
 const sfxLast = {};
+const AUDIO_MUTE_KEY = 'sc3_audio_muted_v1';
+function isAudioMuted(){
+  try { return localStorage.getItem(AUDIO_MUTE_KEY) === '1'; } catch(e) { return false; }
+}
 function initAudio() {
   if (audioCtx) return;
   try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  if (isAudioMuted() && audioCtx && audioCtx.state !== 'closed') {
+    const p = audioCtx.suspend();
+    if (p && p.catch) p.catch(()=>{});
+  }
 }
 function resumeAudio() {
+  if (isAudioMuted()) return;
   if (audioCtx && audioCtx.state === 'suspended') {
     const p = audioCtx.resume();
     if (p && p.catch) p.catch(()=>{});
   }
+}
+function setAudioMuted(muted){
+  try { localStorage.setItem(AUDIO_MUTE_KEY, muted ? '1' : '0'); } catch(e) {}
+  if (!audioCtx || audioCtx.state === 'closed') return;
+  const p = muted ? audioCtx.suspend() : audioCtx.resume();
+  if (p && p.catch) p.catch(()=>{});
+}
+function toggleAudioMuted(){
+  const muted = !isAudioMuted();
+  setAudioMuted(muted);
+  return muted;
 }
 function sfxAllowed(type, gap){
   const now = audioCtx ? audioCtx.currentTime : 0;
@@ -28,6 +48,7 @@ function noiseHit(t, dur, freq, q, vol){
   s.connect(f); f.connect(g); g.connect(audioCtx.destination); s.start(t);
 }
 function sfx(type) {
+  if (isAudioMuted()) return;
   if (!audioCtx) return;
   const t = audioCtx.currentTime;
   const g = audioCtx.createGain();
@@ -135,6 +156,7 @@ function sfx(type) {
 // ---- Title BGM (procedural ambient, loop) ----
 let titleBgm = null;
 function startTitleBGM() {
+  if (isAudioMuted()) return;
   if (!audioCtx || audioCtx.state !== 'running' || titleBgm) return;
   const now = audioCtx.currentTime;
   const masterGain = audioCtx.createGain();
