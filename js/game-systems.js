@@ -310,7 +310,8 @@ function killEnemy(e){
   } else if (e.mimic) {
     for (let i=0;i<7;i++) dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm));
     for (let i=0;i<12;i++) dropPickup(e.x, e.z, 'gold', Math.round(4*rm));
-    if (Math.random()<0.55) { const item=rollItemDrop(e.tier>=1); if(item) spawnGroundItem(e.x,e.z,item); }
+    const item=rollItemDrop(e.tier>=1) || rollItemDrop(true);
+    if(item) spawnGroundItem(e.x,e.z,item);
     if (Math.random()<0.35) spawnHauntedClone(18);
   } else {
     dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm));

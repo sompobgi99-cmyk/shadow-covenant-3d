@@ -246,7 +246,7 @@ Object.assign(ITEM_I18N,{
 });
 Object.assign(CHAR_I18N,{
   paladin:{en:{bio:'A holy warrior who forgives everyone, except when the cooldown is ready.',passive:'Armor +2 / Lv (heavy tank, slower movement and attacks)'}},
-  huntress:{en:{bio:'Can track every monster on the map, but still loses her own house keys.',passive:'Attack speed +3.5% / Lv'}},
+  huntress:{en:{bio:'Can track every monster on the map, but still loses her own house keys.',passive:'Attack speed +2.5% / Lv'}},
   sorceress:{en:{bio:'Solves most problems with large explosions, then asks what the problem was.',passive:'Damage +2% / Lv'}},
   templar:{en:{bio:'Bound by an old bone oath. The skulls do the staring so he can focus on surviving.',passive:'Damage +1%, max HP +4 / Lv'}},
   ranger:{en:{bio:'Loves nature, but not the parts of nature sprinting directly at him.',passive:'Move speed +1.5% / Lv'}},
@@ -255,8 +255,8 @@ Object.assign(CHAR_I18N,{
   priestess:{en:{bio:'Heals with a smile, then politely smites anyone who forgets to say thanks.',passive:'Regeneration +0.3 and heal / Lv'}},
   stormcaller:{en:{bio:'Calls lightning very precisely, except when her phone also needs charging.',passive:'Critical damage +6% / Lv'}},
   assassin:{en:{bio:'So good at vanishing that teammates forget to split loot with her.',passive:'Critical chance +1%, evade +1% / Lv'}},
-  it_support:{en:{bio:'Always called when systems crash, and always asks, "Have you tried restarting it?"',passive:'Skill size +1.5%, attack range +1.5% / Lv'}},
-  striker:{en:{bio:'A tournament forward who turned match pressure into a cursed pact.',passive:'Move speed +0.5%, projectile/object speed +1.5% / Lv'}}
+  it_support:{en:{bio:'Always called when systems crash, and always asks, "Have you tried restarting it?"',passive:'Skill size +1%, attack range +1% / Lv'}},
+  striker:{en:{bio:'A tournament forward who turned match pressure into a cursed pact.',passive:'Move speed +0.5%, projectile/object speed +2% / Lv'}}
 });
 Object.assign(PACT_I18N,{
   blood_moon:{en:{title:'Blood Moon',desc:'Normal monsters have +50% HP',unlock:'Clear Map 3 on the selected difficulty by killing the final boss and entering the portal'}},
@@ -3211,7 +3211,7 @@ const CHARACTERS = {
   paladin:     { name:'Paladin',     sheet:'player',      weapon:'shieldtoss',
                  stats:{ spd:4.0, rateMul:0.85 }, passive:{ desc:'เกราะ +2 / Lv (แทงค์หนัก เดินช้า ตีช้า)', apply:p=>{ p.def += 2; } } },
   huntress:    { name:'Huntress',    sheet:'huntress',    weapon:'spread',
-                 stats:{ maxHp:70, spd:5.8 }, passive:{ desc:'ความเร็วโจมตี +3.5% / Lv', apply:p=>{ p.rateMul *= 1.035; } } },
+                 stats:{ maxHp:70, spd:5.8 }, passive:{ desc:'ความเร็วโจมตี +2.5% / Lv', apply:p=>{ p.rateMul *= 1.025; } } },
   sorceress:   { name:'Sorceress',   sheet:'sorceress',   weapon:'nova',
                  stats:{ maxHp:65 }, passive:{ desc:'ดาเมจ +2% / Lv', apply:p=>{ p.dmgMul *= 1.02; } } },
   templar:     { name:'Oathbone',    sheet:'templar',     weapon:'orbit',
@@ -3229,9 +3229,9 @@ const CHARACTERS = {
   assassin:    { name:'Assassin',    sheet:'assassin',    weapon:'dagger', portrait:'assassin',
                  stats:{ maxHp:65, spd:5.9, critChance:0.12 }, passive:{ desc:'โอกาสคริติคอล +1%, หลบหลีก +1% / Lv', apply:p=>{ p.critChance += 0.01; p.evade=(p.evade||0)+0.01; } } },
   it_support:  { name:'IT Support',  sheet:'it_support', weapon:'toolstab', portrait:'it_support',
-                 stats:{ maxHp:78, spd:5.5, magnet:3.6, critChance:0.07 }, passive:{ desc:'ขนาดสกิล +1.5%, ระยะสกิล +1.5% / Lv', apply:p=>{ p.projScale *= 1.015; p.rangeMul *= 1.015; } } },
+                 stats:{ maxHp:78, spd:5.5, magnet:3.6, critChance:0.07 }, passive:{ desc:'ขนาดสกิล +1%, ระยะสกิล +1% / Lv', apply:p=>{ p.projScale *= 1.01; p.rangeMul *= 1.01; } } },
   striker:     { name:'Striker',     sheet:'striker',     weapon:'football', portrait:'striker',
-                 stats:{ maxHp:76, spd:5.7, magnet:3.4, critChance:0.06 }, passive:{ desc:'ความเร็วเดิน +0.5%, ความเร็วกระสุน/วัตถุโจมตี +1.5% / Lv', apply:p=>{ p.spd *= 1.005; p.projSpeedMul *= 1.015; } } },
+                 stats:{ maxHp:76, spd:5.7, magnet:3.4, critChance:0.06 }, passive:{ desc:'ความเร็วเดิน +0.5%, ความเร็วกระสุน/วัตถุโจมตี +2% / Lv', apply:p=>{ p.spd *= 1.005; p.projSpeedMul *= 1.02; } } },
 };
 Object.assign(CHARACTERS.templar, {
   stats:{ maxHp:116, spd:5.0, def:8, rateMul:1.08 },
