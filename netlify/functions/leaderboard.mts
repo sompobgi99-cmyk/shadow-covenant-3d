@@ -2,7 +2,7 @@ import { getStore } from "@netlify/blobs";
 import { createHash } from "node:crypto";
 
 const STORE_NAME = "shadow-covenant-ranking";
-const SCORE_KEY = "scores-v4";
+const SCORE_KEY = "scores-v5";
 const RATE_KEY = "post-rate-v1";
 const MAX_STORED = 100;
 const MAX_BODY_BYTES = 4096;
