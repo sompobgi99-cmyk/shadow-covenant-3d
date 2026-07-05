@@ -48,6 +48,20 @@ const particles = [];                       // hit/death bursts
 const PARTICLE_GEO = new THREE.BoxGeometry(0.14,0.14,0.14);
 const trails=[]; const TRAIL_GEO=new THREE.BoxGeometry(0.14,0.14,0.14);
 const EFFECT_PLANE_GEO = new THREE.PlaneGeometry(2,2);
+const burstMaterialCache = new Map();
+function effectColorKey(color){
+  return new THREE.Color(color==null?0xffffff:color).getHexString();
+}
+function getBurstMaterial(color){
+  const key=effectColorKey(color);
+  let mat=burstMaterialCache.get(key);
+  if(!mat){
+    mat=new THREE.MeshBasicMaterial({ color:new THREE.Color('#'+key), transparent:true, depthWrite:false, blending:THREE.AdditiveBlending });
+    mat._shared=true;
+    burstMaterialCache.set(key,mat);
+  }
+  return mat;
+}
 EFFECT_PLANE_GEO.rotateX(-Math.PI/2);
 const MAX_RINGS = 72;
 const MAX_NOVA_WAVES = 48;
@@ -514,7 +528,7 @@ function spawnBurst(x, z, color, n, scl){
   const budget=IS_MOBILE?60:120;   // fewer particles on phones
   const count=Math.min(IS_MOBILE?Math.ceil((n||7)*0.55):(n||7), Math.max(0,budget-particles.length));
   for (let i=0;i<count;i++){ const a=Math.random()*Math.PI*2, sp=2+Math.random()*4;
-    const m=new THREE.Mesh(PARTICLE_GEO, new THREE.MeshBasicMaterial({ color, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending }));
+    const m=new THREE.Mesh(PARTICLE_GEO, getBurstMaterial(color));
     m.scale.setScalar(scl||1); scene.add(m);
     particles.push({ x, z, y:0.6, vx:Math.cos(a)*sp, vz:Math.sin(a)*sp, vy:2+Math.random()*3, life:0.5, max:0.5, mesh:m }); }
 }
@@ -551,6 +565,12 @@ const SHIELDERS = new Set(['Covenant Warder','Dark Apostle']);
 const AIRBORNE  = new Set(['Wraith','Dire Bat','Willow Wisp','Chaos Wisp','Rift Phantom','Nether Drake','Oblivion Orb']);   // Eagle Claw targets
 function behaviorFor(name){ if(WARDERS.has(name))return'warder'; if(THIEVES.has(name))return'thief'; if(PULLERS.has(name))return'puller'; if(HAZARDERS.has(name))return'hazard'; if(SHOOTERS.has(name))return'shooter'; if(CHARGERS.has(name))return'charger'; if(EXPLODERS.has(name))return'exploder'; if(SPLITTERS.has(name))return'splitter'; return'chase'; }
 function hasTrait(e,set){ return !!(e && set && set.has(e.name)); }
+function canReceiveEnemyBuff(source,target){
+  if(!source || !target || !target.alive || target===source || target.isBoss || target.elite) return false;
+  if(target.name===source.name) return false;
+  if(hasTrait(target,BUFFERS) || hasTrait(target,SHIELDERS) || hasTrait(target,WARDERS)) return false;
+  return true;
+}
 function updateWarderAura(e,dt){
   e.wardPulse=(e.wardPulse||0)-dt;
   const radius=6.2;
@@ -601,7 +621,7 @@ function updateEnemyBuffer(e,dt){
   e.buffCd=e.name==='Doom Cantor'?5.8+Math.random()*1.2:6.8+Math.random()*1.5;
   let linked=0;
   forEachNearbyEnemy(e.x,e.z,7.4,t=>{
-    if(linked>=6 || !t.alive || t===e || t.isBoss || t.elite) return;
+    if(linked>=6 || !canReceiveEnemyBuff(e,t)) return;
     const dx=t.x-e.x,dz=t.z-e.z;
     if(dx*dx+dz*dz>(7.4+t.r)*(7.4+t.r)) return;
     t.buffT=Math.max(t.buffT||0,4.0);
@@ -2522,6 +2542,57 @@ function prewarmEffectTextures(){
     console.warn('effect texture prewarm failed', err);
   }
 }
+function prewarmShaders(){
+  if(!renderer || !scene || !camera) return;
+  const group=new THREE.Group();
+  const warmMeshes=[];
+  const add=m=>{ m.visible=true; m.position.set(0,-120,0); group.add(m); warmMeshes.push(m); };
+  try{
+    const spriteMap=tex.hero || tex.char_paladin_idle || tex.px_ground || null;
+    if(spriteMap){
+      add(new THREE.Sprite(new THREE.SpriteMaterial({ map:spriteMap, transparent:true, alphaTest:0.4, depthWrite:true })));
+      add(new THREE.Sprite(new THREE.SpriteMaterial({ map:spriteMap, transparent:true, opacity:0.55, alphaTest:0.08, depthWrite:false, blending:THREE.AdditiveBlending })));
+    }
+    add(new THREE.Mesh(PARTICLE_GEO, getBurstMaterial(0xffd86a)));
+    add(new THREE.Mesh(TRAIL_GEO, new THREE.MeshBasicMaterial({ color:0x7ce7ff, transparent:true, opacity:0.52, blending:THREE.AdditiveBlending, depthWrite:false })));
+    add(new THREE.Mesh(EFFECT_PLANE_GEO, new THREE.MeshBasicMaterial({
+      map:getPixelRingTexture(), color:0xffd86a, transparent:true, opacity:0.9,
+      alphaTest:0.08, side:THREE.DoubleSide, depthWrite:false
+    })));
+    add(new THREE.Mesh(EFFECT_PLANE_GEO, new THREE.MeshBasicMaterial({
+      map:getEntityAuraTexture('object'), color:0x52e7d1, transparent:true, opacity:0.72,
+      alphaTest:0.06, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending
+    })));
+    ['fire','void','arcane','burrow_emerge'].forEach((kind,i)=>{
+      const texKey=kind==='fire'?'fx_boss_aoe_fire_gen':kind==='arcane'?'fx_boss_aoe_arcane_gen':kind==='burrow_emerge'?'fx_burrow_emerge_gen':'fx_boss_aoe_void_gen';
+      add(new THREE.Mesh(EFFECT_PLANE_GEO, new THREE.MeshBasicMaterial({
+        map:tex[texKey]||getBossDangerTexture(), color:[0xffaa44,0x9a55ff,0x55ddff,0x6f5a91][i],
+        transparent:true, opacity:0.5, alphaTest:0.05, side:THREE.DoubleSide,
+        depthWrite:false, blending:THREE.AdditiveBlending
+      })));
+    });
+    add(new THREE.Mesh(new THREE.SphereGeometry(0.26,10,10), new THREE.MeshBasicMaterial({
+      color:0xff5066, transparent:true, opacity:0.20, blending:THREE.AdditiveBlending, depthWrite:false
+    })));
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.72,0.05,0.09), new THREE.MeshBasicMaterial({
+      color:0xffd6a8, transparent:true, opacity:0.98, blending:THREE.AdditiveBlending, depthWrite:false
+    })));
+    scene.add(group);
+    renderer.compile(scene,camera);
+  }catch(err){
+    console.warn('shader prewarm failed', err);
+  }finally{
+    scene.remove(group);
+    for(const m of warmMeshes){
+      if(m.material && !m.material._shared) {
+        const mats=Array.isArray(m.material)?m.material:[m.material];
+        mats.forEach(mat=>{ if(mat && !mat._shared) mat.dispose(); });
+      }
+      if(m.geometry && !m.geometry._shared) m.geometry.dispose();
+    }
+    group.clear();
+  }
+}
 
 function init() {
   document.getElementById('load').style.display = 'none';
@@ -2555,6 +2626,7 @@ function init() {
   makeBorder();
   initEnemyShadowInstances();
   prewarmEffectTextures();
+  prewarmShaders();
 
   player = makePlayer();
   applyLocalPetTestUnlock();
@@ -4334,7 +4406,6 @@ function enemyPool(){
   const tier=currentTier();
     pool=ENEMY_TYPES.filter(e=>e.tier<=tier);
   }
-  if(activeDifficultyId==='hard') return pool;
   pool = pool.filter(e=>!CHALLENGE_ONLY_ENEMIES.has(e.name));
   if(activeDifficultyId==='casual') {
     const simple=pool.filter(e=>!isWeirdEnemy(e));
@@ -4396,10 +4467,14 @@ function spawnCluster(count){
   const center=pointAroundPlayer(22,28,false);
   if(!center) return;
   const cx=center.x, cz=center.z;
+  const supportPool=hasTrait(t,BUFFERS)
+    ? enemyPool().filter(e=>e.name!==t.name && !BUFFERS.has(e.name) && !SHIELDERS.has(e.name) && !WARDERS.has(e.name))
+    : null;
   for(let i=0;i<count;i++){
     const a=(i/Math.max(1,count))*Math.PI*2+Math.random()*0.35;
     const r=1.2+Math.sqrt(i)*0.9;
-    spawnEnemy(t, cx+Math.cos(a)*r, cz+Math.sin(a)*r);
+    const unit=(supportPool && i>0 && supportPool.length) ? supportPool[(Math.random()*supportPool.length)|0] : t;
+    spawnEnemy(unit, cx+Math.cos(a)*r, cz+Math.sin(a)*r);
   }
   maybeSpawnWarder(cx,cz);
 }

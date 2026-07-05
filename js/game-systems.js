@@ -318,7 +318,7 @@ function killEnemy(e){
     dropPickup(e.x, e.z, 'gold', Math.max(1, Math.round(e.xp*0.3*rm)));
     if (!overtimeLevel()) {
       // 5% chance to drop HP orb (8-15 HP) before overtime.
-      if (Math.random() < 0.05) dropPickup(e.x, e.z, 'hp', 8+Math.floor(Math.random()*8));
+      if (Math.random() < 0.025) dropPickup(e.x, e.z, 'hp', 8+Math.floor(Math.random()*8));
       const buffRoll=Math.random();
       if (buffRoll < 0.003) dropPickup(e.x, e.z, 'haste', 12);
       else if (buffRoll < 0.006) dropPickup(e.x, e.z, 'might', 12);
