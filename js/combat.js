@@ -195,14 +195,14 @@ const RARITY_GLOW = { common:0x44ff44, uncommon:0x44aaff, rare:0xff44ff, legenda
 function skillSizeReachMul(mode){
   const sc=Math.max(1, player.projScale||1);
   const gain=sc-1;
-  const factor=mode==='stab'?0.55:mode==='slash'?0.50:mode==='nova'?0.60:mode==='bamboo'?0.58:mode==='orbit'?0.45:0.35;
-  return Math.min(1.75, 1 + gain*factor);
+  const factor=mode==='stab'?0.55:mode==='slash'?0.50:mode==='nova'?0.60:mode==='bamboo'?0.40:mode==='orbit'?0.45:0.35;
+  return Math.min(mode==='bamboo'?1.45:1.75, 1 + gain*factor);
 }
 function radiusRangeMul(mode){
   const rm=Math.max(1, player.rangeMul||1);
   if(mode==='nova') return Math.min(1.45, 1 + (rm-1)*0.45);
   if(mode==='smite') return Math.min(1.85, 1 + (rm-1)*0.70);
-  if(mode==='bamboo') return Math.min(1.65, 1 + (rm-1)*0.58);
+  if(mode==='bamboo') return Math.min(1.35, 1 + (rm-1)*0.40);
   return rm;
 }
 function wstats(key, lvl){
@@ -220,12 +220,14 @@ function wstats(key, lvl){
     s.count = b.count + Math.floor(k/step) + bonus;
     s.rate  = b.rate * (1 + 0.06*k) * (player.rateMul||1);
     s.range = b.range * (player.rangeMul||1) * (b.mode==='stab'||b.mode==='slash'||b.mode==='bamboo' ? skillSizeReachMul(b.mode) : 1);
+    if (b.mode==='bamboo') s.range = Math.min(s.range, key==='bamboo_spikesX'?17.0:14.5);
     s.life  = b.life * (player.lifeMul||1);
     s.areaLife = player.areaLifeMul||1;
     s.speed = b.speed * (player.projSpeedMul||1);
     if (b.radius) {
       s.radius = b.radius * (1 + 0.055*k) * radiusRangeMul(b.mode) * (b.mode==='nova'||b.mode==='smite'||b.mode==='bamboo' ? skillSizeReachMul(b.mode) : 1);
       if (b.mode==='nova') s.radius = Math.min(s.radius, key==='novaX'?8.6:6.2);
+      if (b.mode==='bamboo') s.radius = Math.min(s.radius, key==='bamboo_spikesX'?3.25:2.10);
     }
     if (b.bounces != null) {
       s.bounces = Math.max(0, (b.bounces||0) + (player.ricochetBonus||0));
@@ -529,11 +531,11 @@ function spawnBambooPatch(x,z,s,i){
   });
   const mesh=new THREE.Sprite(mat);
   mesh.center.set(0.5,0);
-  mesh.scale.set(radius*(evolved?1.75:1.35), radius*(evolved?2.25:1.85), 1);
+  mesh.scale.set(radius*(evolved?1.52:1.28), radius*(evolved?1.92:1.62), 1);
   mesh.position.set(x, groundHeight(x,z)+0.18, z);
   mesh.visible=false;
   scene.add(mesh);
-  spawnRing(x,z,evolved?0xffdf72:s.color,radius*(evolved?2.35:1.9),evolved?0.36:0.28);
+  spawnRing(x,z,evolved?0xffdf72:s.color,radius*(evolved?1.90:1.55),evolved?0.34:0.26);
   if(evolved) spawnRing(x,z,0xa8ff70,radius*1.35,0.24);
   bambooPatches.push({
     x,z,r:radius,dmg:Math.max(1,Math.round(damageForCountSlot(s,i)*0.38)),

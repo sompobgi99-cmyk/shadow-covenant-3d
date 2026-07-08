@@ -235,7 +235,7 @@ Object.assign(TOME_I18N,{
   regen:{en:{desc:'Regenerate +0.8 HP per second'}}, magnet:{en:{desc:'Pickup magnet range +30%'}}, exp:{en:{desc:'XP gain +15%'}},
   greed:{en:{desc:'Gold gain +20%'}}, fortitude:{en:{desc:'Armor +4'}}, lifesteal:{en:{desc:'Heal +1 when killing an enemy'}},
   duration:{en:{desc:'Projectile/object lifetime +20%, AoE duration +10%'}}, velocity:{en:{desc:'Projectile/object speed +20%'}},
-  growth:{en:{desc:'Skill size +20%'}}, impact:{en:{desc:'Knockback +15%'}}, focus:{en:{desc:'Critical chance +8%'}},
+  growth:{en:{desc:'Skill size +10%'}}, impact:{en:{desc:'Knockback +15%'}}, focus:{en:{desc:'Critical chance +8%'}},
   execution:{en:{desc:'Critical damage +25%'}}, ricochet:{en:{desc:'Supported ricochet weapons bounce +1 extra time'}}
 });
 Object.assign(ITEM_I18N,{
@@ -2044,7 +2044,7 @@ const UPGRADES = [
   { id:'might',    name:'Might',      desc:'ดาเมจ +15%',        icon:'tomeic_might',     apply:()=>{ player.dmgMul*=1.15; } },
   { id:'vitality', name:'Vitality',   desc:'เลือดสูงสุด +25 และฮีลทันที',   icon:'tomeic_vitality',  apply:()=>{ player.maxHp+=25; player.hp=Math.min(healCap(player), player.hp+scaledHeal(25)); } },
   { id:'celerity', name:'Celerity',   desc:'ความเร็วโจมตี +10%',  icon:'tomeic_celerity',  apply:()=>{ player.rateMul*=1.10; } },
-  { id:'precision',name:'Precision',  desc:'ระยะโจมตี +15%',         icon:'tomeic_precision', apply:()=>{ player.rangeMul*=1.15; } },
+  { id:'precision',name:'Precision',  desc:'ระยะโจมตี +10%',         icon:'tomeic_precision', apply:()=>{ player.rangeMul*=1.10; } },
   { id:'multishot',name:'Multishot',  desc:'จำนวนกระสุน/วัตถุโจมตี +1',      icon:'tomeic_multishot', apply:()=>{ player.countBonus+=1; } },
   { id:'swiftness',name:'Swiftness',  desc:'ความเร็วเดิน +6%',     icon:'tomeic_swiftness', apply:()=>{ player.spd*=1.06; } },
   { id:'regen',    name:'Regen',      desc:'ฟื้นเลือด +0.8 ต่อวินาที',        icon:'tomeic_regen',     apply:()=>{ player.regen+=0.8; } },
@@ -2055,7 +2055,7 @@ const UPGRADES = [
   { id:'lifesteal',name:'Lifesteal',  desc:'ฆ่าศัตรูแล้วฟื้นเลือด +1',     icon:'tomeic_lifesteal',  apply:()=>{ player.lifesteal+=1; } },
   { id:'duration', name:'Persistence',desc:'อายุกระสุน/วัตถุโจมตี +20%, ระยะเวลา AoE +10%',icon:'tomeic_duration',    apply:()=>{ player.lifeMul*=1.20; player.areaLifeMul*=1.10; } },
   { id:'velocity', name:'Velocity',   desc:'ความเร็วกระสุน/วัตถุโจมตี +20%',icon:'tomeic_velocity',apply:()=>{ player.projSpeedMul*=1.2; } },
-  { id:'growth',   name:'Growth',     desc:'ขนาดสกิล +15%',icon:'tomeic_growth',     apply:()=>{ player.projScale*=1.15; } },
+  { id:'growth',   name:'Growth',     desc:'ขนาดสกิล +10%',icon:'tomeic_growth',     apply:()=>{ player.projScale*=1.10; } },
   { id:'impact',   name:'Impact',     desc:'แรงผลัก +15%',        icon:'tomeic_impact',   apply:()=>{ player.knockbackMul=(player.knockbackMul||0)+0.15; } },
   { id:'focus',    name:'Focus',      desc:'โอกาสคริติคอล +8%',       icon:'tomeic_focus',    apply:()=>{ player.critChance+=0.08; } },
   { id:'execution',name:'Execution',  desc:'ดาเมจคริติคอล +25%',      icon:'tomeic_execution',apply:()=>{ player.critDmg+=0.25; } },

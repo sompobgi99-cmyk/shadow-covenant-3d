@@ -564,7 +564,7 @@ function update(dt) {
     const pulse=1+Math.sin(gameTime*18+i)*0.06;
     const pop=Math.min(1,p*4);
     b.mesh.position.y=groundHeight(b.x,b.z)+0.12+Math.sin(Math.min(1,p)*Math.PI)*0.16;
-    b.mesh.scale.set(b.r*(b.evolved?1.85:1.48)*pulse,b.r*(b.evolved?2.34:1.96)*(0.82+0.18*pop),1);
+    b.mesh.scale.set(b.r*(b.evolved?1.58:1.34)*pulse,b.r*(b.evolved?2.02:1.72)*(0.82+0.18*pop),1);
     const fade=p<0.68?1:Math.max(0,1-(p-0.68)/0.32);
     b.mesh.material.opacity=Math.max(0,(b.evolved?0.98:0.94)*fade);
     if(b.tick<=0){
