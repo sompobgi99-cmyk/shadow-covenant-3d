@@ -4021,7 +4021,7 @@ function importPlayerProgress(progress, opts){
       local.owned[id]=Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString();
       petsChanged=true;
     }
-    if(progress.pets.selected && local.owned[progress.pets.selected] && local.selected!==progress.pets.selected){
+    if(!opts.skipPetSelection && progress.pets.selected && local.owned[progress.pets.selected] && local.selected!==progress.pets.selected){
       local.selected=progress.pets.selected;
       petsChanged=true;
     }
