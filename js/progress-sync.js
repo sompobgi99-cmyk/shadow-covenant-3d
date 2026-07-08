@@ -38,10 +38,10 @@
     }
   }
 
-  function applyRemote(progress){
+  function applyRemote(progress, opts){
     progress = progress || {};
     if(typeof importPlayerProgress === 'function') {
-      const result = importPlayerProgress(progress, { silent:true }) || {};
+      const result = importPlayerProgress(progress, { silent:true, ...(opts||{}) }) || {};
       return result.imported || [];
     }
     if(typeof importAchievementProgress === 'function') return importAchievementProgress(progress.done||{}, { silent:true });
@@ -69,7 +69,8 @@
       if(remoteRes.status === 401) throw new Error('Login expired');
       if(!remoteRes.ok) throw new Error('Progress load failed: '+remoteRes.status);
       const remote = await remoteRes.json();
-      const imported = applyRemote(remote);
+      const isPetPurchase = reason === 'pet_purchase';
+      const imported = applyRemote(remote, { skipCoins:isPetPurchase });
       const payload = localPayload();
       const saveRes = await fetch(ONLINE_PROGRESS.apiEndpoint, {
         method:'POST',

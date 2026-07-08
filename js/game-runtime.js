@@ -3512,7 +3512,7 @@ function buyPet(id){
   state.owned[p.id]=new Date().toISOString();
   state.selected=p.id;
   savePetState(state);
-  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet');
+  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet_purchase');
   showToast('ซื้อ Pet: '+p.name,2.8);
   openGuide('pets',{petFocus:p.id,scrollTop});
   return true;
@@ -3523,7 +3523,7 @@ function selectPet(id){
   const scrollTop=guideScrollTop();
   state.selected=id||'';
   savePetState(state);
-  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet');
+  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet_select');
   const p=petById(id);
   const quips={
     lumo_wisp:'วิบวับพร้อมลุย',
@@ -4001,12 +4001,14 @@ function importPactProgress(pacts){
   return changed;
 }
 function importPlayerProgress(progress, opts){
+  opts=opts||{};
   progress=progress||{};
   const imported=importAchievementProgress(progress.done||{}, opts);
   const pactsChanged=importPactProgress(progress.pacts || progress.pactUnlocks);
   const remoteCoins=Math.max(0, Math.floor(Number(progress.soulCoins||0)));
   let coinsChanged=false, petsChanged=false;
-  if(Number.isFinite(remoteCoins) && remoteCoins>soulCoins()){
+  const forceCoins = progress.migrations && progress.migrations.petRetroDeduct20260708;
+  if(Number.isFinite(remoteCoins) && ((forceCoins && remoteCoins!==soulCoins()) || (!opts.skipCoins && remoteCoins>soulCoins()))){
     setSoulCoins(remoteCoins);
     coinsChanged=true;
   }

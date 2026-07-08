@@ -30,6 +30,17 @@ const PACT_IDS = new Set([
   "no_mercy",
   "ravenous_horde",
 ]);
+const PET_PRICES: Record<string, number> = {
+  lumo_wisp: 1200,
+  lantern_bunny: 1600,
+  tiny_gargoyle: 2200,
+  storm_pup: 2800,
+  grave_kitten: 3600,
+  mini_mimic: 4500,
+};
+const PET_RETRO_DEDUCT_ID = "petRetroDeduct20260708";
+const PET_RETRO_DEDUCT_START = Date.parse("2026-07-07T17:00:00.000Z"); // 2026-07-08 00:00 Thailand
+const PET_RETRO_DEDUCT_END = Date.parse("2026-07-08T17:00:00.000Z");   // 2026-07-09 00:00 Thailand
 
 const jsonHeaders = {
   "Content-Type": "application/json; charset=utf-8",
@@ -142,6 +153,18 @@ function cleanPactState(input: unknown) {
   return { done: { normal, hard } };
 }
 
+function cleanMigrations(input: unknown) {
+  const src = input && typeof input === "object" ? input as Record<string, unknown> : {};
+  const out: Record<string, string> = {};
+  for (const [id, value] of Object.entries(src)) {
+    if (id !== PET_RETRO_DEDUCT_ID) continue;
+    const t = String(value || "").slice(0, 40);
+    const parsed = Date.parse(t);
+    out[id] = Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString();
+  }
+  return out;
+}
+
 function mergePacts(a: ReturnType<typeof cleanPactState>, b: ReturnType<typeof cleanPactState>) {
   const out = { done: { normal: { ...a.done.normal }, hard: { ...a.done.hard } } };
   for (const diff of ["normal", "hard"] as const) {
@@ -165,14 +188,31 @@ function mergePets(a: ReturnType<typeof cleanPetState>, b: ReturnType<typeof cle
 
 async function readProgress(store: ReturnType<typeof getStore>, userId: string) {
   const data = await store.get(progressKey(userId), { type: "json" });
-  const obj = data && typeof data === "object" ? data as { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown; updated_at?: string } : {};
+  const obj = data && typeof data === "object" ? data as { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown; migrations?: unknown; updated_at?: string } : {};
   return {
     done: cleanDone(obj.done),
     pacts: cleanPactState(obj.pacts),
     soulCoins: cleanCoins(obj.soulCoins),
     pets: cleanPetState(obj.pets),
+    migrations: cleanMigrations(obj.migrations),
     updated_at: obj.updated_at || "",
   };
+}
+
+function applyPetRetroDeduction(progress: Awaited<ReturnType<typeof readProgress>>) {
+  if (progress.migrations[PET_RETRO_DEDUCT_ID]) return { progress, changed: false, deducted: 0 };
+  let deducted = 0;
+  for (const [id, at] of Object.entries(progress.pets.owned)) {
+    const boughtAt = Date.parse(at);
+    if (!Number.isFinite(boughtAt) || boughtAt < PET_RETRO_DEDUCT_START || boughtAt >= PET_RETRO_DEDUCT_END) continue;
+    deducted += PET_PRICES[id] || 0;
+  }
+  const next = {
+    ...progress,
+    soulCoins: Math.max(0, progress.soulCoins - deducted),
+    migrations: { ...progress.migrations, [PET_RETRO_DEDUCT_ID]: new Date().toISOString() },
+  };
+  return { progress: next, changed: true, deducted };
 }
 
 export default async (req: Request) => {
@@ -181,8 +221,12 @@ export default async (req: Request) => {
   const store = getStore({ name: STORE_NAME, consistency: "strong" });
 
   if (req.method === "GET") {
-    const progress = await readProgress(store, auth.userId);
-    return json({ ok: true, done: progress.done, pacts: progress.pacts, soulCoins: progress.soulCoins, pets: progress.pets, updated_at: progress.updated_at });
+    const result = applyPetRetroDeduction(await readProgress(store, auth.userId));
+    const progress = result.progress;
+    if (result.changed) {
+      await store.setJSON(progressKey(auth.userId), { done: progress.done, pacts: progress.pacts, soulCoins: progress.soulCoins, pets: progress.pets, migrations: progress.migrations, updated_at: new Date().toISOString() });
+    }
+    return json({ ok: true, done: progress.done, pacts: progress.pacts, soulCoins: progress.soulCoins, pets: progress.pets, migrations: progress.migrations, updated_at: progress.updated_at, retroPetDeducted: result.deducted });
   }
 
   if (req.method === "POST" || req.method === "PUT") {
@@ -194,16 +238,17 @@ export default async (req: Request) => {
     } catch {
       return json({ error: "Invalid JSON" }, 400);
     }
-    const existing = await readProgress(store, auth.userId);
+    const existingResult = applyPetRetroDeduction(await readProgress(store, auth.userId));
+    const existing = existingResult.progress;
     const merged = mergeDone(existing.done, cleanDone(body.done));
     const pacts = mergePacts(existing.pacts, cleanPactState(body.pacts));
     const incomingPets = cleanPetState(body.pets);
     const petMerge = mergePets(existing.pets, incomingPets);
     const incomingCoins = Object.prototype.hasOwnProperty.call(body, "soulCoins") ? cleanCoins(body.soulCoins) : existing.soulCoins;
     const soulCoins = petMerge.added && incomingCoins < existing.soulCoins ? incomingCoins : Math.max(existing.soulCoins, incomingCoins);
-    const payload = { done: merged, pacts, soulCoins, pets: petMerge.pets, updated_at: new Date().toISOString() };
+    const payload = { done: merged, pacts, soulCoins, pets: petMerge.pets, migrations: existing.migrations, updated_at: new Date().toISOString() };
     await store.setJSON(progressKey(auth.userId), payload);
-    return json({ ok: true, done: payload.done, pacts: payload.pacts, soulCoins: payload.soulCoins, pets: payload.pets, updated_at: payload.updated_at });
+    return json({ ok: true, done: payload.done, pacts: payload.pacts, soulCoins: payload.soulCoins, pets: payload.pets, migrations: payload.migrations, updated_at: payload.updated_at, retroPetDeducted: existingResult.deducted });
   }
 
   return json({ error: "Method not allowed" }, 405);
