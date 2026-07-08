@@ -1,7 +1,14 @@
 .git/
 .netlify/
+.agents/
+.playwright-cli/
+.tmp_pixellab_shooters/
 deploy-*.zip
+artifacts/
+output/
 outputs/
+test-output/
+tmp/
 tools/
 node_modules/
 npm-debug.log*
