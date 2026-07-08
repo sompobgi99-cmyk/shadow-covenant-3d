@@ -112,6 +112,15 @@ function getPixelProjectileTexture(shape,color){
     px(6,6,8,2,'#3f3640'); px(5,8,10,6,'#2a2730'); px(7,14,6,1,mid);
     px(13,3,4,2,'#5b4a35'); px(15,0,2,4,light); px(16,0,4,1,'#fff1a8'); px(18,1,2,2,'#ff7a3a');
     px(7,8,3,2,'#655967'); px(5,11,2,2,'#655967'); px(16,14,2,2,dark);
+  } else if(shape==='bamboo'){
+    cv.width=28; cv.height=42;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    const leaf='#7fd65d', cut='#d8ff8a', gold='#ffd86a';
+    px(11,8,6,31,dark); px(12,6,4,33,mid); px(13,4,2,35,light);
+    px(8,24,12,2,dark); px(9,25,10,2,leaf); px(10,14,8,2,dark); px(11,15,6,2,leaf);
+    ctx.beginPath(); ctx.moveTo(8,10); ctx.lineTo(14,0); ctx.lineTo(20,10); ctx.closePath(); ctx.fillStyle=dark; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(10,10); ctx.lineTo(14,2); ctx.lineTo(18,10); ctx.closePath(); ctx.fillStyle=cut; ctx.fill();
+    px(6,36,16,3,dark); px(8,33,12,4,gold); px(12,5,2,8,'#ffffff');
   } else if(shape==='smite'){
     px(6,1,4,46,dark); px(4,8,8,31,mid); px(6,4,5,37,light); px(8,2,2,35,'#ffffff');
     px(2,38,12,4,mid); px(0,43,16,3,dark); px(5,46,6,2,light);
@@ -518,11 +527,12 @@ function clearCombatActors(){
   for (const a of afterimages){ scene.remove(a.spr); freeObj(a.spr); }
   clearEventActors();
   for (const w of novaWaves){ scene.remove(w.mesh); freeObj(w.mesh); }
+  for (const b of bambooPatches){ if(b.mesh){ scene.remove(b.mesh); freeObj(b.mesh); } }
   for (const f of slashFx){ scene.remove(f.mesh); freeObj(f.mesh); }
   for (const d of dmgNums) d.el.remove();
   clearChallengeRoomVisuals();
   enemies.length=0; clearEnemyShadowInstances(); projectiles.length=0; enemyShots.length=0; particles.length=0; rings.length=0; bossAoEs.length=0; bossImpactFx.length=0;
-  trails.length=0; pickups.length=0; breakables.length=0; groundItems.length=0; afterimages.length=0; novaWaves.length=0; slashFx.length=0; dmgNums.length=0;
+  trails.length=0; pickups.length=0; breakables.length=0; groundItems.length=0; afterimages.length=0; novaWaves.length=0; bambooPatches.length=0; slashFx.length=0; dmgNums.length=0;
   boss=null; weaponSig=null; enemyGrid.clear();
 }
 function transitionToStage(stage){
@@ -2350,6 +2360,7 @@ function restart(){
   for (const a of bossAoEs) removeBossAoeVisual(a); bossAoEs.length=0;
   for (const f of bossImpactFx){ scene.remove(f.mesh); freeObj(f.mesh); } bossImpactFx.length=0;
   for (const w of novaWaves){ scene.remove(w.mesh); freeObj(w.mesh); } novaWaves.length=0;
+  for (const b of bambooPatches){ if(b.mesh){ scene.remove(b.mesh); freeObj(b.mesh); } } bambooPatches.length=0;
   for (const f of slashFx){ scene.remove(f.mesh); freeObj(f.mesh); } slashFx.length=0;
   for (const tr of trails){ scene.remove(tr.mesh); freeObj(tr.mesh); } trails.length=0;
   for (const d of dmgNums) d.el.remove(); dmgNums.length=0;

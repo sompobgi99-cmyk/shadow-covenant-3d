@@ -36,6 +36,8 @@ const WEAPON_TYPES = {
             dmg:11, rate:1.43, range:10, count:2, pierce:0, speed:17, life:1.35, color:0xe8dcc4, arc:0.36, shape:'bone_boomerang', bounces:1, bounceRadius:8, bounceDmgMul:0.86, evolveTo:'boneboomerangX', evolveTome:'duration' },
   bouncebomb:{ name:'Bouncing Bomb', icon:'wpn_bouncebomb', desc:'ระเบิดแตกตอนชนแล้วเด้งต่อไปยังเป้าหมายอื่น', mode:'aim',
             dmg:13, rate:0.86, range:10, count:1, pierce:0, speed:13, life:1.75, color:0xff9a4a, shape:'bomb', bounces:2, bounceRadius:8, bounceDmgMul:0.82, impactRadius:1.25, impactDmgMul:0.50, evolveTo:'bouncebombX', evolveTome:'impact' },
+  bamboo_spikes:{ name:'Bamboo Spike Field', icon:'wpn_bamboo_spikes', desc:'วางพื้นเรียกหน่อไม้แทงขึ้นจากดินแบบกวน ๆ', mode:'bamboo',
+            dmg:17, rate:0.78, range:9.5, count:2, pierce:99, speed:0, life:1.25, color:0xa8e36a, radius:1.45, shape:'bamboo', evolveTo:'bamboo_spikesX', evolveTome:'growth' },
   // evolved forms (hidden from the acquire pool)
   boltX:  { name:'Doom Bolt',      icon:'wpn_bolt_evolved',     desc:'ร่างวิวัฒน์: ยิงกระสุนทะลุเป็นชุด', mode:'aim', hidden:true,
             dmg:28, rate:2.4, range:13, count:2, pierce:4, speed:20, life:1.6, color:0xff66ff, shape:'doom' },
@@ -67,6 +69,8 @@ const WEAPON_TYPES = {
             dmg:22, rate:2.1, range:12, count:3, pierce:1, speed:20, life:1.65, color:0xfff0ce, arc:0.55, shape:'bone_boomerang', bounces:2, bounceRadius:9, bounceDmgMul:0.90 },
   bouncebombX:{ name:'Chain Detonator', icon:'wpn_bouncebomb_evolved', desc:'ร่างวิวัฒน์: ระเบิดลูกโซ่ขนาดใหญ่ระหว่างเป้าหมาย', mode:'aim', hidden:true,
             dmg:27, rate:1.25, range:12, count:2, pierce:0, speed:15, life:2.0, color:0xffbd5f, shape:'bomb', bounces:3, bounceRadius:10, bounceDmgMul:0.86, impactRadius:2.0, impactDmgMul:0.70 },
+  bamboo_spikesX:{ name:'Bamboo Forest Judgment', icon:'wpn_bamboo_spikes_evolved', desc:'ร่างวิวัฒน์: ป่าหน่อไม้แทงซ้ำหลายระลอก', mode:'bamboo', hidden:true,
+            dmg:28, rate:1.15, range:11.5, count:4, pierce:99, speed:0, life:1.75, color:0xd9ff7a, radius:2.05, shape:'bamboo' },
 };
 const BONUS_COUNT_DMG_MUL = 0.65;
 const GLOBAL_WEAPON_DMG_MUL = 1.0602;
@@ -151,7 +155,7 @@ const ITEMS = [
   { id:'mirror',      name:'Mirror',         desc:'สะท้อนดาเมจกลับ 30%',  rarity:'rare', icon:'item_mirror',
     apply:p=>{ p.reflect=(p.reflect||0)+0.30; } },
   { id:'slurp_gloves',name:'Slurp Gloves',   desc:'ดูดเลือดตอนโจมตี +7.5%',  rarity:'rare', icon:'item_slurp_gloves',
-    apply:p=>{ p.lifesteal+=2; } },
+    apply:p=>{ p.lifestealPct=(p.lifestealPct||0)+0.075; } },
   { id:'eagle_claw',  name:'Eagle Claw',     desc:'ดาเมจต่อศัตรูบิน +66%',    rarity:'rare', icon:'item_eagle_claw',
     apply:p=>{ p._eagle=(p._eagle||0)+1; } },
   { id:'execution_coin',name:'Execution Coin',desc:'ดาเมจคริติคอล +12%, คริติคอลอาจให้ทอง', rarity:'rare', icon:'item_execution_coin',
@@ -191,13 +195,14 @@ const RARITY_GLOW = { common:0x44ff44, uncommon:0x44aaff, rare:0xff44ff, legenda
 function skillSizeReachMul(mode){
   const sc=Math.max(1, player.projScale||1);
   const gain=sc-1;
-  const factor=mode==='stab'?0.55:mode==='slash'?0.50:mode==='nova'?0.60:mode==='orbit'?0.45:0.35;
+  const factor=mode==='stab'?0.55:mode==='slash'?0.50:mode==='nova'?0.60:mode==='bamboo'?0.58:mode==='orbit'?0.45:0.35;
   return Math.min(1.75, 1 + gain*factor);
 }
 function radiusRangeMul(mode){
   const rm=Math.max(1, player.rangeMul||1);
   if(mode==='nova') return Math.min(1.45, 1 + (rm-1)*0.45);
   if(mode==='smite') return Math.min(1.85, 1 + (rm-1)*0.70);
+  if(mode==='bamboo') return Math.min(1.65, 1 + (rm-1)*0.58);
   return rm;
 }
 function wstats(key, lvl){
@@ -211,15 +216,15 @@ function wstats(key, lvl){
     s.orbitR = b.orbitR * (1 + 0.055*k) * (player.rangeMul||1) * skillSizeReachMul('orbit');
     s.tick = b.tick * Math.pow(0.90, k) / (player.rateMul||1);   // orbs hit faster per level + attack speed
   } else {
-    const step=b.mode==='nova'||b.mode==='slash' ? 4 : 3;
+    const step=b.mode==='nova'||b.mode==='slash'||b.mode==='bamboo' ? 4 : 3;
     s.count = b.count + Math.floor(k/step) + bonus;
     s.rate  = b.rate * (1 + 0.06*k) * (player.rateMul||1);
-    s.range = b.range * (player.rangeMul||1) * (b.mode==='stab'||b.mode==='slash' ? skillSizeReachMul(b.mode) : 1);
+    s.range = b.range * (player.rangeMul||1) * (b.mode==='stab'||b.mode==='slash'||b.mode==='bamboo' ? skillSizeReachMul(b.mode) : 1);
     s.life  = b.life * (player.lifeMul||1);
     s.areaLife = player.areaLifeMul||1;
     s.speed = b.speed * (player.projSpeedMul||1);
     if (b.radius) {
-      s.radius = b.radius * (1 + 0.055*k) * radiusRangeMul(b.mode) * (b.mode==='nova'||b.mode==='smite' ? skillSizeReachMul(b.mode) : 1);
+      s.radius = b.radius * (1 + 0.055*k) * radiusRangeMul(b.mode) * (b.mode==='nova'||b.mode==='smite'||b.mode==='bamboo' ? skillSizeReachMul(b.mode) : 1);
       if (b.mode==='nova') s.radius = Math.min(s.radius, key==='novaX'?8.6:6.2);
     }
     if (b.bounces != null) {
@@ -500,7 +505,61 @@ function fireSmite(s){
     }
   }
 }
-const WFIRE = { aim:fireAim, spread:fireSpread, nova:fireNova, spiral:fireSpiral, slash:fireSlash, stab:fireStab, smite:fireSmite };
+const bambooPatches=[];
+const MAX_BAMBOO_PATCHES=48;
+const BAMBOO_FX_FRAMES=6;
+function bambooFxMap(sourceKey){
+  const key=sourceKey==='bamboo_spikesX'?'fx_bamboo_spike_evolved_sheet':'fx_bamboo_spike_sheet';
+  const base=tex[key];
+  if(!base || !base.image) return getPixelProjectileTexture('bamboo', sourceKey==='bamboo_spikesX'?0xd9ff7a:0xa8e36a);
+  const map=base.clone();
+  map.repeat.set(1/BAMBOO_FX_FRAMES,1);
+  map.offset.set(0,0);
+  map.needsUpdate=true;
+  map._ownsMap=true;
+  return map;
+}
+function spawnBambooPatch(x,z,s,i){
+  capEffectList(bambooPatches, MAX_BAMBOO_PATCHES);
+  const radius=Math.max(0.7,s.radius||1.5);
+  const evolved=s.sourceKey==='bamboo_spikesX';
+  const mat=new THREE.SpriteMaterial({
+    map:bambooFxMap(s.sourceKey), color:0xffffff,
+    transparent:true, opacity:0, alphaTest:0.08, depthWrite:false
+  });
+  const mesh=new THREE.Sprite(mat);
+  mesh.center.set(0.5,0);
+  mesh.scale.set(radius*(evolved?1.75:1.35), radius*(evolved?2.25:1.85), 1);
+  mesh.position.set(x, groundHeight(x,z)+0.18, z);
+  mesh.visible=false;
+  scene.add(mesh);
+  spawnRing(x,z,evolved?0xffdf72:s.color,radius*(evolved?2.35:1.9),evolved?0.36:0.28);
+  if(evolved) spawnRing(x,z,0xa8ff70,radius*1.35,0.24);
+  bambooPatches.push({
+    x,z,r:radius,dmg:Math.max(1,Math.round(damageForCountSlot(s,i)*0.38)),
+    color:s.color,sourceKey:s.sourceKey,life:(s.life||1.2)*(s.areaLife||1),
+    maxLife:(s.life||1.2)*(s.areaLife||1),delay:0.18,tick:0.04,
+    tickEvery:evolved?0.24:0.30,mesh,alive:true,frames:BAMBOO_FX_FRAMES,evolved
+  });
+}
+function fireBamboo(s){
+  sfx('shoot');
+  const count=Math.max(1,s.count||1);
+  const targets=nearestEnemies(player.x,player.z,s.range||9,count);
+  for(let i=0;i<count;i++){
+    const t=targets.length?targets[i%targets.length]:null;
+    let x,z;
+    if(t){
+      const jitter=(i%3-1)*0.45;
+      x=t.x+jitter; z=t.z+(i%2?0.38:-0.24);
+    } else {
+      const a=Math.random()*Math.PI*2, d=3+Math.random()*Math.max(1,(s.range||9)-3);
+      x=player.x+Math.cos(a)*d; z=player.z+Math.sin(a)*d;
+    }
+    spawnBambooPatch(x,z,s,i);
+  }
+}
+const WFIRE = { aim:fireAim, spread:fireSpread, nova:fireNova, spiral:fireSpiral, slash:fireSlash, stab:fireStab, smite:fireSmite, bamboo:fireBamboo };
 function updateOrbit(w, s, dt){
   const b = WEAPON_TYPES[w.key] || WEAPON_TYPES.orbit;
   syncOrbitGuard(w,s);

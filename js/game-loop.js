@@ -543,6 +543,41 @@ function update(dt) {
       if (Math.abs(dd-w.r) < e.r+0.6){ w.hit.add(e); dealEnemyDamage(e, w.dmg, w.color, e.x-w.x, e.z-w.z, 4, false, { weapon:w.sourceKey }); } });
     hitBreakablesAt(w.x,w.z,w.r+0.35,w.dmg,w.color);
     if (w.r>=w.maxR){ scene.remove(w.mesh); freeObj(w.mesh); novaWaves.splice(i,1); } }
+  for (let i=bambooPatches.length-1;i>=0;i--){ const b=bambooPatches[i];
+    if(!b.alive){ if(b.mesh){ scene.remove(b.mesh); freeObj(b.mesh); } bambooPatches.splice(i,1); continue; }
+    if(b.delay>0){
+      b.delay-=dt;
+      if(b.delay<=0){
+        b.mesh.visible=true;
+        b.mesh.material.opacity=0.9;
+        spawnBurst(b.x,b.z,b.evolved?0xffd86a:b.color,b.evolved?18:12,b.evolved?0.82:0.64);
+        spawnBurst(b.x,b.z,0x8a5b2f,b.evolved?12:8,0.48);
+      }
+      continue;
+    }
+    b.life-=dt; b.tick-=dt;
+    const p=1-Math.max(0,b.life)/Math.max(0.01,b.maxLife);
+    if(b.mesh.material && b.mesh.material.map && b.frames){
+      const frame=Math.min(b.frames-1,Math.floor(p*b.frames));
+      b.mesh.material.map.offset.x=frame/b.frames;
+    }
+    const pulse=1+Math.sin(gameTime*18+i)*0.06;
+    const pop=Math.min(1,p*4);
+    b.mesh.position.y=groundHeight(b.x,b.z)+0.12+Math.sin(Math.min(1,p)*Math.PI)*0.16;
+    b.mesh.scale.set(b.r*(b.evolved?1.85:1.48)*pulse,b.r*(b.evolved?2.34:1.96)*(0.82+0.18*pop),1);
+    const fade=p<0.68?1:Math.max(0,1-(p-0.68)/0.32);
+    b.mesh.material.opacity=Math.max(0,(b.evolved?0.98:0.94)*fade);
+    if(b.tick<=0){
+      b.tick=b.tickEvery||0.3;
+      if(b.evolved) spawnBurst(b.x,b.z,0xffe27a,5,0.32);
+      forEachNearbyEnemy(b.x,b.z,b.r+1,e=>{ if(!e.alive) return;
+        const dx=e.x-b.x, dz=e.z-b.z;
+        if(dx*dx+dz*dz < (b.r+e.r)*(b.r+e.r)) dealEnemyDamage(e,b.dmg,b.color,dx,dz,2.8,false,{ weapon:b.sourceKey });
+      });
+      hitBreakablesAt(b.x,b.z,b.r,b.dmg,b.color);
+    }
+    if(b.life<=0){ scene.remove(b.mesh); freeObj(b.mesh); bambooPatches.splice(i,1); }
+  }
   for (let i=slashFx.length-1;i>=0;i--){ const f=slashFx[i]; f.life-=dt;
     if (f.life<=0){ scene.remove(f.mesh); freeObj(f.mesh); slashFx.splice(i,1); continue; }
     if (f.sweep) f.mesh.rotation.y += f.sweep*dt;

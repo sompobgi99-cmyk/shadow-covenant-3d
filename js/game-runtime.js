@@ -211,6 +211,7 @@ Object.assign(WEAPON_I18N,{
   shieldtoss:{en:{desc:'Throws a heavy shield that pierces, then rebounds to another target.'}},
   boneboomerang:{en:{desc:'Twin curved bones bounce between enemies.'}},
   bouncebomb:{en:{desc:'A bomb that explodes on impact, then bounces to another target.'}},
+  bamboo_spikes:{en:{desc:'Plants bamboo shoots under enemy clusters, then spikes the ground repeatedly.'}},
   boltX:{en:{desc:'Evolved: fires piercing volleys of doom bolts.'}},
   spreadX:{en:{desc:'Evolved: unleashes a wider storm of hex shards.'}},
   novaX:{en:{desc:'Evolved: larger and harder-hitting circular bursts.'}},
@@ -225,7 +226,8 @@ Object.assign(WEAPON_I18N,{
   footballX:{en:{desc:'Evolved: multiple meteor shots bounce and explode.'}},
   shieldtossX:{en:{desc:'Evolved: a stronger shield that rebounds through hordes.'}},
   boneboomerangX:{en:{desc:'Evolved: faster bone cyclones with extra bounces.'}},
-  bouncebombX:{en:{desc:'Evolved: large chain detonations between targets.'}}
+  bouncebombX:{en:{desc:'Evolved: large chain detonations between targets.'}},
+  bamboo_spikesX:{en:{desc:'Evolved: a longer-lasting bamboo forest erupts in multiple waves.'}}
 });
 Object.assign(TOME_I18N,{
   might:{en:{desc:'Damage +15%'}}, vitality:{en:{desc:'Max HP +25 and heal immediately'}}, celerity:{en:{desc:'Attack speed +10%'}},
@@ -272,7 +274,8 @@ Object.assign(CHAR_I18N,{
   stormcaller:{en:{bio:'Calls lightning very precisely, except when her phone also needs charging.',passive:'Critical damage +5% / Lv'}},
   assassin:{en:{bio:'So good at vanishing that teammates forget to split loot with her.',passive:'Critical chance +1%, evade +0.5% / Lv'}},
   it_support:{en:{bio:'Always called when systems crash, and always asks, "Have you tried restarting it?"',passive:'Skill size +1%, attack range +1% / Lv'}},
-  striker:{en:{bio:'A tournament forward who turned match pressure into a cursed pact.',passive:'Move speed +0.5%, projectile/object speed +2% / Lv'}}
+  striker:{en:{bio:'A tournament forward who turned match pressure into a cursed pact.',passive:'Move speed +0.5%, projectile/object speed +2% / Lv'}},
+  bamboo_man:{en:{bio:'A bamboo-shoot addict with suspiciously aggressive gardening skills.',passive:'Skill size +1%, ground effect duration +1% / Lv'}}
 });
 Object.assign(PACT_I18N,{
   blood_moon:{en:{title:'Blood Moon',desc:'Normal monsters have +50% HP',unlock:'Clear Map 3 on the selected difficulty by killing the final boss and entering the portal'}},
@@ -3354,6 +3357,12 @@ const SHEETS = {
     idle: { key:'char_striker_idle', cols:4, rows:8, fps:6 },
     dirRows: [0,7,6,5,4,3,2,1],
   },
+  bamboo_man: {
+    walk: { key:'char_bamboo_man_walk', cols:7, rows:8, fps:10 },
+    idle: { key:'char_bamboo_man_idle', cols:5, rows:8, fps:6 },
+    visible: { w:0.72, h:1.35 },
+    dirRows: [0,7,6,5,4,3,2,1],
+  },
 };
 
 // ---- Playable characters: signature weapon + base stats + per-level passive ----
@@ -3383,6 +3392,8 @@ const CHARACTERS = {
                  stats:{ maxHp:78, spd:5.5, magnet:3.6, critChance:0.07 }, passive:{ desc:'ขนาดสกิล +1%, ระยะสกิล +1% / Lv', apply:p=>{ p.projScale *= 1.01; p.rangeMul *= 1.01; } } },
   striker:     { name:'Striker',     sheet:'striker',     weapon:'football', portrait:'striker',
                  stats:{ maxHp:76, spd:5.7, magnet:3.4, critChance:0.06 }, passive:{ desc:'ความเร็วเดิน +0.5%, ความเร็วกระสุน/วัตถุโจมตี +2% / Lv', apply:p=>{ p.spd *= 1.005; p.projSpeedMul *= 1.02; } } },
+  bamboo_man:  { name:'Bamboo Shoot Man', sheet:'bamboo_man', weapon:'bamboo_spikes', portrait:'bamboo_man',
+                 stats:{ maxHp:84, spd:5.25, magnet:3.6, rateMul:0.96 }, passive:{ desc:'ขนาดสกิล +1%, ระยะเวลาพื้นที่ +1% / Lv', apply:p=>{ p.projScale *= 1.01; p.areaLifeMul *= 1.01; } } },
 };
 Object.assign(CHARACTERS.templar, {
   stats:{ maxHp:116, spd:5.0, def:8, rateMul:1.08 },
@@ -3444,6 +3455,15 @@ Object.assign(CHARACTERS.striker, {
     level:['สปีดเพิ่ม เด้งเพิ่ม ทรงผมยังพังเหมือนเดิม','โค้ชอยากครองบอล ผมเลือกความวุ่นวาย'],
     loot:['อันนี้ต้องเอาเข้าตู้ถ้วยรางวัล','โบนัสย้ายทีมฟรี'],
     hurt:['กรรมการ อันนั้นเปิดปุ่มชัด ๆ','เกมเยือนบางนัดยังหนักกว่านี้']
+  }
+});
+Object.assign(CHARACTERS.bamboo_man, {
+  bio:'มนุษย์หน่อไม้ผู้กินไฟเบอร์จนดินยังต้องหลบ สู้ด้วยการปักหน่อไม้ขึ้นจากพื้นและพูดเหมือนเพิ่งออกจากตลาดสด',
+  quips:{
+    start:['วันนี้หน่อไม้สดมาก ศัตรูก็สดเหมือนกัน','อย่าเหยียบแปลงผมนะ เดี๋ยวมันแทงกลับ','ไฟเบอร์พร้อม ดินพร้อม คนเล่นพร้อมไหม'],
+    level:['หน่อไม้โตขึ้นแบบไม่ขออนุญาต','อัปเลเวลแล้ว ขอจิ้มน้ำพริกหน่อย','นี่ไม่ใช่สกิล นี่คือเกษตรกรรมเชิงรุก'],
+    loot:['ของดรอปดีเหมือนเจอหน่อไม้อ่อน','เอาไปหมักก่อน เดี๋ยวค่อยใช้'],
+    hurt:['โอ๊ย หน่อไม้ติดคอ เอ้ย โดนตี','อย่าตีคนถือผักสิครับ','เจ็บนะ แต่ยังกรอบอยู่']
   }
 });
 let currentChar = 'paladin';
@@ -3545,21 +3565,48 @@ function unlockAllPetsForTesting(){
   savePetState(state);
   return state;
 }
+function unlockEverythingForTesting(){
+  const now=new Date().toISOString();
+  const ach={ done:{} };
+  for(const a of ACHIEVEMENTS) ach.done[a.id]=now;
+  achievementStateCache=ach;
+  try{ localStorage.setItem(ACHIEVEMENT_STORAGE_KEY, JSON.stringify(ach)); }catch(_){}
+  const pact={ done:{ normal:{}, hard:{} } };
+  for(const p of PACTS){
+    pact.done.normal[p.id]=now;
+    pact.done.hard[p.id]=now;
+  }
+  pactUnlockStateCache=pact;
+  try{ localStorage.setItem(PACT_UNLOCK_STORAGE_KEY, JSON.stringify(pact)); }catch(_){}
+  unlockAllPetsForTesting();
+  setSoulCoins(Math.max(soulCoins(), 999999));
+  if(typeof onAchievementProgressSynced==='function') onAchievementProgressSynced();
+  return { achievements:Object.keys(ach.done).length, pacts:PACTS.length, pets:PETS.length, coins:soulCoins() };
+}
 function applyLocalPetTestUnlock(){
   const host=location.hostname;
   const local=host==='localhost' || host==='127.0.0.1' || host==='::1';
   const params=new URLSearchParams(location.search);
-  if(!local || params.get('unlockPets')!=='1') return false;
+  const unlockAll=params.get('unlockAll')==='1';
+  const unlockPets=params.get('unlockPets')==='1';
+  if(!local || (!unlockPets && !unlockAll)) return false;
+  if(unlockAll){
+    const result=unlockEverythingForTesting();
+    showToast('TEST: ปลดล็อกทุกอย่างแล้ว ('+result.achievements+' achievements)',3);
+  } else {
   unlockAllPetsForTesting();
   showToast('TEST: ปลดล็อก Pet ทั้งหมดแล้ว',3);
+  }
   if(history && history.replaceState){
     params.delete('unlockPets');
+    params.delete('unlockAll');
     const qs=params.toString();
     history.replaceState(null,'',location.pathname+(qs?'?'+qs:'')+location.hash);
   }
   return true;
 }
 window.unlockAllPetsForTesting = unlockAllPetsForTesting;
+window.unlockEverythingForTesting = unlockEverythingForTesting;
 
 const ACHIEVEMENT_STORAGE_KEY = 'sc3_achievements_v1';
 const STARTER_CHARACTER_KEYS = new Set(['paladin','ranger','sorceress']);
@@ -3571,6 +3618,9 @@ const ACHIEVEMENTS = [
   { id:'level_10', name:'เริ่มจับทางได้', desc:'ไปถึงเลเวล 15 ในรันเดียว',
     rewards:[{type:'character',key:'slayer'},{type:'weapon',key:'bladewhirl'},{type:'item',key:'brass_knuckle'},{type:'item',key:'swift_oil'},{type:'coins',amount:30}],
     test:c=>c.level>=15 },
+  { id:'bamboo_craving', name:'หน่อไม้ต้องเข้าแล้ว', desc:'เก็บทองอย่างน้อย 300 และไปถึงเลเวล 18 ในรันเดียว',
+    rewards:[{type:'character',key:'bamboo_man'},{type:'weapon',key:'bamboo_spikes'},{type:'coins',amount:35}],
+    test:c=>c.gold>=300 && c.level>=18 },
   { id:'map2_reached', name:'ข้ามแดนต้องสาป', desc:'เข้าสู่ Map 2 และฆ่าศัตรูอย่างน้อย 250 ตัวในรันเดียว',
     rewards:[{type:'character',key:'priestess'},{type:'weapon',key:'smite'},{type:'item',key:'holy_book'},{type:'coins',amount:50}],
     test:c=>(c.stage>=2 && c.kills>=250) || c.won },
