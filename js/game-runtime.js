@@ -1399,11 +1399,30 @@ function guidePetCard(pet){
   const emojis=petEmojiSet('idle',pet.id).slice(0,3);
   const mood=emojis.map((e,i)=>'<span style="--i:'+i+'">'+escHtml(e)+'</span>').join('');
   const color=pet.color||'#ffe08a';
-  return '<div class="guidecard pet '+(owned?'owned ':'locked ')+(selected?'selected':'')+'" style="--pet-color:'+escHtml(color)+'">'
+  return '<div class="guidecard pet '+(owned?'owned ':'locked ')+(selected?'selected':'')+'" data-pet-card="'+escHtml(pet.id)+'" style="--pet-color:'+escHtml(color)+'">'
     +'<div class="petstage"><i></i><img src="'+escHtml(pet.sprite?spriteSrc(pet.sprite):petIconData(pet))+'" loading="lazy"><em>'+mood+'</em></div><div class="petcopy"><b>'+escHtml(pet.name)+'</b><p>'+escHtml(petText(pet,'title')+' — '+petText(pet,'desc'))+'</p>'
     +'<small>'+escHtml(pet.buff)+' / '+escHtml(tr('pets.price',{price}))+'</small>'
     +(!owned?'<div class="petprogress"><i style="width:'+pct+'%"></i><span>'+coins.toLocaleString()+' / '+price+'</span></div>':'')
     +'<button data-pet-'+(owned?'select':'buy')+'="'+escHtml(pet.id)+'" '+(selected?'disabled':'')+'>'+escHtml(action)+'</button></div></div>';
+}
+function guideScrollTop(){
+  const body=document.getElementById('guidebody');
+  return body ? body.scrollTop : 0;
+}
+function restoreGuidePetPosition(opts){
+  opts=opts||{};
+  const focusId=opts.petFocus||'';
+  const scrollTop=Number.isFinite(opts.scrollTop) ? opts.scrollTop : null;
+  requestAnimationFrame(()=>{
+    const body=document.getElementById('guidebody');
+    if(!body) return;
+    const card=focusId ? Array.from(body.querySelectorAll('[data-pet-card]')).find(el=>el.dataset.petCard===focusId) : null;
+    if(card && typeof card.scrollIntoView==='function'){
+      card.scrollIntoView({block:'center'});
+    }else if(scrollTop!=null){
+      body.scrollTop=scrollTop;
+    }
+  });
 }
 function guideCharacterCard(img, name, bio, weapon, passive, stats, cls){
   return '<div class="guidecard character '+(cls||'')+'"><img src="'+escHtml(img)+'" loading="lazy"><div class="gctxt">'
@@ -1626,7 +1645,8 @@ function bindGuideChrome(body){
   if(!body) return;
   body.querySelectorAll('[data-guide-home]').forEach(btn=>btn.onclick=()=>openGuide('hub'));
 }
-function renderLocalizedGuide(kind, guide, body){
+function renderLocalizedGuide(kind, guide, body, opts){
+  opts=opts||{};
   currentGuideKind=kind;
   if(kind==='howto'){
     body.innerHTML=guideHeader(tr('guide.howto'), tr('guide.howto.desc'), kind)+renderHowToMarkup();
@@ -1655,6 +1675,7 @@ function renderLocalizedGuide(kind, guide, body){
     body.querySelectorAll('[data-pet-buy]').forEach(btn=>btn.onclick=()=>buyPet(btn.getAttribute('data-pet-buy')));
     body.querySelectorAll('[data-pet-select]').forEach(btn=>btn.onclick=()=>selectPet(btn.getAttribute('data-pet-select')||''));
     guide.style.display='flex';
+    restoreGuidePetPosition(opts);
     return true;
   }
   if(kind==='achievements'){
@@ -1673,11 +1694,12 @@ function renderLocalizedGuide(kind, guide, body){
   return false;
 }
 
-function openGuide(kind){
+function openGuide(kind, opts){
   const guide=document.getElementById('guide'), body=document.getElementById('guidebody');
   if(!guide||!body) return;
   kind=kind||'hub';
-  if(renderLocalizedGuide(kind, guide, body)) return;
+  opts=opts||{};
+  if(renderLocalizedGuide(kind, guide, body, opts)) return;
   currentGuideKind=kind;
   if(kind==='hub'){
     const title='สารบัญคู่มือ', note='รวมข้อมูลสำคัญของตัวละคร อาวุธ ศัตรู และระบบการเล่น';
@@ -1909,6 +1931,7 @@ function openGuide(kind){
   body.querySelectorAll('[data-pet-buy]').forEach(btn=>btn.onclick=()=>buyPet(btn.getAttribute('data-pet-buy')));
   body.querySelectorAll('[data-pet-select]').forEach(btn=>btn.onclick=()=>selectPet(btn.getAttribute('data-pet-select')||''));
   guide.style.display='flex';
+  if(kind==='pets') restoreGuidePetPosition(opts);
 }
 function closeGuide(){
   const guide=document.getElementById('guide');
@@ -3482,6 +3505,7 @@ function buyPet(id){
   const p=petById(id), state=loadPetState();
   if(!p) return false;
   if(state.owned[p.id]){ selectPet(p.id); return true; }
+  const scrollTop=guideScrollTop();
   const coins=soulCoins();
   if(coins<p.price){ showToast('Soul Coins ไม่พอ: ต้องมี '+p.price.toLocaleString(),2.4); return false; }
   setSoulCoins(coins-p.price);
@@ -3490,12 +3514,13 @@ function buyPet(id){
   savePetState(state);
   if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet');
   showToast('ซื้อ Pet: '+p.name,2.8);
-  openGuide('pets');
+  openGuide('pets',{petFocus:p.id,scrollTop});
   return true;
 }
 function selectPet(id){
   const state=loadPetState();
   if(id && !state.owned[id]){ showToast('ยังไม่ได้ซื้อ Pet ตัวนี้',2); return false; }
+  const scrollTop=guideScrollTop();
   state.selected=id||'';
   savePetState(state);
   if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet');
@@ -3509,7 +3534,7 @@ function selectPet(id){
     mini_mimic:'หีบจิ๋วขยับขาอย่างภูมิใจ'
   };
   showToast(id ? 'เลือก Pet: '+p.name+' — '+(quips[id]||'พร้อมลุย') : 'เล่นโดยไม่มี Pet',2.3);
-  openGuide('pets');
+  openGuide('pets',{petFocus:id||'',scrollTop});
   return true;
 }
 function unlockAllPetsForTesting(){
