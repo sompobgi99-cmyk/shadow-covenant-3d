@@ -1302,7 +1302,7 @@ function buildSelect(){
   for (const key in CHARACTERS){
     const c=CHARACTERS[key], wpn=weaponName(c.weapon)||c.weapon;
     const locked=!isCharacterUnlocked(key);
-    const lockText=locked ? unlockRequirementShort('character', key) : '';
+    const lockText=locked ? unlockRequirementLine('character', key) : '';
     const d=document.createElement('div'); d.className='ccard'+(locked?' locked':'');
     d.innerHTML='<img src="'+characterPortrait(key)+'"><div class="cn">'+escHtml(charField(key,'name',c.name))+'</div><div class="cw">\u2694 '+escHtml(wpn)+'</div><div class="cp">'+escHtml(charField(key,'passive',c.passive.desc))+'</div>'+(charField(key,'bio',c.bio)?'<div class="cbio">'+escHtml(charField(key,'bio',c.bio))+'</div>':'')+(locked?'<div class="lock">'+escHtml(tr('locked'))+'</div><div class="unlock">'+escHtml(lockText)+'</div>':'');
     d.onclick=()=>locked ? showToast('Locked: '+lockText,2.8) : selectCharacter(key);
@@ -1484,7 +1484,7 @@ function guideItemSummary(items){
 function guideItemCard(it){
   const unlocked=isItemUnlocked(it.id);
   const rarity=it.rarity||'common';
-  const lock=unlocked ? tr('common.unlocked') : tr('common.locked')+': '+unlockRequirementShort('item', it.id);
+  const lock=unlocked ? tr('common.unlocked') : unlockRequirementLine('item', it.id);
   const tags=itemGuideTags(it).map(t=>'<span>'+escHtml(itemGuideTagLabel(t))+'</span>').join('');
   return '<div class="guidecard item '+escHtml(rarity)+(unlocked?'':' locked')+'">'
     +'<div class="itemicon"><img src="'+escHtml(spriteSrc(it.icon))+'" loading="lazy"><em>'+escHtml(tr('rarity.'+rarity)||rarity)+'</em></div>'
@@ -1685,10 +1685,23 @@ function renderLocalizedGuide(kind, guide, body, opts){
     const state=loadAchievementState();
     const done=ACHIEVEMENTS.filter(a=>state.done&&state.done[a.id]).length;
     const note=tr('ach.note',{done,total:ACHIEVEMENTS.length,coins:soulCoins().toLocaleString()});
-    const cards=ACHIEVEMENTS.map(a=>{
+    const achievementCard=a=>{
       const ok=!!(state.done&&state.done[a.id]);
       return '<div class="guidecard text achievement '+(ok?'done':'locked')+'"><b>'+escHtml(achievementName(a))+'</b><p>'+escHtml(achievementDesc(a))+'</p><small>'+escHtml((ok?tr('ach.done'):tr('ach.locked'))+' · '+tr('ach.rewards')+': '+achievementRewardText(a))+'</small></div>';
-    }).join('');
+    };
+    const hasReward=(a,type)=>(a.rewards||[]).some(r=>r.type===type);
+    const section=(title,desc,list)=>{
+      return list.length ? guideSectionTitle(title,desc)+list.map(achievementCard).join('') : '';
+    };
+    const charList=ACHIEVEMENTS.filter(a=>hasReward(a,'character'));
+    const weaponList=ACHIEVEMENTS.filter(a=>hasReward(a,'weapon'));
+    const itemList=ACHIEVEMENTS.filter(a=>hasReward(a,'item'));
+    const otherList=ACHIEVEMENTS.filter(a=>!hasReward(a,'character') && !hasReward(a,'weapon') && !hasReward(a,'item'));
+    const cards=
+      section(gameLang()==='en'?'Unlock Characters':'ปลดล็อกตัวละคร', gameLang()==='en'?'Achievements that open new playable heroes.':'Achievement ที่เปิดตัวละครใหม่ให้เล่น', charList)+
+      section(gameLang()==='en'?'Unlock Weapons':'ปลดล็อกอาวุธ', gameLang()==='en'?'Achievements that add weapons to the level-up pool.':'Achievement ที่เพิ่มอาวุธเข้า pool ตอนอัปเลเวล', weaponList)+
+      section(gameLang()==='en'?'Unlock Items':'ปลดล็อกไอเทม', gameLang()==='en'?'Achievements that add items to drops, shops, and chests.':'Achievement ที่เพิ่มไอเทมในดรอป ร้านค้า และหีบ', itemList)+
+      section(gameLang()==='en'?'Soul Coins & Challenges':'Soul Coins / ความท้าทาย', gameLang()==='en'?'Extra goals, currency rewards, and bragging rights.':'เป้าหมายเสริม รางวัลเงินสัตว์เลี้ยง และไว้ขิงกัน', otherList);
     body.innerHTML=guideHeader(tr('ach.title'), note, kind)+'<div class="guidegrid achievements">'+cards+'</div>';
     bindGuideChrome(body);
     guide.style.display='flex';
@@ -1743,7 +1756,7 @@ function openGuide(kind, opts){
         stats.regen?'Regen '+stats.regen:null
       ].filter(Boolean).join(' / ');
       const locked=!isCharacterUnlocked(key);
-      const meta=statLine+(locked?(statLine?' / ':'')+tr('common.locked')+': '+unlockRequirementShort('character', key):'');
+      const meta=statLine+(locked?(statLine?' / ':'')+unlockRequirementLine('character', key):'');
       return guideCharacterCard(characterPortrait(key), locked?charField(key,'name',c.name)+' ('+tr('common.locked')+')':charField(key,'name',c.name), charField(key,'bio',c.bio||''), weaponName(c.weapon)||c.weapon, charField(key,'passive',c.passive.desc), meta, locked?'locked':'');
     }).join('');
   } else if(kind==='weapons'){
@@ -1755,7 +1768,7 @@ function openGuide(kind, opts){
       const w=WEAPON_TYPES[key];
       const pair=w.evolveTome ? ' / '+tr('common.pairWith',{name:tomeName(w.evolveTome)}) : '';
       const locked=!isWeaponUnlocked(key);
-      const meta=tr('common.basic')+' / '+tr('common.damage')+' '+(w.dmg||'-')+(w.rate?' / '+tr('common.rate')+' '+w.rate:'')+(w.count?' / '+tr('common.count')+' '+w.count:'')+pair+(locked?' / '+tr('common.locked')+': '+unlockRequirementShort('weapon', key):'');
+      const meta=tr('common.basic')+' / '+tr('common.damage')+' '+(w.dmg||'-')+(w.rate?' / '+tr('common.rate')+' '+w.rate:'')+(w.count?' / '+tr('common.count')+' '+w.count:'')+pair+(locked?' / '+unlockRequirementLine('weapon', key):'');
       return guideCard(spriteSrc(w.icon), locked?weaponName(key)+' ('+tr('common.locked')+')':weaponName(key), weaponDesc(key), meta, locked?'locked':'');
     }).join('');
     const evolvedCards=Object.keys(WEAPON_TYPES).filter(key=>WEAPON_TYPES[key].hidden).map(key=>{
@@ -4111,6 +4124,16 @@ function unlockRequirement(type,key){
 function unlockRequirementShort(type,key){
   const a=achievementForReward(type,key);
   return a ? achievementName(a) : tr('unlock.ready');
+}
+function unlockRequirementFull(type,key){
+  const a=achievementForReward(type,key);
+  return a ? achievementDesc(a) : tr('unlock.ready');
+}
+function unlockRequirementLine(type,key){
+  const a=achievementForReward(type,key);
+  if(!a) return tr('unlock.ready');
+  const prefix=gameLang()==='en'?'Unlock: ':'ปลดล็อก: ';
+  return prefix+achievementDesc(a);
 }
 function rewardDisplayName(r){
   if(r.type==='character') return charField(r.key,'name',(CHARACTERS[r.key]&&CHARACTERS[r.key].name)||r.key);
