@@ -227,7 +227,7 @@ function wstats(key, lvl){
     if (b.radius) {
       s.radius = b.radius * (1 + 0.055*k) * radiusRangeMul(b.mode) * (b.mode==='nova'||b.mode==='smite'||b.mode==='bamboo' ? skillSizeReachMul(b.mode) : 1);
       if (b.mode==='nova') s.radius = Math.min(s.radius, key==='novaX'?8.6:6.2);
-      if (b.mode==='bamboo') s.radius = Math.min(s.radius, key==='bamboo_spikesX'?3.25:2.10);
+      if (b.mode==='bamboo') s.radius = Math.min(s.radius, key==='bamboo_spikesX'?2.45:1.65);
     }
     if (b.bounces != null) {
       s.bounces = Math.max(0, (b.bounces||0) + (player.ricochetBonus||0));
@@ -531,12 +531,12 @@ function spawnBambooPatch(x,z,s,i){
   });
   const mesh=new THREE.Sprite(mat);
   mesh.center.set(0.5,0);
-  mesh.scale.set(radius*(evolved?1.52:1.28), radius*(evolved?1.92:1.62), 1);
-  mesh.position.set(x, groundHeight(x,z)+0.18, z);
+  mesh.scale.set(radius*(evolved?1.22:1.05), radius*(evolved?1.26:1.05), 1);
+  mesh.position.set(x, groundHeight(x,z)+0.08, z);
   mesh.visible=false;
   scene.add(mesh);
-  spawnRing(x,z,evolved?0xffdf72:s.color,radius*(evolved?1.90:1.55),evolved?0.34:0.26);
-  if(evolved) spawnRing(x,z,0xa8ff70,radius*1.35,0.24);
+  spawnRing(x,z,evolved?0xffdf72:s.color,radius*(evolved?1.45:1.22),evolved?0.30:0.23);
+  if(evolved) spawnRing(x,z,0xa8ff70,radius*1.05,0.22);
   bambooPatches.push({
     x,z,r:radius,dmg:Math.max(1,Math.round(damageForCountSlot(s,i)*0.38)),
     color:s.color,sourceKey:s.sourceKey,life:(s.life||1.2)*(s.areaLife||1),
