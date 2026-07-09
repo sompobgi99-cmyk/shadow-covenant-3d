@@ -9,6 +9,7 @@ assets/sprites/_debug_*
 assets/sprites/*.before-silver-paladin
 js/_synctest.txt
 test-output/
+test-results/
 artifacts/
 
 # Local Netlify folder

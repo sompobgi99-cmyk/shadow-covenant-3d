@@ -47,8 +47,11 @@ const enemyShots = [];                      // enemy ranged projectiles
 const particles = [];                       // hit/death bursts
 const PARTICLE_GEO = new THREE.BoxGeometry(0.14,0.14,0.14);
 const trails=[]; const TRAIL_GEO=new THREE.BoxGeometry(0.14,0.14,0.14);
+const TRAIL_GLOW_GEO = new THREE.SphereGeometry(0.18,8,8);
 const EFFECT_PLANE_GEO = new THREE.PlaneGeometry(2,2);
 const burstMaterialCache = new Map();
+const trailCoreMaterialCache = new Map();
+const trailGlowMaterialCache = new Map();
 function effectColorKey(color){
   return new THREE.Color(color==null?0xffffff:color).getHexString();
 }
@@ -59,6 +62,16 @@ function getBurstMaterial(color){
     mat=new THREE.MeshBasicMaterial({ color:new THREE.Color('#'+key), transparent:true, depthWrite:false, blending:THREE.AdditiveBlending });
     mat._shared=true;
     burstMaterialCache.set(key,mat);
+  }
+  return mat;
+}
+function getTrailMaterial(cache, color, opacity){
+  const key=effectColorKey(color);
+  let mat=cache.get(key);
+  if(!mat){
+    mat=new THREE.MeshBasicMaterial({ color:new THREE.Color('#'+key), transparent:true, opacity, blending:THREE.AdditiveBlending, depthWrite:false });
+    mat._shared=true;
+    cache.set(key,mat);
   }
   return mat;
 }
@@ -501,8 +514,8 @@ function updateDamageNumbers(dt){
 function spawnTrail(x,z,color,scale,life){
   if(trails.length>=80) return;
   const m=new THREE.Group();
-  const core=new THREE.Mesh(TRAIL_GEO, new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.52, blending:THREE.AdditiveBlending, depthWrite:false }));
-  const glow=new THREE.Mesh(new THREE.SphereGeometry(0.18,8,8), new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.16, blending:THREE.AdditiveBlending, depthWrite:false }));
+  const core=new THREE.Mesh(TRAIL_GEO, getTrailMaterial(trailCoreMaterialCache, color, 0.52));
+  const glow=new THREE.Mesh(TRAIL_GLOW_GEO, getTrailMaterial(trailGlowMaterialCache, color, 0.16));
   m.add(glow); m.add(core);
   m.scale.setScalar(scale||1); m.position.set(x, groundHeight(x,z)+0.9, z); scene.add(m);
   trails.push({ mesh:m, life:life||0.16, max:life||0.16, core, glow });
@@ -2457,7 +2470,7 @@ const gridTexturePools = new Map();
 // ---- GPU memory: free per-instance geometry/material/texture when objects are removed ----
 // Shared resources are flagged so freeObj() skips them. Cloned textures are freed only by the
 // material that owns them (_ownsMap). Without this, long sessions leak GPU memory -> white screen.
-SHADOW_GEO._shared = ENEMY_SHADOW_GEO._shared = SHADOW_MAT._shared = PARTICLE_GEO._shared = TRAIL_GEO._shared = EFFECT_PLANE_GEO._shared = true;
+SHADOW_GEO._shared = ENEMY_SHADOW_GEO._shared = SHADOW_MAT._shared = PARTICLE_GEO._shared = TRAIL_GEO._shared = TRAIL_GLOW_GEO._shared = EFFECT_PLANE_GEO._shared = true;
 function returnGridTextureToPool(map){
   if(!map || !map._poolKey) return false;
   const key=map._poolKey;
@@ -2647,7 +2660,8 @@ function prewarmShaders(){
       add(new THREE.Sprite(new THREE.SpriteMaterial({ map:spriteMap, transparent:true, opacity:0.55, alphaTest:0.08, depthWrite:false, blending:THREE.AdditiveBlending })));
     }
     add(new THREE.Mesh(PARTICLE_GEO, getBurstMaterial(0xffd86a)));
-    add(new THREE.Mesh(TRAIL_GEO, new THREE.MeshBasicMaterial({ color:0x7ce7ff, transparent:true, opacity:0.52, blending:THREE.AdditiveBlending, depthWrite:false })));
+    add(new THREE.Mesh(TRAIL_GEO, getTrailMaterial(trailCoreMaterialCache, 0x7ce7ff, 0.52)));
+    add(new THREE.Mesh(TRAIL_GLOW_GEO, getTrailMaterial(trailGlowMaterialCache, 0x7ce7ff, 0.16)));
     add(new THREE.Mesh(EFFECT_PLANE_GEO, new THREE.MeshBasicMaterial({
       map:getPixelRingTexture(), color:0xffd86a, transparent:true, opacity:0.9,
       alphaTest:0.08, side:THREE.DoubleSide, depthWrite:false
