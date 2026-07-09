@@ -8,6 +8,7 @@
     syncing: false,
     lastError: '',
     lastSyncAt: '',
+    pendingReason: '',
     timer: 0,
   };
 
@@ -57,7 +58,10 @@
   }
 
   async function syncOnlineAchievements(reason){
-    if(state.syncing) return { skipped:'busy' };
+    if(state.syncing) {
+      state.pendingReason = reason || state.pendingReason || 'queued';
+      return { skipped:'busy' };
+    }
     if(typeof currentAuthUser !== 'function' || !currentAuthUser()) return { skipped:'guest' };
     state.syncing = true;
     state.lastError = '';
@@ -94,6 +98,11 @@
       return { error: state.lastError };
     } finally {
       state.syncing = false;
+      if(state.pendingReason) {
+        const pending = state.pendingReason;
+        state.pendingReason = '';
+        queueOnlineAchievementSync(pending);
+      }
     }
   }
 

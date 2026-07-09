@@ -3664,12 +3664,14 @@ function activeSoulCoinSpendGuard(){
     return g;
   }catch(_){ return null; }
 }
-function addSoulCoins(amount, reason){
+function addSoulCoins(amount, reason, opts){
+  opts=opts||{};
   amount=Math.max(0, Math.floor(amount||0));
   if(!amount) return 0;
   const total=setSoulCoins(soulCoins()+amount);
   if(reason) showToast('Soul Coins +'+amount+' · '+reason, 3.2);
-  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('coins');
+  if(opts.immediateSync && typeof syncOnlineAchievements==='function') syncOnlineAchievements('coins');
+  else if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('coins');
   return total;
 }
 function isPetOwned(id){ return !!(loadPetState().owned||{})[id]; }
@@ -4191,7 +4193,7 @@ function calcRunSoulCoins(){
 function awardRunSoulCoins(){
   const award=calcRunSoulCoins();
   lastSoulCoinAward=award;
-  if(award.total>0) addSoulCoins(award.total, 'Run Reward');
+  if(award.total>0) addSoulCoins(award.total, 'Run Reward', { immediateSync:true });
   return award;
 }
 function soulCoinSummaryHtml(){
