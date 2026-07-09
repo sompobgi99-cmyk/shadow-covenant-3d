@@ -37,7 +37,7 @@ const WEAPON_TYPES = {
   bouncebomb:{ name:'Bouncing Bomb', icon:'wpn_bouncebomb', desc:'ระเบิดแตกตอนชนแล้วเด้งต่อไปยังเป้าหมายอื่น', mode:'aim',
             dmg:13, rate:0.86, range:10, count:1, pierce:0, speed:13, life:1.75, color:0xff9a4a, shape:'bomb', bounces:2, bounceRadius:8, bounceDmgMul:0.82, impactRadius:1.25, impactDmgMul:0.50, evolveTo:'bouncebombX', evolveTome:'impact' },
   bamboo_spikes:{ name:'Bamboo Spike Field', icon:'wpn_bamboo_spikes', desc:'วางพื้นเรียกหน่อไม้แทงขึ้นจากดินแบบกวน ๆ', mode:'bamboo',
-            dmg:17, rate:0.78, range:9.5, count:2, pierce:99, speed:0, life:1.25, color:0xa8e36a, radius:1.45, shape:'bamboo', evolveTo:'bamboo_spikesX', evolveTome:'growth' },
+            dmg:15, rate:0.78, range:9.5, count:2, pierce:99, speed:0, life:1.25, color:0xa8e36a, radius:1.45, shape:'bamboo', evolveTo:'bamboo_spikesX', evolveTome:'growth' },
   // evolved forms (hidden from the acquire pool)
   boltX:  { name:'Doom Bolt',      icon:'wpn_bolt_evolved',     desc:'ร่างวิวัฒน์: ยิงกระสุนทะลุเป็นชุด', mode:'aim', hidden:true,
             dmg:28, rate:2.4, range:13, count:2, pierce:4, speed:20, life:1.6, color:0xff66ff, shape:'doom' },
@@ -70,7 +70,7 @@ const WEAPON_TYPES = {
   bouncebombX:{ name:'Chain Detonator', icon:'wpn_bouncebomb_evolved', desc:'ร่างวิวัฒน์: ระเบิดลูกโซ่ขนาดใหญ่ระหว่างเป้าหมาย', mode:'aim', hidden:true,
             dmg:27, rate:1.25, range:12, count:2, pierce:0, speed:15, life:2.0, color:0xffbd5f, shape:'bomb', bounces:3, bounceRadius:10, bounceDmgMul:0.86, impactRadius:2.0, impactDmgMul:0.70 },
   bamboo_spikesX:{ name:'Bamboo Forest Judgment', icon:'wpn_bamboo_spikes_evolved', desc:'ร่างวิวัฒน์: ป่าหน่อไม้แทงซ้ำหลายระลอก', mode:'bamboo', hidden:true,
-            dmg:28, rate:1.15, range:11.5, count:4, pierce:99, speed:0, life:1.75, color:0xd9ff7a, radius:2.05, shape:'bamboo' },
+            dmg:24, rate:1.15, range:11.5, count:4, pierce:99, speed:0, life:1.75, color:0xd9ff7a, radius:2.05, shape:'bamboo' },
 };
 const BONUS_COUNT_DMG_MUL = 0.65;
 const GLOBAL_WEAPON_DMG_MUL = 1.0602;
@@ -531,14 +531,14 @@ function spawnBambooPatch(x,z,s,i){
   });
   const mesh=new THREE.Sprite(mat);
   mesh.center.set(0.5,0);
-  mesh.scale.set(radius*(evolved?1.22:1.05), radius*(evolved?1.26:1.05), 1);
-  mesh.position.set(x, groundHeight(x,z)+0.08, z);
+  mesh.scale.set(radius*(evolved?1.02:0.90), radius*(evolved?0.68:0.56), 1);
+  mesh.position.set(x, groundHeight(x,z)+0.018, z);
   mesh.visible=false;
   scene.add(mesh);
-  spawnRing(x,z,evolved?0xffdf72:s.color,radius*(evolved?1.45:1.22),evolved?0.30:0.23);
-  if(evolved) spawnRing(x,z,0xa8ff70,radius*1.05,0.22);
+  spawnRing(x,z,evolved?0xffdf72:s.color,radius*(evolved?1.28:1.10),evolved?0.26:0.20);
+  if(evolved) spawnRing(x,z,0xa8ff70,radius*0.92,0.18);
   bambooPatches.push({
-    x,z,r:radius,dmg:Math.max(1,Math.round(damageForCountSlot(s,i)*0.38)),
+    x,z,r:radius,dmg:Math.max(1,Math.round(damageForCountSlot(s,i)*0.34)),
     color:s.color,sourceKey:s.sourceKey,life:(s.life||1.2)*(s.areaLife||1),
     maxLife:(s.life||1.2)*(s.areaLife||1),delay:0.18,tick:0.04,
     tickEvery:evolved?0.24:0.30,mesh,alive:true,frames:BAMBOO_FX_FRAMES,evolved

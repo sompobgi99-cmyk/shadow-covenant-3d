@@ -563,8 +563,8 @@ function update(dt) {
     }
     const pulse=1+Math.sin(gameTime*18+i)*0.06;
     const pop=Math.min(1,p*4);
-    b.mesh.position.y=groundHeight(b.x,b.z)+0.06+Math.sin(Math.min(1,p)*Math.PI)*0.05;
-    b.mesh.scale.set(b.r*(b.evolved?1.24:1.08)*pulse,b.r*(b.evolved?1.30:1.10)*(0.86+0.14*pop),1);
+    b.mesh.position.y=groundHeight(b.x,b.z)+0.012+Math.sin(Math.min(1,p)*Math.PI)*0.010;
+    b.mesh.scale.set(b.r*(b.evolved?1.04:0.92)*pulse,b.r*(b.evolved?0.72:0.60)*(0.92+0.08*pop),1);
     const fade=p<0.68?1:Math.max(0,1-(p-0.68)/0.32);
     b.mesh.material.opacity=Math.max(0,(b.evolved?0.98:0.94)*fade);
     if(b.tick<=0){
