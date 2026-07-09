@@ -70,8 +70,9 @@
       if(!remoteRes.ok) throw new Error('Progress load failed: '+remoteRes.status);
       const remote = await remoteRes.json();
       const isPetPurchase = reason === 'pet_purchase';
-      const isPetWrite = isPetPurchase || reason === 'pet_select';
-      const imported = applyRemote(remote, { skipCoins:isPetPurchase, skipPetSelection:isPetWrite });
+      const isCoinSpend = isPetPurchase || reason === 'pet_box';
+      const isPetWrite = isPetPurchase || reason === 'pet_box' || reason === 'pet_select';
+      const imported = applyRemote(remote, { skipCoins:isCoinSpend, skipPetSelection:isPetWrite });
       const payload = localPayload();
       const saveRes = await fetch(ONLINE_PROGRESS.apiEndpoint, {
         method:'POST',
@@ -80,7 +81,7 @@
       });
       if(!saveRes.ok) throw new Error('Progress save failed: '+saveRes.status);
       const saved = await saveRes.json();
-      applyRemote(saved);
+      applyRemote(saved, { skipCoins:isCoinSpend, skipPetSelection:isPetWrite });
       state.loaded = true;
       state.lastSyncAt = new Date().toISOString();
       if(imported && imported.length && typeof showToast === 'function') showToast('Cloud unlocks synced: '+imported.length, 2.4);

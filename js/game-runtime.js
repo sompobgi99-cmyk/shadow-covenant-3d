@@ -3611,7 +3611,7 @@ function openPetBox(){
     setSoulCoins(soulCoins()+result.amount);
     showPetBoxPopup({ amount:result.amount });
     showToast('เปิดกล่องไม่ติด Pet · ได้คืน '+result.amount.toLocaleString()+' Soul Coins',2.8);
-    if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('coins');
+    if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet_box');
     openGuide('pets',{scrollTop});
     return true;
   }
@@ -3628,10 +3628,9 @@ function openPetBox(){
     savePetState(state);
     showPetBoxPopup({ pet:p, duplicate:false });
     showToast('เปิดกล่องได้ Pet ใหม่: '+p.name+(p.premium?' ★ SPECIAL':''),3.4);
-    if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet_purchase');
     petReact('select', true);
   }
-  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('coins');
+  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet_box');
   openGuide('pets',{petFocus:p.id,scrollTop});
   return true;
 }
