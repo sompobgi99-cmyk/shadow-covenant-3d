@@ -535,7 +535,7 @@ function clearCombatActors(){
   trails.length=0; pickups.length=0; breakables.length=0; groundItems.length=0; afterimages.length=0; novaWaves.length=0; bambooPatches.length=0; slashFx.length=0; dmgNums.length=0;
   boss=null; weaponSig=null; enemyGrid.clear();
 }
-function transitionToStage(stage){
+async function transitionToStage(stage){
   if(stage<=mapStage || stageTransitioning) return;
   stageTransitioning=true;
   try {
@@ -546,6 +546,9 @@ function transitionToStage(stage){
     clearCombatActors();
     clearWorldObjects();
     removeAltar();
+    if(typeof prefetchTextureKeys==='function' && typeof stageTextureKeys==='function'){
+      await prefetchTextureKeys(stageTextureKeys(stage));
+    }
     mapStage=stage;
     stageStartTime=gameTime;   // reset the per-stage clock (timer/OT/spawn density restart)
     finalBossKilledAt=null;
@@ -564,6 +567,9 @@ function transitionToStage(stage){
     nextMinibossAt=gameTime+(stage>=3?35:45); mbTimer=0; relocationCursor=0;
     makeAltar();
     makeWorldObjects();
+    if(stage===2 && typeof prefetchTextureKeys==='function' && typeof stageTextureKeys==='function'){
+      setTimeout(()=>prefetchTextureKeys(stageTextureKeys(3)), 1200);
+    }
     for(let i=0;i<(stage>=3?14:8);i++) spawnEnemy();
     spawnObjectPulse(player.x,player.z,stage>=3?0x9a55ff:0xff5638,9,0.8);
     spawnBurst(player.x,player.z,stage>=3?0x7ce7ff:0xff5a3a,28,1.2);
@@ -897,8 +903,11 @@ function enterChallengeDoor(o){
   startChallengeRoom(room,o.nextStage);
   return true;
 }
-function startChallengeRoom(room,nextStage){
+async function startChallengeRoom(room,nextStage){
   if(!room) return false;
+  if(typeof prefetchTextureKeys==='function' && typeof stageTextureKeys==='function'){
+    await prefetchTextureKeys(stageTextureKeys(Math.max(2,nextStage||mapStage||2)));
+  }
   const relic=document.getElementById('relicup'); if(relic) relic.style.display='none';
   const level=document.getElementById('levelup'); if(level) level.style.display='none';
   paused=false; userPaused=false; pendingRelicPortal=null;

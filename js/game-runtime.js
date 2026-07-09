@@ -2058,10 +2058,13 @@ function chooseDifficulty(id){
   setActivePacts([]);
   beginSelectedRun();
 }
-function beginSelectedRun(){
+async function beginSelectedRun(){
   document.getElementById('difficultyselect').style.display='none';
   document.getElementById('pactselect').style.display='none';
-  started=true; restart();
+  started=true;
+  const p = (typeof petById==='function') ? petById(selectedPetId()) : null;
+  if(p && typeof prefetchTextureKeys==='function') await prefetchTextureKeys([p.sprite,p.sheet].filter(Boolean));
+  restart();
   heroQuip('start',1,2.8);
   petReact('start', true);
 }
@@ -2600,17 +2603,73 @@ const mgr = new THREE.LoadingManager();
 const loader = new THREE.TextureLoader(mgr);
 let pendingTex = 0, bootDone = false;
 function bootIfReady(){ if (!bootDone && pendingTex<=0){ bootDone = true; init(); } }
+const lazyTextureLoads = new Map();
+function isLazyTextureKey(k){
+  return k.startsWith('map2_') || k.startsWith('map3_')
+    || k.startsWith('floor_challenge_') || k.startsWith('prop_challenge_')
+    || k.startsWith('boss_') || k.startsWith('miniboss_')
+    || k.startsWith('pet_');
+}
+function configureTexture(t){
+  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
+  t.generateMipmaps = false; t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+function installTexture(k,t){
+  tex[k] = configureTexture(t);
+  const theme = (typeof MAP_THEMES!=='undefined' && MAP_THEMES[mapStage]) ? MAP_THEMES[mapStage] : null;
+  if(theme && (theme.groundKey===k || theme.borderKey===k)) applyMapTheme();
+  return tex[k];
+}
+function loadTextureKey(k){
+  if(tex[k]) return Promise.resolve(tex[k]);
+  if(!MANIFEST[k]) return Promise.resolve(null);
+  if(lazyTextureLoads.has(k)) return lazyTextureLoads.get(k);
+  const p=new Promise(resolve=>{
+    loader.load(spriteSrc(k), t=>resolve(installTexture(k,t)), undefined, ()=>{
+      console.warn('tex load fail', spriteSrc(k));
+      resolve(null);
+    });
+  });
+  lazyTextureLoads.set(k,p);
+  return p;
+}
+function prefetchTextureKeys(keys){
+  return Promise.allSettled([...new Set(keys)].filter(k=>MANIFEST[k] && !tex[k]).map(loadTextureKey));
+}
+function unitTextureKeys(base){
+  return [base, base+'_8dir', base+'_walk'].filter(k=>MANIFEST[k]);
+}
+function stageTextureKeys(stage){
+  const keys=[];
+  if(stage>=2){
+    for(const k of Object.keys(MANIFEST)){
+      if(k.startsWith('map2_') || k.startsWith('floor_challenge_') || k.startsWith('prop_challenge_')) keys.push(k);
+    }
+    (BOSS_TYPES||[]).filter(b=>['Soul Reaper','Void Wyrm'].includes(b.name)).forEach(b=>keys.push(...unitTextureKeys(b.sprite)));
+  }
+  if(stage>=3){
+    for(const k of Object.keys(MANIFEST)) if(k.startsWith('map3_')) keys.push(k);
+    (BOSS_TYPES||[]).filter(b=>b.final).forEach(b=>keys.push(...unitTextureKeys(b.sprite)));
+  }
+  return keys;
+}
+function scheduleLazyTextureWarmup(){
+  setTimeout(()=>prefetchTextureKeys([].concat(...(BOSS_TYPES||[]).map(b=>unitTextureKeys(b.sprite))).concat([].concat(...(MINIBOSS_TYPES||[]).map(m=>unitTextureKeys(m.sprite))))), 1500);
+  setTimeout(()=>prefetchTextureKeys([].concat(...(PETS||[]).map(p=>[p.sprite,p.sheet].filter(Boolean)))), 3500);
+  setTimeout(()=>prefetchTextureKeys(stageTextureKeys(2)), 5000);
+}
 for (const [k,f] of Object.entries(MANIFEST)) {
+  if(isLazyTextureKey(k)) continue;
   pendingTex++;
   loader.load(spriteSrc(k), (t) => {
-    t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
-    t.generateMipmaps = false; t.encoding = THREE.sRGBEncoding;
-    tex[k] = t; pendingTex--; bootIfReady();
+    installTexture(k,t); pendingTex--; bootIfReady();
   }, undefined, () => {
     // Optional sprite missing — code already falls back to canvas/static art at use sites.
     pendingTex--; bootIfReady();
   });
 }
+bootIfReady();
 mgr.onLoad = bootIfReady;
 mgr.onError = (u) => console.warn('tex load fail', u);
 
@@ -2734,6 +2793,7 @@ function init() {
   initEnemyShadowInstances();
   prewarmEffectTextures();
   prewarmShaders();
+  scheduleLazyTextureWarmup();
 
   player = makePlayer();
   applyLocalPetTestUnlock();

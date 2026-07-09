@@ -10,6 +10,13 @@ const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
 const REQUIRED_BUILD = "20260709-perf-smoke";
+const RANKED_DIFFICULTY_MULTIPLIERS = {
+  normal: 1,
+  hard: 1.4,
+};
+const MAX_RANKED_STAGE = 3;
+const MAX_RANKED_LEVEL = 60;
+const MAX_RANKED_PACTS = 5;
 
 const jsonHeaders = {
   "Content-Type": "application/json; charset=utf-8",
@@ -148,12 +155,48 @@ function looseScoreCap(entry) {
     + (entry.won ? 4000000 : 0);
 }
 
+function near(value, expected, tolerance = 0.025) {
+  return Math.abs(Number(value || 0) - expected) <= tolerance;
+}
+
+function rankedDifficultyMultiplier(id) {
+  return RANKED_DIFFICULTY_MULTIPLIERS[id] || 0;
+}
+
+function plausibleKillsCap(entry) {
+  const minutes = Math.max(1, Math.ceil((entry.time || 0) / 60));
+  const hardBonus = entry.difficulty_id === "hard" ? 120 : 0;
+  const overtimeBonus = Math.max(0, minutes - 10) * 180;
+  return 350 + minutes * (520 + hardBonus) + overtimeBonus;
+}
+
+function validateMultipliers(entry) {
+  const expectedDifficulty = rankedDifficultyMultiplier(entry.difficulty_id);
+  if (!expectedDifficulty) return "Only Normal and Hard runs can submit to ranking";
+  if (!near(entry.difficulty_multiplier, expectedDifficulty)) return "Difficulty multiplier does not match the selected mode";
+  if (entry.pact_count !== entry.pact_ids.length) return "Pact count does not match the selected pact list";
+  if (entry.pact_count > MAX_RANKED_PACTS) return "Too many pacts were submitted";
+  if (entry.pact_ids.length && entry.difficulty_id !== "normal" && entry.difficulty_id !== "hard") return "Pacts are only ranked on Normal and Hard";
+  if (entry.pact_ids.length && entry.pact_multiplier <= 1) return "Pact multiplier is missing";
+  if (entry.pact_multiplier > 2.5) return "Pact multiplier is outside the accepted range";
+  return "";
+}
+
 function validateScore(entry) {
   if (entry.build !== REQUIRED_BUILD) return "Outdated game version. Please reload before ranking.";
   if (!entry.player_name) return "Missing player name";
   if (entry.score < 0 || entry.kills < 0 || entry.time < 0) return "Negative values are not allowed";
   if (entry.score > 0 && entry.time < 8) return "Run is too short for a scored entry";
-  if (entry.score > looseScoreCap(entry)) return "Score is outside the accepted range";
+  if (entry.stage < 1 || entry.stage > MAX_RANKED_STAGE) return "Stage is outside the accepted range";
+  if (entry.level < 1 || entry.level > MAX_RANKED_LEVEL) return "Level is outside the accepted range";
+  if (entry.items < 0 || entry.items > 120) return "Item count is outside the accepted range";
+  if (entry.time > 3600) return "Run time is outside the accepted range";
+  if (entry.won && entry.stage !== MAX_RANKED_STAGE) return "Winning runs must finish on Map 3";
+  if (entry.kills > plausibleKillsCap(entry)) return "Kill count is outside the accepted range";
+  const multiplierProblem = validateMultipliers(entry);
+  if (multiplierProblem) return multiplierProblem;
+  const scoreToCheck = Math.max(entry.score || 0, entry.score_before_penalty || 0);
+  if (scoreToCheck > looseScoreCap(entry)) return "Score is outside the accepted range";
   return "";
 }
 

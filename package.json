@@ -8,6 +8,8 @@
     "audit": "node scripts/audit.mjs",
     "smoke": "node scripts/smoke.mjs",
     "smoke:browser": "node scripts/smoke-browser.mjs",
+    "playtest:journey": "node scripts/playtest-journey.mjs",
+    "optimize:png": "node scripts/optimize-png.mjs",
     "verify": "npm run check && npm run audit && npm run smoke",
     "pixellab:balance": "node scripts/pixellab.mjs balance",
     "pixellab:generate": "node scripts/pixellab.mjs generate"
