@@ -9,7 +9,7 @@ const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260708-pet-select-sync-fix";
+const REQUIRED_BUILD = "20260709-pet-box-refund-fix";
 
 const jsonHeaders = {
   "Content-Type": "application/json; charset=utf-8",
