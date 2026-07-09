@@ -881,6 +881,7 @@ const AUTH_PENDING_MODE_KEY='sc3_pending_start_mode';
 const PACT_UNLOCK_STORAGE_KEY='sc3_pact_unlocks_v2';
 const PACT_LAST_STORAGE_KEY='sc3_last_pacts_v2';
 const SOUL_COINS_STORAGE_KEY='sc3_soul_coins_v1';
+const SOUL_COINS_SPEND_GUARD_KEY='sc3_soul_coin_spend_guard_v1';
 const PET_STATE_STORAGE_KEY='sc3_pets_v1';
 let playerName = localStorage.getItem(PLAYER_NAME_KEY) || 'Player';
 let playerCountry = localStorage.getItem(PLAYER_COUNTRY_KEY) || 'TH';
@@ -3568,6 +3569,17 @@ function setSoulCoins(v){
   try{ localStorage.setItem(SOUL_COINS_STORAGE_KEY, String(n)); }catch(_){}
   return n;
 }
+function markSoulCoinSpendGuard(value){
+  try{ localStorage.setItem(SOUL_COINS_SPEND_GUARD_KEY, JSON.stringify({ value:Math.max(0,Math.floor(value||0)), at:Date.now() })); }catch(_){}
+}
+function activeSoulCoinSpendGuard(){
+  try{
+    const g=JSON.parse(localStorage.getItem(SOUL_COINS_SPEND_GUARD_KEY)||'null');
+    if(!g || !Number.isFinite(g.value) || !Number.isFinite(g.at)) return null;
+    if(Date.now()-g.at>120000) return null;
+    return g;
+  }catch(_){ return null; }
+}
 function addSoulCoins(amount, reason){
   amount=Math.max(0, Math.floor(amount||0));
   if(!amount) return 0;
@@ -3609,6 +3621,7 @@ function openPetBox(){
   const result=petBoxPick();
   if(result.type==='coins'){
     setSoulCoins(soulCoins()+result.amount);
+    markSoulCoinSpendGuard(soulCoins());
     showPetBoxPopup({ amount:result.amount });
     showToast('เปิดกล่องไม่ติด Pet · ได้คืน '+result.amount.toLocaleString()+' Soul Coins',2.8);
     if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet_box');
@@ -3620,12 +3633,14 @@ function openPetBox(){
   if(duplicate){
     const refund=Math.floor((p.price||PET_BOX_COST)*0.5);
     setSoulCoins(soulCoins()+refund);
+    markSoulCoinSpendGuard(soulCoins());
     showPetBoxPopup({ pet:p, duplicate:true, refund });
     showToast('เปิดกล่องได้ซ้ำ: '+p.name+' · คืน '+refund.toLocaleString()+' Soul Coins',3.2);
   }else{
     state.owned[p.id]=new Date().toISOString();
     state.selected=p.id;
     savePetState(state);
+    markSoulCoinSpendGuard(soulCoins());
     showPetBoxPopup({ pet:p, duplicate:false });
     showToast('เปิดกล่องได้ Pet ใหม่: '+p.name+(p.premium?' ★ SPECIAL':''),3.4);
     petReact('select', true);
@@ -4171,7 +4186,9 @@ function importPlayerProgress(progress, opts){
   const remoteCoins=Math.max(0, Math.floor(Number(progress.soulCoins||0)));
   let coinsChanged=false, petsChanged=false;
   const forceCoins = progress.migrations && progress.migrations.petRetroDeduct20260708;
-  if(Number.isFinite(remoteCoins) && ((forceCoins && remoteCoins!==soulCoins()) || (!opts.skipCoins && remoteCoins>soulCoins()))){
+  const spendGuard=activeSoulCoinSpendGuard();
+  const blockCoinRaise=spendGuard && remoteCoins>spendGuard.value;
+  if(!opts.skipCoins && !blockCoinRaise && Number.isFinite(remoteCoins) && ((forceCoins && remoteCoins!==soulCoins()) || (remoteCoins>soulCoins()))){
     setSoulCoins(remoteCoins);
     coinsChanged=true;
   }
