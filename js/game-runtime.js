@@ -3558,7 +3558,7 @@ const PETS = [
 ];
 const PET_BOX_COST = 100;
 const PET_BOX_DUPLICATE_REFUND = Math.floor(PET_BOX_COST * 0.5);
-const PET_BOX_SPECIAL_CHANCE = 0.01;
+const PET_BOX_SPECIAL_CHANCE = 0.005;
 const PET_BOX_NORMAL_CHANCE = 0.05;
 function petById(id){ return PETS.find(p=>p.id===id); }
 function loadPetState(){
