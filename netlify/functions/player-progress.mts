@@ -22,6 +22,8 @@ const PET_IDS = new Set([
   "storm_pup",
   "grave_kitten",
   "mini_mimic",
+  "imperial_phoenix",
+  "chonky_tiger",
 ]);
 const PACT_IDS = new Set([
   "blood_moon",
@@ -41,6 +43,8 @@ const PET_PRICES: Record<string, number> = {
 const PET_RETRO_DEDUCT_ID = "petRetroDeduct20260708";
 const PET_RETRO_DEDUCT_START = Date.parse("2026-07-07T17:00:00.000Z"); // 2026-07-08 00:00 Thailand
 const PET_RETRO_DEDUCT_END = Date.parse("2026-07-08T17:00:00.000Z");   // 2026-07-09 00:00 Thailand
+const SOUL_COIN_COMPENSATION_ID = "soulCoinCompensation20260709";
+const SOUL_COIN_COMPENSATION_AMOUNT = 1000;
 
 const jsonHeaders = {
   "Content-Type": "application/json; charset=utf-8",
@@ -157,7 +161,7 @@ function cleanMigrations(input: unknown) {
   const src = input && typeof input === "object" ? input as Record<string, unknown> : {};
   const out: Record<string, string> = {};
   for (const [id, value] of Object.entries(src)) {
-    if (id !== PET_RETRO_DEDUCT_ID) continue;
+    if (id !== PET_RETRO_DEDUCT_ID && id !== SOUL_COIN_COMPENSATION_ID) continue;
     const t = String(value || "").slice(0, 40);
     const parsed = Date.parse(t);
     out[id] = Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString();
@@ -215,30 +219,56 @@ function applyPetRetroDeduction(progress: Awaited<ReturnType<typeof readProgress
   return { progress: next, changed: true, deducted };
 }
 
+function applySoulCoinCompensation(progress: Awaited<ReturnType<typeof readProgress>>) {
+  if (progress.migrations[SOUL_COIN_COMPENSATION_ID]) return { progress, changed: false, awarded: 0 };
+  const next = {
+    ...progress,
+    soulCoins: cleanCoins(progress.soulCoins + SOUL_COIN_COMPENSATION_AMOUNT),
+    migrations: { ...progress.migrations, [SOUL_COIN_COMPENSATION_ID]: new Date().toISOString() },
+  };
+  return { progress: next, changed: true, awarded: SOUL_COIN_COMPENSATION_AMOUNT };
+}
+
+function applyProgressMigrations(progress: Awaited<ReturnType<typeof readProgress>>) {
+  const retro = applyPetRetroDeduction(progress);
+  const compensation = applySoulCoinCompensation(retro.progress);
+  return {
+    progress: compensation.progress,
+    changed: retro.changed || compensation.changed,
+    deducted: retro.deducted,
+    compensation: compensation.awarded,
+  };
+}
+
 export default async (req: Request) => {
   const auth = await verifySupabaseUser(req);
   if (auth.error) return json({ error: auth.error }, 401);
   const store = getStore({ name: STORE_NAME, consistency: "strong" });
 
   if (req.method === "GET") {
-    const result = applyPetRetroDeduction(await readProgress(store, auth.userId));
+    const result = applyProgressMigrations(await readProgress(store, auth.userId));
     const progress = result.progress;
     if (result.changed) {
       await store.setJSON(progressKey(auth.userId), { done: progress.done, pacts: progress.pacts, soulCoins: progress.soulCoins, pets: progress.pets, migrations: progress.migrations, updated_at: new Date().toISOString() });
     }
-    return json({ ok: true, done: progress.done, pacts: progress.pacts, soulCoins: progress.soulCoins, pets: progress.pets, migrations: progress.migrations, updated_at: progress.updated_at, retroPetDeducted: result.deducted });
+    return json({ ok: true, done: progress.done, pacts: progress.pacts, soulCoins: progress.soulCoins, pets: progress.pets, migrations: progress.migrations, updated_at: progress.updated_at, retroPetDeducted: result.deducted, compensationSoulCoins: result.compensation });
   }
 
   if (req.method === "POST" || req.method === "PUT") {
     const contentLength = Number.parseInt(req.headers.get("content-length") || "0", 10);
     if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) return json({ error: "Payload too large" }, 413);
-    let body: { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown; coinSpend?: unknown } = {};
+    let body: { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown; migrations?: unknown; coinSpend?: unknown } = {};
     try {
       body = await req.json();
     } catch {
       return json({ error: "Invalid JSON" }, 400);
     }
-    const existingResult = applyPetRetroDeduction(await readProgress(store, auth.userId));
+    const incomingMigrations = cleanMigrations(body.migrations);
+    const rawExisting = await readProgress(store, auth.userId);
+    const migrationAwareExisting = incomingMigrations[SOUL_COIN_COMPENSATION_ID]
+      ? { ...rawExisting, migrations: { ...rawExisting.migrations, [SOUL_COIN_COMPENSATION_ID]: incomingMigrations[SOUL_COIN_COMPENSATION_ID] } }
+      : rawExisting;
+    const existingResult = applyProgressMigrations(migrationAwareExisting);
     const existing = existingResult.progress;
     const merged = mergeDone(existing.done, cleanDone(body.done));
     const pacts = mergePacts(existing.pacts, cleanPactState(body.pacts));
@@ -249,7 +279,7 @@ export default async (req: Request) => {
     const soulCoins = coinSpend || (petMerge.added && incomingCoins < existing.soulCoins) ? incomingCoins : Math.max(existing.soulCoins, incomingCoins);
     const payload = { done: merged, pacts, soulCoins, pets: petMerge.pets, migrations: existing.migrations, updated_at: new Date().toISOString() };
     await store.setJSON(progressKey(auth.userId), payload);
-    return json({ ok: true, done: payload.done, pacts: payload.pacts, soulCoins: payload.soulCoins, pets: payload.pets, migrations: payload.migrations, updated_at: payload.updated_at, retroPetDeducted: existingResult.deducted });
+    return json({ ok: true, done: payload.done, pacts: payload.pacts, soulCoins: payload.soulCoins, pets: payload.pets, migrations: payload.migrations, updated_at: payload.updated_at, retroPetDeducted: existingResult.deducted, compensationSoulCoins: existingResult.compensation });
   }
 
   return json({ error: "Method not allowed" }, 405);

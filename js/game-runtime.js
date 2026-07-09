@@ -895,6 +895,8 @@ const PACT_UNLOCK_STORAGE_KEY='sc3_pact_unlocks_v2';
 const PACT_LAST_STORAGE_KEY='sc3_last_pacts_v2';
 const SOUL_COINS_STORAGE_KEY='sc3_soul_coins_v1';
 const SOUL_COINS_SPEND_GUARD_KEY='sc3_soul_coin_spend_guard_v1';
+const SOUL_COIN_COMPENSATION_STORAGE_KEY='sc3_soul_coin_comp_20260709_v1';
+const SOUL_COIN_COMPENSATION_AMOUNT=1000;
 const PET_STATE_STORAGE_KEY='sc3_pets_v1';
 let playerName = localStorage.getItem(PLAYER_NAME_KEY) || 'Player';
 let playerCountry = localStorage.getItem(PLAYER_COUNTRY_KEY) || 'TH';
@@ -1276,6 +1278,7 @@ function resetStartChoiceAfterLogout(){
 function beginTitleRun(){
   initAudio();
   resumeAudio();
+  applyGuestSoulCoinCompensation();
   stopTitleBGM();
   openPlayerSetup();
 }
@@ -3674,6 +3677,23 @@ function addSoulCoins(amount, reason, opts){
   else if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('coins');
   return total;
 }
+function applyGuestSoulCoinCompensation(){
+  if(typeof currentAuthUser==='function' && currentAuthUser()) return false;
+  try{
+    if(localStorage.getItem(SOUL_COIN_COMPENSATION_STORAGE_KEY)==='1') return false;
+    setSoulCoins(soulCoins()+SOUL_COIN_COMPENSATION_AMOUNT);
+    localStorage.setItem(SOUL_COIN_COMPENSATION_STORAGE_KEY,'1');
+    showToast('ชดเชย Soul Coins +'+SOUL_COIN_COMPENSATION_AMOUNT.toLocaleString(),3.2);
+    return true;
+  }catch(_){ return false; }
+}
+function localProgressMigrations(){
+  const out={};
+  try{
+    if(localStorage.getItem(SOUL_COIN_COMPENSATION_STORAGE_KEY)==='1') out.soulCoinCompensation20260709=new Date().toISOString();
+  }catch(_){}
+  return out;
+}
 function isPetOwned(id){ return !!(loadPetState().owned||{})[id]; }
 function selectedPetId(){
   const state=loadPetState();
@@ -4227,7 +4247,8 @@ function exportPlayerProgress(){
     done:{ ...(loadAchievementState().done||{}) },
     pacts:loadPactUnlockState(),
     soulCoins:soulCoins(),
-    pets:loadPetState()
+    pets:loadPetState(),
+    migrations:localProgressMigrations()
   };
 }
 function importAchievementProgress(done, opts){
@@ -4268,6 +4289,9 @@ function importPactProgress(pacts){
 function importPlayerProgress(progress, opts){
   opts=opts||{};
   progress=progress||{};
+  if(progress.migrations && progress.migrations.soulCoinCompensation20260709){
+    try{ localStorage.setItem(SOUL_COIN_COMPENSATION_STORAGE_KEY,'1'); }catch(_){}
+  }
   const imported=importAchievementProgress(progress.done||{}, opts);
   const pactsChanged=importPactProgress(progress.pacts || progress.pactUnlocks);
   const remoteCoins=Math.max(0, Math.floor(Number(progress.soulCoins||0)));
