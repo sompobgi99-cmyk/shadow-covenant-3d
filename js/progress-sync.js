@@ -74,6 +74,7 @@
       const isPetWrite = isPetPurchase || reason === 'pet_box' || reason === 'pet_select';
       const imported = applyRemote(remote, { skipCoins:isCoinSpend, skipPetSelection:isPetWrite });
       const payload = localPayload();
+      if(isCoinSpend) payload.coinSpend = true;
       const saveRes = await fetch(ONLINE_PROGRESS.apiEndpoint, {
         method:'POST',
         headers,

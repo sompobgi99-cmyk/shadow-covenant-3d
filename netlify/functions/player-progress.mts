@@ -232,7 +232,7 @@ export default async (req: Request) => {
   if (req.method === "POST" || req.method === "PUT") {
     const contentLength = Number.parseInt(req.headers.get("content-length") || "0", 10);
     if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) return json({ error: "Payload too large" }, 413);
-    let body: { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown } = {};
+    let body: { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown; coinSpend?: unknown } = {};
     try {
       body = await req.json();
     } catch {
@@ -245,7 +245,8 @@ export default async (req: Request) => {
     const incomingPets = cleanPetState(body.pets);
     const petMerge = mergePets(existing.pets, incomingPets);
     const incomingCoins = Object.prototype.hasOwnProperty.call(body, "soulCoins") ? cleanCoins(body.soulCoins) : existing.soulCoins;
-    const soulCoins = petMerge.added && incomingCoins < existing.soulCoins ? incomingCoins : Math.max(existing.soulCoins, incomingCoins);
+    const coinSpend = body.coinSpend === true;
+    const soulCoins = coinSpend || (petMerge.added && incomingCoins < existing.soulCoins) ? incomingCoins : Math.max(existing.soulCoins, incomingCoins);
     const payload = { done: merged, pacts, soulCoins, pets: petMerge.pets, migrations: existing.migrations, updated_at: new Date().toISOString() };
     await store.setJSON(progressKey(auth.userId), payload);
     return json({ ok: true, done: payload.done, pacts: payload.pacts, soulCoins: payload.soulCoins, pets: payload.pets, migrations: payload.migrations, updated_at: payload.updated_at, retroPetDeducted: existingResult.deducted });
