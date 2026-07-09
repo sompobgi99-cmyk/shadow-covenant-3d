@@ -1951,6 +1951,22 @@ function hurtPlayer(amt,dx,dz,force,src,kind){
     sfx('levelup');
     return;
   }
+  if(player.hp<=0 && player._petPhoenix){
+    player._petPhoenix=0;
+    player.hp=Math.max(1,Math.round(player.maxHp*0.25));
+    player.invuln=1.5;
+    player.hpBarUntil=gameTime+4;
+    spawnObjectPulse(player.x,player.z,0xffb347,5.6,0.65);
+    spawnObjectPulse(player.x,player.z,0xff5a36,3.8,0.45);
+    spawnBurst(player.x,player.z,0xffd86a,28,1.0);
+    spawnBurst(player.x,player.z,0xff6a36,14,0.75);
+    spawnDmg(player.x,player.z,'PHOENIX PET',0xffd86a,true,'guard');
+    spawnDmg(player.x,player.z,'REBIRTH 1.5s',0xfff2a8,false,'immune');
+    showToast('Imperial Phoenix saved you! Invulnerable 1.5s',3.0);
+    if(typeof petReact==='function') petReact('lowhp', true);
+    sfx('levelup');
+    return;
+  }
   if(player.hp<=0){
     player.hp=0; player.alive=false; recordDeathCause();
     if(src && src.butcher){

@@ -1,4 +1,4 @@
-let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
+﻿let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
 const APP_VERSION = window.SHADOW_BUILD_VERSION || 'dev';
 const tex = {};
 let player, ground;
@@ -145,6 +145,8 @@ const PET_I18N={
   storm_pup:{th:{title:'ลูกหมาป่าฟ้าผ่า',desc:'วิ่งตามพร้อมประกายไฟฟ้า ทำให้วัตถุโจมตีพุ่งไวขึ้น',quip:'tail full of sparks'},en:{title:'Storm pup',desc:'A sparking pup that helps your projectiles fly faster.',quip:'tail full of sparks'}},
   grave_kitten:{th:{title:'แมวสุสาน',desc:'แมวดำตาเรืองแสง ข่วนโชคชะตาให้ติดคริบ่อยขึ้น',quip:'cursed meow'},en:{title:'Grave kitten',desc:'A glowing-eyed kitten that scratches fate toward more crits.',quip:'cursed meow'}},
   mini_mimic:{th:{title:'หีบจิ๋วมีขา',desc:'หีบสมบัติที่เลือกอยู่ข้างคุณ ช่วยหาเงินและของดีขึ้นนิดหน่อย',quip:'proud little chest'},en:{title:'Mini Mimic',desc:'A small treasure chest on legs that nudges gold and luck upward.',quip:'proud little chest'}}
+, imperial_phoenix:{th:{title:'ฟีนิกซ์จักรพรรดิ',desc:'นกไฟตัวจิ๋วแต่รสนิยมแพงมาก ช่วยพยุงชีวิตตอนพลาดหนักหนึ่งครั้ง',quip:'ลุกจากเถ้าแบบมีระดับ'},en:{title:'Imperial Phoenix',desc:'A tiny royal firebird with absurdly expensive taste. It saves one lethal mistake.',quip:'reborn, but fancy'}}
+, chonky_tiger:{th:{title:'เสืออ้วนราชสำนัก',desc:'เสือกลมผู้เดินเหมือนเจ้าของวัง ช่วยให้แบนตัวเลือกเพิ่มได้อีก 5 ครั้งต่อรัน',quip:'อ้วนแต่เลือกเยอะ'},en:{title:'Royal chonky tiger',desc:'A round palace tiger that grants 5 extra level-up bans per run.',quip:'chonky choice power'}}
 };
 const ACHIEVEMENT_I18N={
   first_hunt:{th:{name:'นักล่ามือใหม่',desc:'ฆ่ามอนสเตอร์ 120 ตัวในรันเดียว'},en:{name:'First Hunt',desc:'Kill 120 monsters in one run'}},
@@ -392,7 +394,9 @@ function petEmojiSet(kind, petId){
     tiny_gargoyle:{ start:['🛡','✨'], level:['🪨','⭐'], loot:['💎','🛡'], hurt:['🛡','💢'], lowhp:['🛡','💙'], idle:['…','🪨'], select:['🛡','!'] },
     storm_pup:{ start:['⚡','🐾'], level:['⚡','⭐'], loot:['💎','⚡'], hurt:['💢','⚡'], lowhp:['💙','⚡'], idle:['🐾','…'], select:['⚡','🐾'] },
     grave_kitten:{ start:['🐾','🌙'], level:['🐾','⭐'], loot:['💎','🌙'], hurt:['💢','🐾'], lowhp:['💜','🐾'], idle:['💤','🐾'], select:['🐾','💜'] },
-    mini_mimic:{ start:['💰','✨'], level:['💰','⭐'], loot:['💎','💰'], hurt:['💢','💰'], lowhp:['💛','💰'], idle:['…','💰'], select:['💰','!'] }
+    mini_mimic:{ start:['💰','✨'], level:['💰','⭐'], loot:['💎','💰'], hurt:['💢','💰'], lowhp:['💛','💰'], idle:['…','💰'], select:['💰','!'] },
+    imperial_phoenix:{ start:['🔥','👑'], level:['🔥','⭐'], loot:['💎','🔥'], hurt:['🔥','💢'], lowhp:['🔥','❤️'], idle:['🔥','…'], select:['👑','🔥'] },
+    chonky_tiger:{ start:['🐯','👑'], level:['🐾','⭐'], loot:['💰','🐯'], hurt:['💢','🐯'], lowhp:['❤️','🐯'], idle:['…','🐾'], select:['🐯','!'] }
   };
   return (flavor[petId]&&flavor[petId][kind]) || base[kind] || ['✨'];
 }
@@ -1395,18 +1399,50 @@ function guidePetCard(pet){
   const state=loadPetState();
   const owned=!!(state.owned||{})[pet.id];
   const selected=owned && state.selected===pet.id;
-  const coins=soulCoins();
-  const pct=Math.min(100, Math.round((coins/pet.price)*100));
-  const price=pet.price.toLocaleString();
-  const action=owned ? (selected?tr('pets.selected'):tr('pets.select')) : tr('pets.buy',{price});
+  const action=selected?tr('pets.selected'):tr('pets.select');
   const emojis=petEmojiSet('idle',pet.id).slice(0,3);
   const mood=emojis.map((e,i)=>'<span style="--i:'+i+'">'+escHtml(e)+'</span>').join('');
   const color=pet.color||'#ffe08a';
-  return '<div class="guidecard pet '+(owned?'owned ':'locked ')+(selected?'selected':'')+'" data-pet-card="'+escHtml(pet.id)+'" style="--pet-color:'+escHtml(color)+'">'
+  return '<div class="guidecard pet '+(pet.premium?'premium ':'')+(owned?'owned ':'locked ')+(selected?'selected':'')+'" data-pet-card="'+escHtml(pet.id)+'" style="--pet-color:'+escHtml(color)+'">'
     +'<div class="petstage"><i></i><img src="'+escHtml(pet.sprite?spriteSrc(pet.sprite):petIconData(pet))+'" loading="lazy"><em>'+mood+'</em></div><div class="petcopy"><b>'+escHtml(pet.name)+'</b><p>'+escHtml(petText(pet,'title')+' — '+petText(pet,'desc'))+'</p>'
-    +'<small>'+escHtml(pet.buff)+' / '+escHtml(tr('pets.price',{price}))+'</small>'
-    +(!owned?'<div class="petprogress"><i style="width:'+pct+'%"></i><span>'+coins.toLocaleString()+' / '+price+'</span></div>':'')
-    +'<button data-pet-'+(owned?'select':'buy')+'="'+escHtml(pet.id)+'" '+(selected?'disabled':'')+'>'+escHtml(action)+'</button></div></div>';
+    +'<small>'+escHtml(pet.buff)+' / '+escHtml(pet.premium?'SPECIAL PET':'PET BOX DROP')+'</small>'
+    +(!owned?'<div class="petprogress"><i style="width:0%"></i><span>ยังไม่ได้รับจากกล่องสุ่ม</span></div>':'')
+    +(owned?'<button data-pet-select="'+escHtml(pet.id)+'" '+(selected?'disabled':'')+'>'+escHtml(action)+'</button>':'<button disabled>LOCKED</button>')+'</div></div>';
+}
+function guidePetBoxCard(){
+  const state=loadPetState();
+  const ownedCount=Object.keys(state.owned||{}).length;
+  const coins=soulCoins();
+  const premiumCount=PETS.filter(p=>p.premium).length;
+  return '<div class="guidecard petbox">'
+    +'<div class="petboxicon"><span>?</span><i></i></div><div class="petcopy"><b>Premium Pet Box</b>'
+    +'<p>เปิดกล่องลุ้น Pet: Special 1%, Pet ปกติ 5%, ไม่ติด Pet ได้เงินปลอบใจ 5-50 Soul Coins</p>'
+    +'<small>ราคา '+PET_BOX_COST.toLocaleString()+' Soul Coins · มีแล้ว '+ownedCount+'/'+PETS.length+' · Special '+premiumCount+' ตัว · ซ้ำคืน 50% มูลค่า Pet</small>'
+    +'<button data-pet-box-open>เปิดกล่องสุ่ม Pet</button></div></div>';
+}
+function showPetBoxPopup(result){
+  const old=document.querySelector('.petboxpop');
+  if(old) old.remove();
+  const pop=document.createElement('div');
+  const isPet=!!(result&&result.pet);
+  const pet=isPet ? result.pet : null;
+  const isSpecial=!!(pet&&pet.premium);
+  pop.className='petboxpop '+(isSpecial?'special ':'')+(isPet?'pet':'coins');
+  const img=isPet ? '<img src="'+escHtml(pet.sprite?spriteSrc(pet.sprite):petIconData(pet))+'" alt="">' : '<div class="coinprize">+'+escHtml((result.amount||0).toLocaleString())+'</div>';
+  const title=isPet ? (result.duplicate?'Pet ซ้ำ':'ได้ Pet ใหม่') : 'ยังไม่ติด Pet';
+  const name=isPet ? pet.name : 'Soul Coins';
+  const detail=isPet
+    ? (result.duplicate ? 'คืน '+(result.refund||0).toLocaleString()+' Soul Coins' : (isSpecial?'SPECIAL PET!':'ปลดล็อกแล้ว'))
+    : 'ได้เงินปลอบใจคืน '+(result.amount||0).toLocaleString()+' Soul Coins';
+  pop.innerHTML='<div class="petboxpanel"><button class="petboxclose" type="button">×</button><div class="petboxshine"></div>'
+    +'<div class="petboxreward">'+img+'</div><b>'+escHtml(title)+'</b><h3>'+escHtml(name)+'</h3><p>'+escHtml(detail)+'</p>'
+    +'<div class="petboxactions"><button class="petboxagain" type="button">เปิดต่อ</button><button class="petboxok" type="button">ตกลง</button></div></div>';
+  const close=()=>pop.remove();
+  pop.onclick=e=>{ if(e.target===pop) close(); };
+  document.body.appendChild(pop);
+  pop.querySelector('.petboxclose').onclick=close;
+  pop.querySelector('.petboxok').onclick=close;
+  pop.querySelector('.petboxagain').onclick=()=>{ close(); openPetBox(); };
 }
 function guideScrollTop(){
   const body=document.getElementById('guidebody');
@@ -1672,10 +1708,11 @@ function renderLocalizedGuide(kind, guide, body, opts){
     const selected=petById(selectedPetId());
     const note=tr('pets.note',{coins:soulCoins().toLocaleString(),owned:ownedCount,total:PETS.length,selected:selected?selected.name:tr('pets.none')});
     const cards=guideTextCard(tr('pets.coinInfoTitle'),tr('pets.coinInfoDesc'),tr('pets.coinInfoMeta'),'legendary')+
+      guidePetBoxCard()+
       '<div class="petnone"><button data-pet-select="">'+escHtml(tr('pets.noPet'))+'</button></div>'+PETS.map(guidePetCard).join('');
     body.innerHTML=guideHeader(tr('pets.title'), note, kind)+'<div class="guidegrid pets">'+cards+'</div>';
     bindGuideChrome(body);
-    body.querySelectorAll('[data-pet-buy]').forEach(btn=>btn.onclick=()=>buyPet(btn.getAttribute('data-pet-buy')));
+    body.querySelectorAll('[data-pet-box-open]').forEach(btn=>btn.onclick=()=>openPetBox());
     body.querySelectorAll('[data-pet-select]').forEach(btn=>btn.onclick=()=>selectPet(btn.getAttribute('data-pet-select')||''));
     guide.style.display='flex';
     restoreGuidePetPosition(opts);
@@ -1831,6 +1868,7 @@ function openGuide(kind, opts){
     note='Soul Coins '+soulCoins().toLocaleString()+' · ซื้อแล้ว '+ownedCount+'/'+PETS.length+' · '+(selected?'ใช้งาน: '+selected.name:'ยังไม่ได้เลือก Pet');
     cards=guideSectionTitle('ร้านสัตว์เลี้ยง','ไม่มีตัวฟรี ซื้อขาดถาวร และเลือกใช้ได้ 1 ตัวต่อรัน')+
       guideTextCard('Soul Coins','ได้จากการจบรันแบบจำนวนน้อย และจาก Achievement บางอันครั้งเดียว','Pet ราคาแพงเพื่อเป็นเป้าหมายระยะยาว','legendary')+
+      guidePetBoxCard()+
       '<div class="petnone"><button data-pet-select="">เล่นโดยไม่มี Pet</button></div>'+
       PETS.map(guidePetCard).join('');
   } else if(kind==='events'){
@@ -1944,7 +1982,7 @@ function openGuide(kind, opts){
   body.innerHTML=guideHeader(title, note, kind)+'<div class="guidegrid '+escHtml(kind)+'">'+cards+'</div>';
   bindGuideChrome(body);
   body.querySelectorAll('[data-jump]').forEach(btn=>btn.onclick=()=>openGuide(btn.dataset.jump));
-  body.querySelectorAll('[data-pet-buy]').forEach(btn=>btn.onclick=()=>buyPet(btn.getAttribute('data-pet-buy')));
+  body.querySelectorAll('[data-pet-box-open]').forEach(btn=>btn.onclick=()=>openPetBox());
   body.querySelectorAll('[data-pet-select]').forEach(btn=>btn.onclick=()=>selectPet(btn.getAttribute('data-pet-select')||''));
   guide.style.display='flex';
   if(kind==='pets') restoreGuidePetPosition(opts);
@@ -3501,7 +3539,16 @@ const PETS = [
   { id:'mini_mimic', name:'Mini Mimic', title:'หีบจิ๋วมีขา', price:4500, icon:'MM', sprite:'pet_mini_mimic', sheet:'pet_mini_mimic_8dir', color:'#ffcc66',
     desc:'หีบสมบัติที่เลือกอยู่ข้างคุณ ช่วยหาเงินและของดีขึ้นนิดหน่อย', buff:'+5% gold, +3% luck',
     apply:p=>{ p.goldMul*=1.05; p.luck=(p.luck||0)+0.03; } }
+  ,{ id:'imperial_phoenix', name:'Imperial Phoenix', title:'ฟีนิกซ์จักรพรรดิ', price:16000, icon:'IP', sprite:'pet_imperial_phoenix', sheet:'pet_imperial_phoenix_8dir', color:'#ff9f3f', premium:true, scale:1.12,
+    desc:'นกไฟตัวจิ๋วแต่รสนิยมแพงมาก ช่วยพยุงชีวิตตอนพลาดหนักหนึ่งครั้ง', buff:'+0.8 regen, once/run rebirth at 25% HP',
+    apply:p=>{ p.regen+=0.8; p._petPhoenix=1; } }
+  ,{ id:'chonky_tiger', name:'Chonky Tiger', title:'เสืออ้วนราชสำนัก', price:20000, icon:'CT', sprite:'pet_chonky_tiger', sheet:'pet_chonky_tiger_8dir', color:'#ffb34f', premium:true, scale:1.15,
+    desc:'เสือกลมผู้เดินเหมือนเจ้าของวัง ช่วยให้แบนตัวเลือกเพิ่มได้อีก 5 ครั้งต่อรัน', buff:'+5 level-up bans per run',
+    apply:p=>{ p.bansRemaining=(p.bansRemaining||0)+5; } }
 ];
+const PET_BOX_COST = 100;
+const PET_BOX_SPECIAL_CHANCE = 0.01;
+const PET_BOX_NORMAL_CHANCE = 0.05;
 function petById(id){ return PETS.find(p=>p.id===id); }
 function loadPetState(){
   try{
@@ -3533,6 +3580,60 @@ function isPetOwned(id){ return !!(loadPetState().owned||{})[id]; }
 function selectedPetId(){
   const state=loadPetState();
   return state.selected && state.owned && state.owned[state.selected] ? state.selected : '';
+}
+function petBoxConsolationCoins(){
+  const r=Math.random();
+  if(r<0.04) return 50;
+  if(r<0.14) return 20;
+  if(r<0.39) return 11+Math.floor(Math.random()*5);
+  return 5+Math.floor(Math.random()*6);
+}
+function petBoxPick(){
+  const r=Math.random();
+  if(r<PET_BOX_SPECIAL_CHANCE){
+    const pool=PETS.filter(p=>p.premium);
+    return { type:'pet', pet:pool[(Math.random()*pool.length)|0] };
+  }
+  if(r<PET_BOX_SPECIAL_CHANCE+PET_BOX_NORMAL_CHANCE){
+    const pool=PETS.filter(p=>!p.premium);
+    return { type:'pet', pet:pool[(Math.random()*pool.length)|0] };
+  }
+  return { type:'coins', amount:petBoxConsolationCoins() };
+}
+function openPetBox(){
+  const state=loadPetState();
+  const scrollTop=guideScrollTop();
+  const coins=soulCoins();
+  if(coins<PET_BOX_COST){ showToast('Soul Coins ไม่พอ: ต้องมี '+PET_BOX_COST.toLocaleString(),2.4); return false; }
+  setSoulCoins(coins-PET_BOX_COST);
+  const result=petBoxPick();
+  if(result.type==='coins'){
+    setSoulCoins(soulCoins()+result.amount);
+    showPetBoxPopup({ amount:result.amount });
+    showToast('เปิดกล่องไม่ติด Pet · ได้คืน '+result.amount.toLocaleString()+' Soul Coins',2.8);
+    if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('coins');
+    openGuide('pets',{scrollTop});
+    return true;
+  }
+  const p=result.pet;
+  const duplicate=!!state.owned[p.id];
+  if(duplicate){
+    const refund=Math.floor((p.price||PET_BOX_COST)*0.5);
+    setSoulCoins(soulCoins()+refund);
+    showPetBoxPopup({ pet:p, duplicate:true, refund });
+    showToast('เปิดกล่องได้ซ้ำ: '+p.name+' · คืน '+refund.toLocaleString()+' Soul Coins',3.2);
+  }else{
+    state.owned[p.id]=new Date().toISOString();
+    state.selected=p.id;
+    savePetState(state);
+    showPetBoxPopup({ pet:p, duplicate:false });
+    showToast('เปิดกล่องได้ Pet ใหม่: '+p.name+(p.premium?' ★ SPECIAL':''),3.4);
+    if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet_purchase');
+    petReact('select', true);
+  }
+  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('coins');
+  openGuide('pets',{petFocus:p.id,scrollTop});
+  return true;
 }
 function buyPet(id){
   const p=petById(id), state=loadPetState();
@@ -4330,7 +4431,8 @@ function makePetFollower(id){
   spr.center.set(0.5,0); spr.scale.set(0.58,0.58,1);
   const sh=makeShadow(0.28);
   scene.add(spr); scene.add(sh);
-  return { id, name:pet.name, spr, sh, dirState, baseW:0.58, baseH:0.58, x:-0.8, z:0.55, lastX:-0.8, lastZ:0.55, face:1, bob:Math.random()*6.28, reactT:0, reactKind:'', idleT:0, lowHpWarnAt:0 };
+  const petScale=Math.max(0.75, Math.min(1.35, pet.scale||1));
+  return { id, name:pet.name, spr, sh, dirState, baseW:0.58*petScale, baseH:0.58*petScale, x:-0.8, z:0.55, lastX:-0.8, lastZ:0.55, face:1, bob:Math.random()*6.28, reactT:0, reactKind:'', idleT:0, lowHpWarnAt:0 };
 }
 function updatePetFollower(dt){
   if(!player || !player.pet || !player.pet.spr) return;
@@ -4718,3 +4820,4 @@ function spawnTrees(n) {
     placed++;
   }
 }
+

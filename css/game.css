@@ -532,6 +532,14 @@
   .guidecard.pet p{ margin:0; color:#d0c2ea; }
   .guidecard.pet small{ color:#8fd0ff; line-height:1.25; }
   .guidecard.pet.owned{ border-color:rgba(126,231,255,.72); background:linear-gradient(180deg,rgba(22,40,54,.66),rgba(17,24,38,.58)); }
+  .guidecard.pet.premium{ border-color:rgba(255,207,92,.86); background:
+    radial-gradient(circle at 17% 12%, color-mix(in srgb,var(--pet-color,#ffe08a) 22%, transparent), transparent 34%),
+    linear-gradient(180deg,rgba(54,35,22,.74),rgba(22,15,28,.64)); }
+  .guidecard.pet.premium::before{ content:"SPECIAL"; position:absolute; right:8px; top:7px; z-index:2;
+    padding:2px 5px; border:1px solid rgba(255,224,138,.48); border-radius:4px;
+    background:rgba(18,10,12,.72); color:#ffe08a; font-size:8px; letter-spacing:.04em; }
+  .guidecard.pet.premium .petstage i{ opacity:.62; filter:blur(.35px) saturate(1.25); }
+  .guidecard.pet.premium img{ width:61px; height:61px; filter:drop-shadow(0 4px 8px #000) drop-shadow(0 0 8px color-mix(in srgb,var(--pet-color,#ffe08a) 42%, transparent)); }
   .guidecard.pet.selected{ border-color:#ffdf7a; box-shadow:0 0 0 1px rgba(255,223,122,.36),0 0 26px rgba(255,204,102,.24); }
   .guidecard.pet.selected .petstage i{ opacity:.64; animation-duration:1.85s; }
   .guidecard.pet.selected img{ animation-name:petShopHappy; animation-duration:1.8s; }
@@ -540,6 +548,45 @@
     background:#351121; color:#ffe08a; border:1px solid #8a4a5a; font-family:monospace; font-size:11px; }
   .guidecard.pet button:hover,.petnone button:hover{ color:#fff8e8; border-color:#ffcc66; background:#552034; }
   .guidecard.pet button:disabled{ color:#8ff0a0; border-color:rgba(126,207,90,.7); background:rgba(22,48,32,.56); cursor:default; }
+  .guidecard.pet.locked button:disabled{ color:#9f8fb8; border-color:rgba(112,86,142,.62); background:rgba(22,15,31,.62); }
+  .guidecard.petbox{ grid-column:1/-1; position:relative; grid-template-columns:78px 1fr; min-height:118px; overflow:hidden;
+    border-color:rgba(255,207,92,.86); background:radial-gradient(circle at 7% 38%,rgba(255,181,71,.24),transparent 25%),linear-gradient(180deg,rgba(55,27,25,.76),rgba(20,13,27,.68)); }
+  .guidecard.petbox::after{ content:""; position:absolute; inset:-30px auto auto 30%; width:210px; height:180px;
+    background:radial-gradient(circle,rgba(255,214,112,.20),transparent 70%); pointer-events:none; animation:petAuraPulse 3.2s ease-in-out infinite; }
+  .petboxicon{ position:relative; width:70px; height:78px; display:grid; place-items:center; isolation:isolate; }
+  .petboxicon span{ position:relative; z-index:1; width:48px; height:42px; display:grid; place-items:center; border:2px solid #ffcf5c;
+    background:linear-gradient(180deg,#4e1c2b,#1f1224); color:#ffe08a; font:bold 22px monospace; box-shadow:0 0 16px rgba(255,207,92,.28); }
+  .petboxicon i{ position:absolute; left:8px; right:8px; bottom:10px; height:12px; border-radius:50%; background:radial-gradient(ellipse,rgba(0,0,0,.52),transparent 70%); }
+  .guidecard.petbox button{ width:max-content; min-width:160px; min-height:30px; padding:6px 12px; border-radius:5px; cursor:pointer;
+    background:#5a1d2c; color:#ffe08a; border:1px solid #d7a84b; font-family:monospace; font-size:11px; box-shadow:0 0 14px rgba(255,207,92,.16); }
+  .guidecard.petbox button:hover{ color:#fff8e8; border-color:#ffdf7a; background:#7a263d; }
+  .guidecard.petbox button:disabled{ color:#9f8fb8; border-color:rgba(112,86,142,.62); background:rgba(22,15,31,.62); cursor:default; box-shadow:none; }
+  .petboxpop{ position:fixed; inset:0; z-index:72; display:grid; place-items:center; padding:18px;
+    background:rgba(4,2,8,.72); backdrop-filter:blur(3px); animation:petPopFade .16s ease-out; }
+  .petboxpanel{ position:relative; width:min(420px,94vw); min-height:300px; display:flex; flex-direction:column; align-items:center; gap:8px;
+    padding:26px 22px 20px; overflow:hidden; border:1px solid rgba(255,207,92,.82); border-radius:8px;
+    background:radial-gradient(circle at 50% 23%,rgba(255,207,92,.20),transparent 35%),linear-gradient(180deg,rgba(49,23,27,.96),rgba(13,9,19,.98));
+    box-shadow:0 18px 46px rgba(0,0,0,.62),0 0 34px rgba(255,168,68,.18); }
+  .petboxpop.special .petboxpanel{ border-color:#ffe08a; box-shadow:0 18px 54px rgba(0,0,0,.68),0 0 42px rgba(255,199,77,.34); }
+  .petboxshine{ position:absolute; inset:-60px; background:conic-gradient(from 0deg,transparent,rgba(255,224,138,.16),transparent 32%);
+    animation:petBoxSpin 4.8s linear infinite; opacity:.72; pointer-events:none; }
+  .petboxreward{ position:relative; z-index:1; width:96px; height:96px; display:grid; place-items:center; margin-top:8px;
+    border-radius:50%; background:radial-gradient(circle,rgba(255,224,138,.20),rgba(71,25,36,.24) 58%,transparent 70%); }
+  .petboxreward img{ width:82px; height:82px; object-fit:contain; image-rendering:pixelated; filter:drop-shadow(0 7px 9px #000) drop-shadow(0 0 10px rgba(255,207,92,.38)); }
+  .coinprize{ display:grid; place-items:center; width:86px; height:86px; border-radius:50%; border:2px solid #ffcf5c;
+    color:#ffe08a; background:radial-gradient(circle,#6d2e31,#22111f 72%); font:bold 22px monospace; text-shadow:2px 2px #000; }
+  .petboxpanel b,.petboxpanel h3,.petboxpanel p,.petboxpanel button{ position:relative; z-index:1; }
+  .petboxpanel b{ color:#9ee7ff; font-size:12px; }
+  .petboxpanel h3{ margin:0; color:#fff4c0; font-size:22px; text-align:center; }
+  .petboxpanel p{ margin:0 0 8px; color:#d8c8ef; text-align:center; line-height:1.45; }
+  .petboxactions{ position:relative; z-index:1; display:flex; flex-wrap:wrap; gap:9px; justify-content:center; margin-top:2px; }
+  .petboxok,.petboxagain,.petboxclose{ cursor:pointer; font-family:monospace; }
+  .petboxok,.petboxagain{ min-width:118px; min-height:32px; border-radius:5px; border:1px solid #d7a84b; color:#ffe08a; background:#5a1d2c; }
+  .petboxagain{ background:#7a263d; box-shadow:0 0 15px rgba(255,207,92,.16); }
+  .petboxok:hover,.petboxagain:hover{ color:#fff8e8; border-color:#ffdf7a; background:#8a3148; }
+  .petboxclose{ position:absolute; z-index:2; top:8px; right:8px; width:30px; height:30px; border-radius:5px;
+    border:1px solid rgba(255,224,138,.5); color:#ffe08a; background:rgba(61,18,31,.82); font-size:18px; line-height:1; }
+  .petboxpanel .petboxclose{ position:absolute; top:8px; right:8px; }
   .petprogress{ position:relative; height:18px; overflow:hidden; border-radius:4px; border:1px solid rgba(229,181,90,.34);
     background:rgba(9,7,14,.54); }
   .petprogress i{ position:absolute; left:0; top:0; bottom:0; display:block; background:linear-gradient(90deg,#7a263d,#d7a84b); }
@@ -550,9 +597,11 @@
   @keyframes petAuraPulse{ 0%,100%{ transform:scale(.92); opacity:.30; } 50%{ transform:scale(1.08); opacity:.58; } }
   @keyframes petShadowPulse{ 0%,100%{ transform:scaleX(.92); opacity:.32; } 50%{ transform:scaleX(1.12); opacity:.48; } }
   @keyframes petMoodFloat{ 0%,18%,100%{ opacity:0; transform:translateY(8px) scale(.82); } 30%,58%{ opacity:1; transform:translateY(-4px) scale(1); } 75%{ opacity:0; transform:translateY(-18px) scale(.92); } }
+  @keyframes petPopFade{ from{ opacity:0; } to{ opacity:1; } }
+  @keyframes petBoxSpin{ to{ transform:rotate(360deg); } }
   @media (prefers-reduced-motion: reduce){
     .guidecard.pet:hover{ transform:none; }
-    .guidecard.pet img,.petstage i,.petstage::before,.petstage em span{ animation:none; }
+    .guidecard.pet img,.petstage i,.petstage::before,.petstage em span,.petboxshine{ animation:none; }
     .petstage em span:first-child{ opacity:1; transform:none; }
   }
   .titlecontrols{ position:absolute; z-index:1; left:clamp(28px,7vw,116px); bottom:28px; display:flex; gap:22px;
