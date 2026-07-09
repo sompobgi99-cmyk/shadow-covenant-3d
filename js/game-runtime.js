@@ -1418,7 +1418,7 @@ function guidePetBoxCard(){
   return '<div class="guidecard petbox">'
     +'<div class="petboxicon"><span>?</span><i></i></div><div class="petcopy"><b>Premium Pet Box</b>'
     +'<p>เปิดกล่องลุ้น Pet: Special 1%, Pet ปกติ 5%, ไม่ติด Pet ได้เงินปลอบใจ 5-50 Soul Coins</p>'
-    +'<small>ราคา '+PET_BOX_COST.toLocaleString()+' Soul Coins · มีแล้ว '+ownedCount+'/'+PETS.length+' · Special '+premiumCount+' ตัว · ซ้ำคืน 50% มูลค่า Pet</small>'
+    +'<small>ราคา '+PET_BOX_COST.toLocaleString()+' Soul Coins · มีแล้ว '+ownedCount+'/'+PETS.length+' · Special '+premiumCount+' ตัว · ซ้ำคืน 50 Soul Coins</small>'
     +'<button data-pet-box-open>เปิดกล่องสุ่ม Pet</button></div></div>';
 }
 function showPetBoxPopup(result){
@@ -3548,6 +3548,7 @@ const PETS = [
     apply:p=>{ p.bansRemaining=(p.bansRemaining||0)+5; } }
 ];
 const PET_BOX_COST = 100;
+const PET_BOX_DUPLICATE_REFUND = Math.floor(PET_BOX_COST * 0.5);
 const PET_BOX_SPECIAL_CHANCE = 0.01;
 const PET_BOX_NORMAL_CHANCE = 0.05;
 function petById(id){ return PETS.find(p=>p.id===id); }
@@ -3576,7 +3577,7 @@ function activeSoulCoinSpendGuard(){
   try{
     const g=JSON.parse(localStorage.getItem(SOUL_COINS_SPEND_GUARD_KEY)||'null');
     if(!g || !Number.isFinite(g.value) || !Number.isFinite(g.at)) return null;
-    if(Date.now()-g.at>120000) return null;
+    if(Date.now()-g.at>600000) return null;
     return g;
   }catch(_){ return null; }
 }
@@ -3631,7 +3632,7 @@ function openPetBox(){
   const p=result.pet;
   const duplicate=!!state.owned[p.id];
   if(duplicate){
-    const refund=Math.floor((p.price||PET_BOX_COST)*0.5);
+    const refund=PET_BOX_DUPLICATE_REFUND;
     setSoulCoins(soulCoins()+refund);
     markSoulCoinSpendGuard(soulCoins());
     showPetBoxPopup({ pet:p, duplicate:true, refund });
