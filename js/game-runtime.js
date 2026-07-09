@@ -1404,11 +1404,18 @@ function guidePetCard(pet){
   const emojis=petEmojiSet('idle',pet.id).slice(0,3);
   const mood=emojis.map((e,i)=>'<span style="--i:'+i+'">'+escHtml(e)+'</span>').join('');
   const color=pet.color||'#ffe08a';
+  const meta=pet.premium ? 'SPECIAL PET BOX' : 'ซื้อได้ '+(pet.price||0).toLocaleString()+' Soul Coins / PET BOX DROP';
+  const lockText=pet.premium ? 'ได้จากกล่องสุ่มเท่านั้น' : 'ราคา '+(pet.price||0).toLocaleString()+' Soul Coins';
+  const button=owned
+    ? '<button data-pet-select="'+escHtml(pet.id)+'" '+(selected?'disabled':'')+'>'+escHtml(action)+'</button>'
+    : (pet.premium
+      ? '<button disabled>SPECIAL BOX</button>'
+      : '<button data-pet-buy="'+escHtml(pet.id)+'">ซื้อ '+(pet.price||0).toLocaleString()+'</button>');
   return '<div class="guidecard pet '+(pet.premium?'premium ':'')+(owned?'owned ':'locked ')+(selected?'selected':'')+'" data-pet-card="'+escHtml(pet.id)+'" style="--pet-color:'+escHtml(color)+'">'
     +'<div class="petstage"><i></i><img src="'+escHtml(pet.sprite?spriteSrc(pet.sprite):petIconData(pet))+'" loading="lazy"><em>'+mood+'</em></div><div class="petcopy"><b>'+escHtml(pet.name)+'</b><p>'+escHtml(petText(pet,'title')+' — '+petText(pet,'desc'))+'</p>'
-    +'<small>'+escHtml(pet.buff)+' / '+escHtml(pet.premium?'SPECIAL PET':'PET BOX DROP')+'</small>'
-    +(!owned?'<div class="petprogress"><i style="width:0%"></i><span>ยังไม่ได้รับจากกล่องสุ่ม</span></div>':'')
-    +(owned?'<button data-pet-select="'+escHtml(pet.id)+'" '+(selected?'disabled':'')+'>'+escHtml(action)+'</button>':'<button disabled>LOCKED</button>')+'</div></div>';
+    +'<small>'+escHtml(pet.buff)+' / '+escHtml(meta)+'</small>'
+    +(!owned?'<div class="petprogress"><i style="width:0%"></i><span>'+escHtml(lockText)+'</span></div>':'')
+    +button+'</div></div>';
 }
 function guidePetBoxCard(){
   const state=loadPetState();
@@ -1714,6 +1721,7 @@ function renderLocalizedGuide(kind, guide, body, opts){
     body.innerHTML=guideHeader(tr('pets.title'), note, kind)+'<div class="guidegrid pets">'+cards+'</div>';
     bindGuideChrome(body);
     body.querySelectorAll('[data-pet-box-open]').forEach(btn=>btn.onclick=()=>openPetBox());
+    body.querySelectorAll('[data-pet-buy]').forEach(btn=>btn.onclick=()=>buyPet(btn.getAttribute('data-pet-buy')||''));
     body.querySelectorAll('[data-pet-select]').forEach(btn=>btn.onclick=()=>selectPet(btn.getAttribute('data-pet-select')||''));
     guide.style.display='flex';
     restoreGuidePetPosition(opts);
@@ -1867,7 +1875,7 @@ function openGuide(kind, opts){
     const ownedCount=Object.keys(state.owned||{}).length;
     const selected=petById(selectedPetId());
     note='Soul Coins '+soulCoins().toLocaleString()+' · ซื้อแล้ว '+ownedCount+'/'+PETS.length+' · '+(selected?'ใช้งาน: '+selected.name:'ยังไม่ได้เลือก Pet');
-    cards=guideSectionTitle('ร้านสัตว์เลี้ยง','ไม่มีตัวฟรี ซื้อขาดถาวร และเลือกใช้ได้ 1 ตัวต่อรัน')+
+    cards=guideSectionTitle('ร้านสัตว์เลี้ยง','Pet ธรรมดาซื้อได้ด้วย Soul Coins ส่วน Pet พิเศษต้องลุ้นจากกล่อง')+
       guideTextCard('Soul Coins','ได้จากการจบรันแบบจำนวนน้อย และจาก Achievement บางอันครั้งเดียว','Pet ราคาแพงเพื่อเป็นเป้าหมายระยะยาว','legendary')+
       guidePetBoxCard()+
       '<div class="petnone"><button data-pet-select="">เล่นโดยไม่มี Pet</button></div>'+
@@ -1984,6 +1992,7 @@ function openGuide(kind, opts){
   bindGuideChrome(body);
   body.querySelectorAll('[data-jump]').forEach(btn=>btn.onclick=()=>openGuide(btn.dataset.jump));
   body.querySelectorAll('[data-pet-box-open]').forEach(btn=>btn.onclick=()=>openPetBox());
+  body.querySelectorAll('[data-pet-buy]').forEach(btn=>btn.onclick=()=>buyPet(btn.getAttribute('data-pet-buy')||''));
   body.querySelectorAll('[data-pet-select]').forEach(btn=>btn.onclick=()=>selectPet(btn.getAttribute('data-pet-select')||''));
   guide.style.display='flex';
   if(kind==='pets') restoreGuidePetPosition(opts);
@@ -3654,6 +3663,7 @@ function buyPet(id){
   const p=petById(id), state=loadPetState();
   if(!p) return false;
   if(state.owned[p.id]){ selectPet(p.id); return true; }
+  if(p.premium){ showToast('Pet พิเศษต้องเปิดจาก Premium Pet Box เท่านั้น',2.6); return false; }
   const scrollTop=guideScrollTop();
   const coins=soulCoins();
   if(coins<p.price){ showToast('Soul Coins ไม่พอ: ต้องมี '+p.price.toLocaleString(),2.4); return false; }
