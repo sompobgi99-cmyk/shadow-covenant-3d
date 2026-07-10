@@ -53,11 +53,13 @@ server.stderr.on("data", (chunk) => {
 try {
   const baseUrl = `http://127.0.0.1:${port}`;
   await waitForServer(baseUrl);
-  const [html, runtime, leaderboard, authConfig] = await Promise.all([
+  const [html, runtime, leaderboard, authConfig, mailbox, mailAdmin] = await Promise.all([
     fetchText(`${baseUrl}/`),
     fetchText(`${baseUrl}/js/game-runtime.js?v=${encodeURIComponent(version)}`),
     fetchText(`${baseUrl}/api/leaderboard`),
     fetchText(`${baseUrl}/api/auth-config`),
+    fetchText(`${baseUrl}/api/mailbox`),
+    fetchText(`${baseUrl}/mail-admin.html`),
   ]);
 
   if (!html.includes(`SHADOW_BUILD_VERSION='${version}'`)) throw new Error("index build version mismatch");
@@ -68,6 +70,9 @@ try {
   if (lb.required_build !== version) throw new Error("local leaderboard required_build mismatch");
   if (lb.storage !== "local-read-only") throw new Error("local leaderboard storage mode mismatch");
   JSON.parse(authConfig);
+  const mailboxData = JSON.parse(mailbox);
+  if (!Array.isArray(mailboxData.messages)) throw new Error("local mailbox response has no messages array");
+  if (!mailAdmin.includes("Shadow Post Admin") || !mailAdmin.includes("x-mailbox-admin-key")) throw new Error("mailbox admin page contract missing");
 
   console.log(`Smoke passed on ${baseUrl} (${version})`);
 } finally {

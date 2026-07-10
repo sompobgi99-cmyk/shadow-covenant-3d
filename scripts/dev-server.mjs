@@ -76,6 +76,11 @@ createServer(async (req, res) => {
       return sendJson(res, { error: 'Local dev server does not sync player progress. Use Netlify for full online sync.' }, 501);
     }
 
+    if (url.pathname === '/api/mailbox') {
+      if (req.method !== 'GET') return sendJson(res, { error: 'Local mailbox admin writes require Netlify.' }, 501);
+      return sendJson(res, { ok: true, messages: [], storage: 'local-fallback' });
+    }
+
     const decoded = decodeURIComponent(url.pathname);
     const requestPath = decoded === '/' ? '/index.html' : decoded;
     const filePath = path.normalize(path.join(root, requestPath));

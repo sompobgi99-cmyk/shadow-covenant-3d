@@ -130,6 +130,8 @@ const indexSource = read("index.html");
 const cssSource = read("css/game.css");
 const leaderboardSource = read("netlify/functions/leaderboard.mts");
 const progressSource = read("netlify/functions/player-progress.mts");
+const mailboxSource = read("netlify/functions/mailbox.mts");
+const mailAdminSource = read("mail-admin.html");
 const leaderboardMigration = read("supabase/migrations/20260710_leaderboard_runs.sql");
 const versionJson = JSON.parse(read("version.json"));
 
@@ -186,6 +188,15 @@ if (!progressSource.includes("cleanMailbox") || !progressSource.includes("mergeM
 }
 if (progressSource.includes("function applySoulCoinCompensation")) {
   fail("legacy Soul Coin compensation must be claimed from mailbox instead of auto-awarded");
+}
+if (!runtimeSource.includes("loadOnlineMailbox") || !runtimeSource.includes("fetch('/api/mailbox?t='") || !runtimeSource.includes("cache:'no-store'")) {
+  fail("game mailbox must fetch live messages without relying on a build update");
+}
+if (!mailboxSource.includes('MAILBOX_ADMIN_SECRET') || !mailboxSource.includes('getStore') || !mailboxSource.includes('path: "/api/mailbox"')) {
+  fail("mailbox function must use protected Netlify Blobs storage");
+}
+if (!mailAdminSource.includes("x-mailbox-admin-key") || !mailAdminSource.includes("Shadow Post Admin")) {
+  fail("mailbox admin page contract is missing");
 }
 
 const derivedManifest = { ...manifest };

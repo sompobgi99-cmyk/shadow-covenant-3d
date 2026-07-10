@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Shadow Post Admin</title>
+<style>
+  :root{ color-scheme:dark; --bg:#09070c; --panel:#130e19; --line:#4e3b61; --gold:#e5b55a; --text:#eee5f4; --muted:#a99bb7; --red:#9c2941; --blue:#8fd0ff; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; min-height:100vh; background:var(--bg); color:var(--text); font:14px/1.45 system-ui,sans-serif; }
+  header{ display:flex; align-items:center; justify-content:space-between; gap:20px; padding:18px 24px; border-bottom:1px solid #33243d; background:#100b15; }
+  header h1{ margin:0; color:#fff0bf; font-size:20px; }
+  header span{ color:var(--muted); font:12px monospace; }
+  main{ width:min(1120px,calc(100% - 32px)); margin:24px auto 50px; display:grid; grid-template-columns:minmax(0,1fr) minmax(340px,.8fr); gap:20px; }
+  section{ min-width:0; }
+  h2{ margin:0 0 12px; color:#ffe8a6; font-size:16px; }
+  .form{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:18px; border:1px solid var(--line); background:var(--panel); }
+  label{ display:grid; gap:6px; color:var(--muted); font-size:12px; }
+  label.wide{ grid-column:1/-1; }
+  input,select,textarea,button{ font:inherit; }
+  input,select,textarea{ width:100%; border:1px solid #4d3a5f; background:#0c0911; color:var(--text); padding:10px; border-radius:4px; outline:none; }
+  input:focus,select:focus,textarea:focus{ border-color:var(--gold); }
+  textarea{ min-height:112px; resize:vertical; }
+  .actions{ grid-column:1/-1; display:flex; justify-content:flex-end; gap:9px; padding-top:4px; }
+  button{ min-height:39px; padding:9px 14px; border:1px solid var(--gold); border-radius:4px; background:#401528; color:#fff0bf; cursor:pointer; }
+  button.secondary{ border-color:#52637d; background:#141c2a; color:#bfe6ff; }
+  button.danger{ min-height:30px; padding:5px 9px; border-color:#a94a5d; background:#35101c; color:#ffb7c4; font-size:11px; }
+  button:disabled{ opacity:.5; cursor:default; }
+  #status{ min-height:22px; margin:12px 0 0; color:var(--blue); font-family:monospace; }
+  .toolbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+  #messages{ border-top:1px solid var(--line); }
+  .row{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; padding:12px 4px; border-bottom:1px solid #2e2237; }
+  .row b,.row small{ display:block; }
+  .row b{ color:#fff2c8; margin-bottom:4px; }
+  .row small{ color:var(--muted); overflow-wrap:anywhere; }
+  .row.inactive{ opacity:.5; }
+  .secret-note{ color:#bcaec8; font-size:11px; margin:-4px 0 12px; }
+  @media(max-width:820px){ main{ grid-template-columns:1fr; } }
+  @media(max-width:560px){ header{ padding:14px; } main{ width:calc(100% - 20px); margin-top:14px; }.form{ grid-template-columns:1fr; padding:13px; } label.wide,.actions{ grid-column:1; }.actions{ display:grid; }.actions button{ width:100%; } }
+</style>
+</head>
+<body>
+<header><h1>Shadow Post Admin</h1><span>Mailbox Control</span></header>
+<main>
+  <section>
+    <h2>ส่งจดหมายใหม่</h2>
+    <p class="secret-note">Secret ใช้เฉพาะคำขอนี้และไม่บันทึกลงเครื่อง</p>
+    <form id="mailform" class="form" autocomplete="off">
+      <label class="wide">Admin Secret<input id="secret" type="password" required autocomplete="off"></label>
+      <label>รหัสจดหมาย<input id="mailid" placeholder="เว้นว่างเพื่อสร้างอัตโนมัติ"></label>
+      <label>ประเภท<select id="mailtype"><option value="update">ข่าวอัปเดต</option><option value="reward">ชดเชย Soul Coins</option></select></label>
+      <label>หัวข้อภาษาไทย<input id="titleth" required></label>
+      <label>English title<input id="titleen" required></label>
+      <label class="wide">เนื้อหาภาษาไทย<textarea id="bodyth" required></textarea></label>
+      <label class="wide">English body<textarea id="bodyen" required></textarea></label>
+      <label>ผู้ส่งภาษาไทย<input id="senderth" value="ทีมพัฒนา"></label>
+      <label>English sender<input id="senderen" value="Development Team"></label>
+      <label id="amountlabel">Soul Coins<input id="amount" type="number" min="1" max="1000000" value="1000"></label>
+      <label>เผยแพร่เวลา<input id="published" type="datetime-local"></label>
+      <label>หมดอายุเวลา<input id="expires" type="datetime-local"></label>
+      <label>สถานะ<select id="active"><option value="true">เปิดใช้งาน</option><option value="false">ปิดไว้ก่อน</option></select></label>
+      <div class="actions"><button id="refresh" class="secondary" type="button">โหลดรายการ</button><button id="send" type="submit">ส่งจดหมาย</button></div>
+    </form>
+    <div id="status" role="status"></div>
+  </section>
+  <section>
+    <div class="toolbar"><h2>จดหมายบนระบบ</h2><span id="count">0 ฉบับ</span></div>
+    <div id="messages"></div>
+  </section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const api='/api/mailbox';
+function key(){ return $('secret').value.trim(); }
+function setStatus(text,bad){ $('status').textContent=text; $('status').style.color=bad?'#ff9aaa':'#8fd0ff'; }
+function iso(value){ return value?new Date(value).toISOString():''; }
+function makeId(){
+  const stamp=new Date().toISOString().replace(/[-:TZ.]/g,'').slice(0,14);
+  return 'mail_'+stamp;
+}
+async function request(body){
+  if(!key()) throw new Error('กรุณากรอก Admin Secret');
+  const res=await fetch(api,{method:'POST',headers:{'Content-Type':'application/json','x-mailbox-admin-key':key()},body:JSON.stringify(body),cache:'no-store'});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error||('HTTP '+res.status));
+  return data;
+}
+function render(messages){
+  $('count').textContent=messages.length+' ฉบับ';
+  $('messages').innerHTML=messages.map(mail=>'<div class="row '+(mail.active===false?'inactive':'')+'"><div><b>'+escapeHtml((mail.title&&mail.title.th)||mail.id)+'</b><small>'+escapeHtml(mail.id)+' · '+escapeHtml(mail.date||'')+(mail.reward?' · '+Number(mail.reward.amount||0).toLocaleString()+' Soul Coins':'')+(mail.active===false?' · ปิดใช้งาน':'')+'</small></div><button class="danger" data-delete="'+escapeHtml(mail.id)+'">ปิดจดหมาย</button></div>').join('')||'<p>ยังไม่มีจดหมาย</p>';
+  document.querySelectorAll('[data-delete]').forEach(btn=>btn.onclick=()=>disableMail(btn.dataset.delete));
+}
+function escapeHtml(value){ return String(value||'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+async function loadList(){
+  setStatus('กำลังโหลด...');
+  try{ const data=await request({action:'list'}); render(data.messages||[]); setStatus('โหลดรายการแล้ว'); }
+  catch(err){ setStatus(err.message,true); }
+}
+async function disableMail(id){
+  if(!confirm('ปิดจดหมาย '+id+' ?')) return;
+  try{ await request({action:'delete',id}); setStatus('ปิดจดหมายแล้ว: '+id); await loadList(); }
+  catch(err){ setStatus(err.message,true); }
+}
+$('mailtype').onchange=()=>{ $('amountlabel').style.display=$('mailtype').value==='reward'?'grid':'none'; };
+$('refresh').onclick=loadList;
+$('mailform').onsubmit=async event=>{
+  event.preventDefault();
+  const reward=$('mailtype').value==='reward'?{type:'coins',amount:Number($('amount').value)||0}:undefined;
+  const message={
+    id:$('mailid').value.trim()||makeId(),
+    date:new Date().toISOString().slice(0,10),
+    type:reward?'reward':'update',
+    title:{th:$('titleth').value.trim(),en:$('titleen').value.trim()},
+    body:{th:$('bodyth').value.trim(),en:$('bodyen').value.trim()},
+    sender:{th:$('senderth').value.trim(),en:$('senderen').value.trim()},
+    ...(reward?{reward}:{}),
+    ...(iso($('published').value)?{publishedAt:iso($('published').value)}:{}),
+    ...(iso($('expires').value)?{expiresAt:iso($('expires').value)}:{}),
+    active:$('active').value==='true'
+  };
+  $('send').disabled=true; setStatus('กำลังส่ง...');
+  try{ const data=await request({action:'upsert',message}); $('mailid').value=data.message.id; setStatus('ส่งจดหมายแล้ว: '+data.message.id); await loadList(); }
+  catch(err){ setStatus(err.message,true); }
+  finally{ $('send').disabled=false; }
+};
+$('mailtype').onchange();
+</script>
+</body>
+</html>

@@ -1181,7 +1181,7 @@ function maybeShowWhatsNew(){
 function scheduleWhatsNew(){
   setTimeout(notifyNewMailbox, 180);
 }
-const MAILBOX_MESSAGES=[
+let MAILBOX_MESSAGES=[
   {
     id:'compensation_20260710', type:'reward', date:'2026-07-10',
     title:{th:'ชดเชยรอบใหม่ 1,000 Soul Coins',en:'New 1,000 Soul Coin Compensation'},
@@ -1212,6 +1212,54 @@ const MAILBOX_MESSAGES=[
     reward:{type:'coins',amount:SOUL_COIN_COMPENSATION_AMOUNT}
   }
 ];
+let mailboxLoadPromise=null;
+function normalizeMailboxMessage(raw){
+  raw=raw&&typeof raw==='object'?raw:{};
+  const id=String(raw.id||'').replace(/[^\w.-]/g,'').slice(0,80);
+  if(!id) return null;
+  const textValue=value=>{
+    if(value&&typeof value==='object') return {
+      th:String(value.th||value.en||'').slice(0,1800),
+      en:String(value.en||value.th||'').slice(0,1800)
+    };
+    const text=String(value||'').slice(0,1800);
+    return {th:text,en:text};
+  };
+  const reward=raw.reward&&raw.reward.type==='coins'
+    ? {type:'coins',amount:Math.max(0,Math.min(1000000,Math.floor(Number(raw.reward.amount)||0)))}
+    : null;
+  return {
+    id,
+    type:reward?'reward':'update',
+    date:String(raw.date||'').slice(0,10)||new Date().toISOString().slice(0,10),
+    title:textValue(raw.title),
+    sender:textValue(raw.sender),
+    body:textValue(raw.body),
+    ...(reward&&reward.amount?{reward}:{}),
+    ...(raw.expiresAt?{expiresAt:String(raw.expiresAt).slice(0,40)}:{})
+  };
+}
+async function loadOnlineMailbox(force){
+  if(mailboxLoadPromise&&!force) return mailboxLoadPromise;
+  mailboxLoadPromise=(async()=>{
+    try{
+      const res=await fetch('/api/mailbox?t='+Date.now(),{cache:'no-store'});
+      if(!res.ok) throw new Error('Mailbox '+res.status);
+      const data=await res.json();
+      const messages=(Array.isArray(data.messages)?data.messages:[]).map(normalizeMailboxMessage).filter(Boolean);
+      if(messages.length) MAILBOX_MESSAGES=messages;
+      updateMailboxBadge();
+      if(document.getElementById('mailbox')&&document.getElementById('mailbox').style.display==='flex') renderMailbox();
+      return {ok:true,count:MAILBOX_MESSAGES.length};
+    }catch(err){
+      updateMailboxBadge();
+      return {ok:false,error:String(err&&err.message||err)};
+    }finally{
+      mailboxLoadPromise=null;
+    }
+  })();
+  return mailboxLoadPromise;
+}
 let selectedMailboxId='';
 function mailboxText(mail,key){
   const value=mail&&mail[key];
@@ -1223,10 +1271,11 @@ function normalizeMailboxState(value){
   const state={read:{},claimed:{}};
   for(const kind of ['read','claimed']){
     const src=value[kind]&&typeof value[kind]==='object'?value[kind]:{};
-    for(const mail of MAILBOX_MESSAGES){
-      if(!src[mail.id]) continue;
-      const parsed=Date.parse(src[mail.id]);
-      state[kind][mail.id]=Number.isFinite(parsed)?new Date(parsed).toISOString():new Date().toISOString();
+    for(const [rawId,at] of Object.entries(src).slice(0,100)){
+      const id=String(rawId||'').replace(/[^\w.-]/g,'').slice(0,80);
+      if(!id) continue;
+      const parsed=Date.parse(at);
+      state[kind][id]=Number.isFinite(parsed)?new Date(parsed).toISOString():new Date().toISOString();
     }
   }
   try{
@@ -1322,6 +1371,7 @@ function openMailbox(){
   if(selectedMailboxId) markMailboxRead(selectedMailboxId);
   renderMailbox();
   box.style.display='flex';
+  loadOnlineMailbox(true);
 }
 function closeMailbox(){ const box=document.getElementById('mailbox'); if(box) box.style.display='none'; updateMailboxBadge(); }
 function claimMailboxReward(id){
@@ -3213,6 +3263,7 @@ function init() {
   document.getElementById('pausebtn').onclick = togglePause;
   startVersionCheck();
   applyStaticI18n();
+  loadOnlineMailbox();
   updateStartFlow();
   document.getElementById('shopreroll').onclick = rerollShop;
   document.getElementById('shopclose').onclick = closeShop;
