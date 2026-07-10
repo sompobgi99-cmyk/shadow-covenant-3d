@@ -101,6 +101,11 @@ try {
     const secondClaim = claimMailboxReward("compensation_20260709");
     const afterSecond = soulCoins();
     const claimed = !!loadMailboxState().claimed.compensation_20260709;
+    const newClaim = claimMailboxReward("compensation_20260710");
+    const afterNewClaim = soulCoins();
+    const repeatedNewClaim = claimMailboxReward("compensation_20260710");
+    const afterRepeatedNewClaim = soulCoins();
+    const newClaimed = !!loadMailboxState().claimed.compensation_20260710;
     localStorage.setItem(MAILBOX_STORAGE_KEY, '{"read":{},"claimed":{}}');
     const legacyClaimed = !!loadMailboxState().claimed.compensation_20260709;
     for (const key of keys) {
@@ -108,15 +113,20 @@ try {
       else localStorage.setItem(key, original[key]);
     }
     updateMailboxBadge();
-    return { initialPending, newsPending, firstClaim, secondClaim, afterFirst, afterSecond, claimed, legacyClaimed };
+    return { initialPending, newsPending, firstClaim, secondClaim, afterFirst, afterSecond, claimed, newClaim, afterNewClaim, repeatedNewClaim, afterRepeatedNewClaim, newClaimed, legacyClaimed };
   });
   if (
-    mailboxRegression.initialPending !== 2 ||
-    mailboxRegression.newsPending !== 1 ||
+    mailboxRegression.initialPending !== 3 ||
+    mailboxRegression.newsPending !== 2 ||
     mailboxRegression.firstClaim !== true ||
     mailboxRegression.secondClaim !== false ||
     mailboxRegression.afterFirst !== 1100 ||
     mailboxRegression.afterSecond !== 1100 ||
+    mailboxRegression.newClaim !== true ||
+    mailboxRegression.afterNewClaim !== 2100 ||
+    mailboxRegression.repeatedNewClaim !== false ||
+    mailboxRegression.afterRepeatedNewClaim !== 2100 ||
+    !mailboxRegression.newClaimed ||
     !mailboxRegression.claimed ||
     !mailboxRegression.legacyClaimed
   ) {

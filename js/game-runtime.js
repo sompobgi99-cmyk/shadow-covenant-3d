@@ -1183,6 +1183,16 @@ function scheduleWhatsNew(){
 }
 const MAILBOX_MESSAGES=[
   {
+    id:'compensation_20260710', type:'reward', date:'2026-07-10',
+    title:{th:'ชดเชยรอบใหม่ 1,000 Soul Coins',en:'New 1,000 Soul Coin Compensation'},
+    sender:{th:'ผู้ดูแลพันธสัญญา',en:'Covenant Keeper'},
+    body:{
+      th:'ขอบคุณที่ร่วมทดสอบและแจ้งปัญหาระบบจดหมายกับการบันทึกรางวัล รับ Soul Coins ชดเชยรอบวันที่ 10 กรกฎาคมได้จากจดหมายฉบับนี้',
+      en:'Thank you for testing and reporting mailbox and reward-saving issues. Claim the July 10 compensation attached to this message.'
+    },
+    reward:{type:'coins',amount:1000}
+  },
+  {
     id:'update_20260710_release', type:'update', date:'2026-07-10',
     title:{th:'อัปเดต Shadow Covenant',en:'Shadow Covenant Update'},
     sender:{th:'ทีมพัฒนา',en:'Development Team'},

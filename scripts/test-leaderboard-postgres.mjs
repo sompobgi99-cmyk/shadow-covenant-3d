@@ -20,7 +20,7 @@ const validInput = {
   pact_ids: [],
   pact_multiplier: 1,
   pact_count: 0,
-  build: "20260710-mailbox",
+  build: "20260710-compensation-2",
 };
 
 const entry = leaderboardContract.cleanScore(validInput, null);
