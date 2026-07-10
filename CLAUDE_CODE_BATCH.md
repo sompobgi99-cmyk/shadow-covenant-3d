@@ -40,7 +40,7 @@ nh=h-crop
 sheet=Image.new('RGBA',(w, nh*8),(0,0,0,0))    # 8 แถว แถวบนสุด = south (dir 0)
 for i,im in enumerate(ims):
     sheet.alpha_composite(im.crop((0,0,w,nh)), (0, i*nh))
-sheet.save(f"assets/sprites/{KEY}_8dir.png")   # KEY เช่น enemy_bone_stalker
+sheet.save(f"assets/sprites/{KEY}_8dir.png")   # KEY เช่น enemy_bog_fiend
 ```
 
 ต่อเข้าเกม (แก้ index.html เท่านั้น 2 จุด ต่อ 1 ตัว):

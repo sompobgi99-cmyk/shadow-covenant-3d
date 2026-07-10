@@ -1,4 +1,4 @@
-﻿let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
+let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
 const APP_VERSION = window.SHADOW_BUILD_VERSION || 'dev';
 const tex = {};
 let player, ground;
@@ -585,14 +585,14 @@ function spawnEnemyShot(x, z, dx, dz, dmg, opts){
   }
   scene.add(m); enemyShots.push({ x, z, dx, dz, speed:opts.speed||9, dmg, life:opts.life||3, alive:true, mesh:m, color, source:opts.source||null, hitRadius:opts.hitRadius||0.46, trailScale:opts.trailScale||0.48 });
 }
-const SHOOTERS  = new Set(['Swamp Witch','Shadow Weaver','Dark Apostle','Toxic Spore','Abyssal Horror','Grave Arbalist','Mire Hexer','Rift Needler','Doom Cantor']);
+const SHOOTERS  = new Set(['Swamp Witch','Shadow Weaver','Dark Apostle','Toxic Spore','Abyssal Horror','Mire Hexer','Rift Needler','Doom Cantor']);
 const CHARGERS  = new Set(['Wraith','Dire Bat','Chaos Wisp','Willow Wisp','Rift Phantom','Nether Drake']);
 const EXPLODERS = new Set(['Oblivion Orb','Chaos Wisp','Plague Rat']);
 const SPLITTERS = new Set(['Muck Slime','Blight Treant']);
 const BUFFERS   = new Set(['Dark Apostle','Doom Cantor']);
 const PULLERS   = new Set(['Void Walker','Abyssal Horror']);
 const HAZARDERS = new Set(['Toxic Spore','Bog Elemental','Blight Treant']);
-const THIEVES   = new Set(['Grave Robber','Marsh Lurker']);
+const THIEVES   = new Set(['Marsh Lurker']);
 const WARDERS   = new Set(['Covenant Warder']);
 const SHIELDERS = new Set(['Covenant Warder','Dark Apostle']);
 const AIRBORNE  = new Set(['Wraith','Dire Bat','Willow Wisp','Chaos Wisp','Rift Phantom','Nether Drake','Oblivion Orb']);   // Eagle Claw targets
@@ -730,10 +730,7 @@ function updateEnemyThief(e,dt,nx,nz,d){
 }
 function enemyShoot(e,nx,nz){
   const base=Math.atan2(nz,nx);
-  if(e.name==='Grave Arbalist'){
-    spawnEnemyShot(e.x,e.z,nx,nz,Math.round(e.atk*1.05),{ source:e, speed:13.5, life:2.2, color:0xd8c08a, coreColor:0xffedb0, shape:'arrow', hitRadius:0.34, trailScale:0.36 });
-    e.atkCd=1.45+Math.random()*0.40;
-  } else if(e.name==='Mire Hexer'){
+  if(e.name==='Mire Hexer'){
     for(const k of [-0.5,0.5]){ const a=base+k*0.26; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*0.9),{ source:e, speed:7.2, life:3.2, color:0x45d66a, coreColor:0xa8ffc0, hitRadius:0.40, trailScale:0.40 }); }
     e.atkCd=2.70+Math.random()*0.70;
   } else if(e.name==='Rift Needler'){
@@ -869,20 +866,20 @@ let nextButcherOvertimeRollAt = Infinity;
 let butcherActive = false;
 let butcherKills = 0;
 const CHALLENGE_ONLY_ENEMIES = new Set([
-  'Grave Robber','Marsh Lurker','Muck Slime','Blight Treant','Toxic Spore','Bog Elemental',
+  'Marsh Lurker','Muck Slime','Blight Treant','Toxic Spore','Bog Elemental',
   'Void Walker','Abyssal Horror','Dark Apostle','Doom Cantor','Chaos Wisp','Oblivion Orb'
 ]);
 const CHALLENGE_ROOMS = [
   { id:'treasure_vault', name:'Treasure Vault', duration:65, cap:52, batch:4, interval:1.05, color:0xffd86a,
-    enemies:['Grave Robber','Marsh Lurker','Muck Slime','Oblivion Orb'], reward:'gold' },
+    enemies:['Plague Rat','Marsh Lurker','Muck Slime','Oblivion Orb'], reward:'gold' },
   { id:'cursed_shrine', name:'Cursed Shrine Room', duration:75, cap:60, batch:5, interval:0.95, color:0x9a55ff,
     enemies:['Dark Apostle','Doom Cantor','Blight Treant','Toxic Spore'], reward:'relic' },
   { id:'butcher_arena', name:'Butcher Arena', duration:60, cap:34, batch:3, interval:1.25, color:0xff263f,
-    enemies:['Grave Robber','Abyssal Horror','Void Walker','Chaos Wisp'], reward:'butcher' },
+    enemies:['Rift Phantom','Abyssal Horror','Void Walker','Chaos Wisp'], reward:'butcher' },
   { id:'soul_trial', name:'Soul Trial', duration:45, cap:46, batch:4, interval:1.0, color:0x57e0ff,
     enemies:['Void Walker','Toxic Spore','Marsh Lurker','Doom Cantor'], reward:'soul' },
   { id:'merchant_trap', name:'Merchant Trap', duration:70, cap:48, batch:4, interval:1.05, color:0xffb14a,
-    enemies:['Grave Robber','Dark Apostle','Muck Slime','Bog Elemental'], reward:'merchant' },
+    enemies:['Marsh Lurker','Dark Apostle','Muck Slime','Bog Elemental'], reward:'merchant' },
 ];
 let challengeRoom = null;
 const RUN_TARGET = 600;            // 10:00 clear target
@@ -1894,7 +1891,6 @@ function itemGuideTagLabel(tag){
   return ({Damage:'ดาเมจ',Crit:'คริติคอล',Sustain:'ฟื้นฟู',Defense:'ป้องกัน',Economy:'เศรษฐกิจ',Build:'บิลด์',Utility:'อรรถประโยชน์'})[tag] || tag;
 }
 const MONSTER_GUIDE_TEXT = {
-  'Grave Arbalist':{th:'ยิงตรงเร็ว ระยะไกล ต้องหลบเส้นกระสุน',en:'fast straight shots from long range'},
   'Mire Hexer':{th:'ยิงกระจาย 3 นัด เหมาะกับการบีบพื้นที่',en:'fires a 3-shot spread to pressure space'},
   'Rift Needler':{th:'ยิง fan แคบ 5 นัด กระสุนถี่และเร็ว',en:'fires a narrow 5-shot fan'},
   'Doom Cantor':{th:'ยิงวงกระสุนหรือกระสุนช้าแรง',en:'uses bullet rings or slow heavy shots'},
@@ -3856,8 +3852,8 @@ function makeLootBeacon(color,tier,type){
 // Horizontal strip: N frames in a row. Drop the PNG in assets/sprites/, add it
 // to MANIFEST, and list it here as baseSpriteKey -> {sheet, frames, fps}.
 // Until the sheet image loads, the entity uses its single static sprite.
-const WALK_SHEETS = { 'enemy_abyssal_horror':{sheet:'enemy_abyssal_horror_walk',frames:4,fps:7}, 'enemy_blight_treant':{sheet:'enemy_blight_treant_walk',frames:4,fps:7}, 'enemy_bog_elemental':{sheet:'enemy_bog_elemental_walk',frames:4,fps:7}, 'enemy_bog_fiend':{sheet:'enemy_bog_fiend_walk',frames:4,fps:7}, 'enemy_bone_stalker':{sheet:'enemy_bone_stalker_walk',frames:4,fps:7}, 'enemy_chaos_wisp':{sheet:'enemy_chaos_wisp_walk',frames:4,fps:7}, 'enemy_crypt_spider':{sheet:'enemy_crypt_spider_walk',frames:4,fps:7}, 'enemy_cursed_knight':{sheet:'enemy_cursed_knight_walk',frames:4,fps:7}, 'enemy_dark_apostle':{sheet:'enemy_dark_apostle_walk',frames:4,fps:7}, 'enemy_dire_bat':{sheet:'enemy_dire_bat_walk',frames:4,fps:7}, 'enemy_fen_stalker':{sheet:'enemy_fen_stalker_walk',frames:4,fps:7}, 'enemy_grave_robber':{sheet:'enemy_grave_robber_walk',frames:4,fps:7}, 'enemy_leech_swarm':{sheet:'enemy_leech_swarm_walk',frames:4,fps:7}, 'enemy_marsh_lurker':{sheet:'enemy_marsh_lurker_walk',frames:4,fps:7}, 'enemy_muck_slime':{sheet:'enemy_muck_slime_walk',frames:4,fps:7}, 'enemy_nether_drake':{sheet:'enemy_nether_drake_walk',frames:4,fps:7}, 'enemy_oblivion_orb':{sheet:'enemy_oblivion_orb_walk',frames:4,fps:7}, 'enemy_plague_rat':{sheet:'enemy_plague_rat_walk',frames:4,fps:7}, 'enemy_rift_phantom':{sheet:'enemy_rift_phantom_walk',frames:4,fps:7}, 'enemy_rot_hound':{sheet:'enemy_rot_hound_walk',frames:4,fps:7}, 'enemy_shade':{sheet:'enemy_shade_walk',frames:4,fps:7}, 'enemy_shadow_weaver':{sheet:'enemy_shadow_weaver_walk',frames:4,fps:7}, 'enemy_swamp_witch':{sheet:'enemy_swamp_witch_walk',frames:4,fps:7}, 'enemy_toxic_spore':{sheet:'enemy_toxic_spore_walk',frames:4,fps:7}, 'enemy_void_reaper':{sheet:'enemy_void_reaper_walk',frames:4,fps:7}, 'enemy_void_walker':{sheet:'enemy_void_walker_walk',frames:4,fps:7}, 'enemy_willow_wisp':{sheet:'enemy_willow_wisp_walk',frames:4,fps:7}, 'enemy_wraith':{sheet:'enemy_wraith_walk',frames:4,fps:7}, 'miniboss_colossus':{sheet:'miniboss_colossus_walk',frames:4,fps:7}, 'miniboss_executioner':{sheet:'miniboss_executioner_walk',frames:4,fps:7}, 'miniboss_horror':{sheet:'miniboss_horror_walk',frames:4,fps:7}, 'miniboss_skeleton_lord':{sheet:'miniboss_skeleton_lord_walk',frames:4,fps:7}, 'miniboss_troll':{sheet:'miniboss_troll_walk',frames:4,fps:7}, 'miniboss_warden':{sheet:'miniboss_warden_walk',frames:4,fps:7} };  // enemy 4-frame walk strips
-const DIR_SHEETS = { 'enemy_shade':{key:'enemy_shade_8dir',cols:1,rows:8,fps:1},'enemy_bone_stalker':{key:'enemy_bone_stalker_8dir',cols:1,rows:8,fps:1},'enemy_wraith':{key:'enemy_wraith_8dir',cols:1,rows:8,fps:1},'enemy_dire_bat':{key:'enemy_dire_bat_8dir',cols:1,rows:8,fps:1},'enemy_rot_hound':{key:'enemy_rot_hound_8dir',cols:1,rows:8,fps:1},'enemy_cursed_knight':{key:'enemy_cursed_knight_8dir',cols:1,rows:8,fps:1},'enemy_plague_rat':{key:'enemy_plague_rat_8dir',cols:1,rows:8,fps:1},'enemy_marsh_lurker':{key:'enemy_marsh_lurker_8dir',cols:1,rows:8,fps:1},'enemy_swamp_witch':{key:'enemy_swamp_witch_8dir',cols:1,rows:8,fps:1},'enemy_crypt_spider':{key:'enemy_crypt_spider_8dir',cols:1,rows:8,fps:1},'enemy_bog_fiend':{key:'enemy_bog_fiend_8dir',cols:1,rows:8,fps:1},'enemy_leech_swarm':{key:'enemy_leech_swarm_8dir',cols:1,rows:8,fps:1},'enemy_willow_wisp':{key:'enemy_willow_wisp_8dir',cols:1,rows:8,fps:1},'enemy_fen_stalker':{key:'enemy_fen_stalker_8dir',cols:1,rows:8,fps:1},'enemy_blight_treant':{key:'enemy_blight_treant_8dir',cols:1,rows:8,fps:1},'enemy_muck_slime':{key:'enemy_muck_slime_8dir',cols:1,rows:8,fps:1},'enemy_bog_elemental':{key:'enemy_bog_elemental_8dir',cols:1,rows:8,fps:1},'enemy_void_walker':{key:'enemy_void_walker_8dir',cols:1,rows:8,fps:1},'enemy_abyssal_horror':{key:'enemy_abyssal_horror_8dir',cols:1,rows:8,fps:1},'enemy_nether_drake':{key:'enemy_nether_drake_8dir',cols:1,rows:8,fps:1},'enemy_rift_phantom':{key:'enemy_rift_phantom_8dir',cols:1,rows:8,fps:1},'enemy_oblivion_orb':{key:'enemy_oblivion_orb_8dir',cols:1,rows:8,fps:1},'enemy_dark_apostle':{key:'enemy_dark_apostle_8dir',cols:1,rows:8,fps:1},'miniboss_executioner':{key:'miniboss_executioner_8dir',cols:1,rows:8,fps:1},'miniboss_horror':{key:'miniboss_horror_8dir',cols:1,rows:8,fps:1},'miniboss_skeleton_lord':{key:'miniboss_skeleton_lord_8dir',cols:1,rows:8,fps:1},'miniboss_troll':{key:'miniboss_troll_8dir',cols:1,rows:8,fps:1},'miniboss_warden':{key:'miniboss_warden_8dir',cols:1,rows:8,fps:1},'enemy_grave_robber':{key:'enemy_grave_robber_8dir',cols:1,rows:8,fps:1},'enemy_toxic_spore':{key:'enemy_toxic_spore_8dir',cols:1,rows:8,fps:1},'enemy_chaos_wisp':{key:'enemy_chaos_wisp_8dir',cols:1,rows:8,fps:1},'enemy_shadow_weaver':{key:'enemy_shadow_weaver_8dir',cols:1,rows:8,fps:1},'enemy_void_reaper':{key:'enemy_void_reaper_8dir',cols:1,rows:8,fps:1},'miniboss_colossus':{key:'miniboss_colossus_8dir',cols:1,rows:8,fps:1},'boss_lich':{key:'boss_lich_8dir',cols:1,rows:8,fps:1},'boss_behemoth':{key:'boss_behemoth_8dir',cols:1,rows:8,fps:1},'boss_reaper':{key:'boss_reaper_8dir',cols:1,rows:8,fps:1},'boss_dragon':{key:'boss_dragon_8dir',cols:1,rows:8,fps:1},'boss_overlord':{key:'boss_overlord_8dir',cols:1,rows:8,fps:1} };  // PixelLab 8-dir rotations
+const WALK_SHEETS = { 'enemy_abyssal_horror':{sheet:'enemy_abyssal_horror_walk',frames:4,fps:7}, 'enemy_blight_treant':{sheet:'enemy_blight_treant_walk',frames:4,fps:7}, 'enemy_bog_elemental':{sheet:'enemy_bog_elemental_walk',frames:4,fps:7}, 'enemy_bog_fiend':{sheet:'enemy_bog_fiend_walk',frames:4,fps:7}, 'enemy_chaos_wisp':{sheet:'enemy_chaos_wisp_walk',frames:4,fps:7}, 'enemy_dark_apostle':{sheet:'enemy_dark_apostle_walk',frames:4,fps:7}, 'enemy_dire_bat':{sheet:'enemy_dire_bat_walk',frames:4,fps:7}, 'enemy_fen_stalker':{sheet:'enemy_fen_stalker_walk',frames:4,fps:7}, 'enemy_leech_swarm':{sheet:'enemy_leech_swarm_walk',frames:4,fps:7}, 'enemy_marsh_lurker':{sheet:'enemy_marsh_lurker_walk',frames:4,fps:7}, 'enemy_muck_slime':{sheet:'enemy_muck_slime_walk',frames:4,fps:7}, 'enemy_nether_drake':{sheet:'enemy_nether_drake_walk',frames:4,fps:7}, 'enemy_oblivion_orb':{sheet:'enemy_oblivion_orb_walk',frames:4,fps:7}, 'enemy_plague_rat':{sheet:'enemy_plague_rat_walk',frames:4,fps:7}, 'enemy_rift_phantom':{sheet:'enemy_rift_phantom_walk',frames:4,fps:7}, 'enemy_rot_hound':{sheet:'enemy_rot_hound_walk',frames:4,fps:7}, 'enemy_shade':{sheet:'enemy_shade_walk',frames:4,fps:7}, 'enemy_shadow_weaver':{sheet:'enemy_shadow_weaver_walk',frames:4,fps:7}, 'enemy_swamp_witch':{sheet:'enemy_swamp_witch_walk',frames:4,fps:7}, 'enemy_toxic_spore':{sheet:'enemy_toxic_spore_walk',frames:4,fps:7}, 'enemy_void_reaper':{sheet:'enemy_void_reaper_walk',frames:4,fps:7}, 'enemy_void_walker':{sheet:'enemy_void_walker_walk',frames:4,fps:7}, 'enemy_willow_wisp':{sheet:'enemy_willow_wisp_walk',frames:4,fps:7}, 'enemy_wraith':{sheet:'enemy_wraith_walk',frames:4,fps:7}, 'miniboss_colossus':{sheet:'miniboss_colossus_walk',frames:4,fps:7}, 'miniboss_executioner':{sheet:'miniboss_executioner_walk',frames:4,fps:7}, 'miniboss_horror':{sheet:'miniboss_horror_walk',frames:4,fps:7}, 'miniboss_skeleton_lord':{sheet:'miniboss_skeleton_lord_walk',frames:4,fps:7}, 'miniboss_troll':{sheet:'miniboss_troll_walk',frames:4,fps:7}, 'miniboss_warden':{sheet:'miniboss_warden_walk',frames:4,fps:7} };  // enemy 4-frame walk strips
+const DIR_SHEETS = { 'enemy_shade':{key:'enemy_shade_8dir',cols:1,rows:8,fps:1},'enemy_wraith':{key:'enemy_wraith_8dir',cols:1,rows:8,fps:1},'enemy_dire_bat':{key:'enemy_dire_bat_8dir',cols:1,rows:8,fps:1},'enemy_rot_hound':{key:'enemy_rot_hound_8dir',cols:1,rows:8,fps:1},'enemy_plague_rat':{key:'enemy_plague_rat_8dir',cols:1,rows:8,fps:1},'enemy_marsh_lurker':{key:'enemy_marsh_lurker_8dir',cols:1,rows:8,fps:1},'enemy_swamp_witch':{key:'enemy_swamp_witch_8dir',cols:1,rows:8,fps:1},'enemy_bog_fiend':{key:'enemy_bog_fiend_8dir',cols:1,rows:8,fps:1},'enemy_leech_swarm':{key:'enemy_leech_swarm_8dir',cols:1,rows:8,fps:1},'enemy_willow_wisp':{key:'enemy_willow_wisp_8dir',cols:1,rows:8,fps:1},'enemy_fen_stalker':{key:'enemy_fen_stalker_8dir',cols:1,rows:8,fps:1},'enemy_blight_treant':{key:'enemy_blight_treant_8dir',cols:1,rows:8,fps:1},'enemy_muck_slime':{key:'enemy_muck_slime_8dir',cols:1,rows:8,fps:1},'enemy_bog_elemental':{key:'enemy_bog_elemental_8dir',cols:1,rows:8,fps:1},'enemy_void_walker':{key:'enemy_void_walker_8dir',cols:1,rows:8,fps:1},'enemy_abyssal_horror':{key:'enemy_abyssal_horror_8dir',cols:1,rows:8,fps:1},'enemy_nether_drake':{key:'enemy_nether_drake_8dir',cols:1,rows:8,fps:1},'enemy_rift_phantom':{key:'enemy_rift_phantom_8dir',cols:1,rows:8,fps:1},'enemy_oblivion_orb':{key:'enemy_oblivion_orb_8dir',cols:1,rows:8,fps:1},'enemy_dark_apostle':{key:'enemy_dark_apostle_8dir',cols:1,rows:8,fps:1},'miniboss_executioner':{key:'miniboss_executioner_8dir',cols:1,rows:8,fps:1},'miniboss_horror':{key:'miniboss_horror_8dir',cols:1,rows:8,fps:1},'miniboss_skeleton_lord':{key:'miniboss_skeleton_lord_8dir',cols:1,rows:8,fps:1},'miniboss_troll':{key:'miniboss_troll_8dir',cols:1,rows:8,fps:1},'miniboss_warden':{key:'miniboss_warden_8dir',cols:1,rows:8,fps:1},'enemy_toxic_spore':{key:'enemy_toxic_spore_8dir',cols:1,rows:8,fps:1},'enemy_chaos_wisp':{key:'enemy_chaos_wisp_8dir',cols:1,rows:8,fps:1},'enemy_shadow_weaver':{key:'enemy_shadow_weaver_8dir',cols:1,rows:8,fps:1},'enemy_void_reaper':{key:'enemy_void_reaper_8dir',cols:1,rows:8,fps:1},'miniboss_colossus':{key:'miniboss_colossus_8dir',cols:1,rows:8,fps:1},'boss_lich':{key:'boss_lich_8dir',cols:1,rows:8,fps:1},'boss_behemoth':{key:'boss_behemoth_8dir',cols:1,rows:8,fps:1},'boss_reaper':{key:'boss_reaper_8dir',cols:1,rows:8,fps:1},'boss_dragon':{key:'boss_dragon_8dir',cols:1,rows:8,fps:1},'boss_overlord':{key:'boss_overlord_8dir',cols:1,rows:8,fps:1} };  // PixelLab 8-dir rotations
 // Auto-fill DIR/WALK sheet configs from the rosters (only missing keys; guarded by tex[] at use sites).
 DIR_SHEETS.boss_butcher={key:'boss_butcher_8dir',cols:1,rows:8,fps:1};
 [].concat(ENEMY_TYPES, MINIBOSS_TYPES, BOSS_TYPES).forEach(t=>{ if(!DIR_SHEETS[t.sprite]) DIR_SHEETS[t.sprite]={key:t.sprite+'_8dir',cols:1,rows:8,fps:1}; });

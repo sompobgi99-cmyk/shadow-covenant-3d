@@ -145,9 +145,24 @@ const upgrades = evaluateLiteral(runtimeSource, "UPGRADES");
 const relics = evaluateLiteral(runtimeSource, "RELICS");
 const sheets = evaluateLiteral(runtimeSource, "SHEETS");
 const characters = evaluateLiteral(runtimeSource, "CHARACTERS");
+const challengeRooms = evaluateLiteral(runtimeSource, "CHALLENGE_ROOMS");
 const bossSkills = evaluateLiteral(systemsSource, "BOSS_SKILLS");
 const minibossSkills = evaluateLiteral(systemsSource, "MB_SKILLS");
 const skillTable = evaluateLiteral(systemsSource, "SK");
+const retiredEnemies = ["Bone Stalker", "Crypt Spider", "Cursed Knight", "Grave Robber", "Grave Arbalist"];
+for (const name of retiredEnemies) {
+  if (enemyTypes.some((enemy) => enemy.name === name)) fail(`retired enemy still exists in ENEMY_TYPES: ${name}`);
+  if (runtimeSource.includes(`'${name}'`) || systemsSource.includes(`'${name}'`)) fail(`retired enemy still has a runtime spawn reference: ${name}`);
+}
+const orphanClearSprites = fs.readdirSync(spriteDir).filter((file) => /^enemy_.+_clear\.png$/i.test(file));
+if (orphanClearSprites.length) fail(`unused clear enemy sprites remain: ${orphanClearSprites.join(", ")}`);
+const enemyNames = new Set(enemyTypes.map((enemy) => enemy.name));
+for (const room of challengeRooms) {
+  for (const name of room.enemies || []) if (!enemyNames.has(name)) fail(`Challenge Room ${room.id} references missing enemy: ${name}`);
+}
+if (!systemsSource.includes("spawnMinibossMinionAt(e.x+Math.cos(a)*3.6,e.z+Math.sin(a)*3.6,'Wraith')")) {
+  fail("Crypt Lord must summon an active replacement enemy");
+}
 
 if (!runtimeSource.includes("'title.meta.heroes':'{count} นักล่า'") || !runtimeSource.includes("'title.meta.heroes':'{count} hunters'")) {
   fail("title hero count must be rendered from CHARACTERS instead of a hardcoded number");
@@ -215,7 +230,6 @@ const addUnit = (sprite, withWalk) => {
   if (withWalk) setManifest(`${sprite}_walk`, `${sprite}_walk.png`);
 };
 const staticOnly = new Set([
-  "enemy_grave_arbalist",
   "enemy_mire_hexer",
   "enemy_rift_needler",
   "enemy_doom_cantor",

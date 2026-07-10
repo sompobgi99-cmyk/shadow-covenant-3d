@@ -25,9 +25,6 @@ consistent frame size, no ground, no base, no shadow
 **enemy_shade_walk.png**
 `a ghostly shade, tattered dark phantom body, faint glowing eyes, drifting menacingly`
 
-**enemy_bone_stalker_walk.png**
-`a tall skeletal undead stalker, exposed bones, hunched posture, long clawed arms`
-
 **enemy_wraith_walk.png**
 `a hooded wraith in flowing tattered purple robes, glowing eyes, floating forward`
 
@@ -36,15 +33,6 @@ consistent frame size, no ground, no base, no shadow
 
 **enemy_rot_hound_walk.png**
 `a decaying undead hound, rotting greenish flesh, exposed ribs, snarling, loping`
-
-**enemy_grave_robber_walk.png**
-`a ragged human grave robber, torn cloak and hood, carrying a rusty shovel, sneaking`
-
-**enemy_crypt_spider_walk.png**
-`a large black crypt spider with glowing red legs and eyes, many legs scuttling`
-
-**enemy_cursed_knight_walk.png**
-`an undead cursed knight in dark battered plate armor, ghostly blue flame, sword and shield`
 
 **enemy_plague_rat_walk.png**
 `a diseased giant rat, mangy patchy fur, glowing sickly eyes, scurrying low`

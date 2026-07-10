@@ -170,7 +170,7 @@ try {
     }
     return { total: ENEMY_TYPES.length, missing };
   });
-  if (enemyVisualRoster.total !== 33 || enemyVisualRoster.missing.length) {
+  if (enemyVisualRoster.total !== 28 || enemyVisualRoster.missing.length) {
     throw new Error(`Enemy visual roster failed: ${JSON.stringify(enemyVisualRoster)}`);
   }
   const selectedHeroReady = await page.evaluate(async () => {

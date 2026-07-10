@@ -41,9 +41,8 @@ const MANIFEST = {
   char_bamboo_man_idle:'char_bamboo_man_idle.png',
   char_bamboo_man_portrait:'char_bamboo_man_portrait.png',
   // Tier 0 — Bleakfield
-  enemy_shade:'enemy_shade.png', enemy_bone_stalker:'enemy_bone_stalker.png', enemy_wraith:'enemy_wraith.png',
-  enemy_dire_bat:'enemy_dire_bat.png', enemy_rot_hound:'enemy_rot_hound.png', enemy_grave_robber:'enemy_grave_robber.png',
-  enemy_crypt_spider:'enemy_crypt_spider.png', enemy_cursed_knight:'enemy_cursed_knight.png', enemy_plague_rat:'enemy_plague_rat.png',
+  enemy_shade:'enemy_shade.png', enemy_wraith:'enemy_wraith.png',
+  enemy_dire_bat:'enemy_dire_bat.png', enemy_rot_hound:'enemy_rot_hound.png', enemy_plague_rat:'enemy_plague_rat.png',
   // Tier 1 — Fenmire
   enemy_bog_fiend:'enemy_bog_fiend.png', enemy_marsh_lurker:'enemy_marsh_lurker.png', enemy_toxic_spore:'enemy_toxic_spore.png',
   enemy_swamp_witch:'enemy_swamp_witch.png', enemy_leech_swarm:'enemy_leech_swarm.png', enemy_willow_wisp:'enemy_willow_wisp.png',
@@ -130,15 +129,12 @@ const MANIFEST = {
   fx_executioner_gallows_gen:'fx_executioner_gallows_gen.png', fx_troll_regrowth_gen:'fx_troll_regrowth_gen.png', fx_warden_bulwark_gen:'fx_warden_bulwark_gen.png',
   fx_poison_hazard:'fx_poison_hazard.png', fx_mud_hazard:'fx_mud_hazard.png', fx_root_hazard:'fx_root_hazard.png',
   fx_void_pull:'fx_void_pull.png', fx_gold_steal:'fx_gold_steal.png', fx_enemy_buff_aura:'fx_enemy_buff_aura.png',
-  enemy_bone_stalker_8dir:'enemy_bone_stalker_8dir.png',
   enemy_wraith_8dir:'enemy_wraith_8dir.png',
   enemy_dire_bat_8dir:'enemy_dire_bat_8dir.png',
   enemy_rot_hound_8dir:'enemy_rot_hound_8dir.png',
-  enemy_cursed_knight_8dir:'enemy_cursed_knight_8dir.png',
   enemy_plague_rat_8dir:'enemy_plague_rat_8dir.png',
   enemy_marsh_lurker_8dir:'enemy_marsh_lurker_8dir.png',
   enemy_swamp_witch_8dir:'enemy_swamp_witch_8dir.png',
-  enemy_crypt_spider_8dir:'enemy_crypt_spider_8dir.png',
   enemy_bog_fiend_8dir:'enemy_bog_fiend_8dir.png',
   enemy_leech_swarm_8dir:'enemy_leech_swarm_8dir.png',
   enemy_willow_wisp_8dir:'enemy_willow_wisp_8dir.png',
@@ -157,7 +153,6 @@ const MANIFEST = {
   miniboss_skeleton_lord_8dir:'miniboss_skeleton_lord_8dir.png',
   miniboss_troll_8dir:'miniboss_troll_8dir.png',
   miniboss_warden_8dir:'miniboss_warden_8dir.png',
-  enemy_grave_robber_8dir:'enemy_grave_robber_8dir.png',
   enemy_toxic_spore_8dir:'enemy_toxic_spore_8dir.png',
   enemy_chaos_wisp_8dir:'enemy_chaos_wisp_8dir.png',
   enemy_shadow_weaver_8dir:'enemy_shadow_weaver_8dir.png',
@@ -175,14 +170,10 @@ const MANIFEST = {
   enemy_blight_treant_walk:'enemy_blight_treant_walk.png',
   enemy_bog_elemental_walk:'enemy_bog_elemental_walk.png',
   enemy_bog_fiend_walk:'enemy_bog_fiend_walk.png',
-  enemy_bone_stalker_walk:'enemy_bone_stalker_walk.png',
   enemy_chaos_wisp_walk:'enemy_chaos_wisp_walk.png',
-  enemy_crypt_spider_walk:'enemy_crypt_spider_walk.png',
-  enemy_cursed_knight_walk:'enemy_cursed_knight_walk.png',
   enemy_dark_apostle_walk:'enemy_dark_apostle_walk.png',
   enemy_dire_bat_walk:'enemy_dire_bat_walk.png',
   enemy_fen_stalker_walk:'enemy_fen_stalker_walk.png',
-  enemy_grave_robber_walk:'enemy_grave_robber_walk.png',
   enemy_leech_swarm_walk:'enemy_leech_swarm_walk.png',
   enemy_marsh_lurker_walk:'enemy_marsh_lurker_walk.png',
   enemy_muck_slime_walk:'enemy_muck_slime_walk.png',
@@ -287,15 +278,10 @@ function makeItemIconTex(item) {
 const ENEMY_TYPES = [
   // tier 0 — Bleakfield
   { name:'Shade',hp:15,atk:7,spd:80,xp:5,h:1.4,sprite:'enemy_shade',tier:0 },
-  { name:'Bone Stalker',hp:25,atk:11,spd:66,xp:8,h:1.7,sprite:'enemy_bone_stalker',tier:0 },
   { name:'Wraith',hp:12,atk:8,spd:110,xp:6,h:1.3,sprite:'enemy_wraith',tier:0 },
   { name:'Dire Bat',hp:14,atk:8,spd:140,xp:6,h:1.3,sprite:'enemy_dire_bat',tier:0 },
   { name:'Rot Hound',hp:22,atk:12,spd:95,xp:9,h:1.5,sprite:'enemy_rot_hound',tier:0 },
-  { name:'Grave Robber',hp:18,atk:9,spd:70,xp:10,h:1.5,sprite:'enemy_grave_robber',tier:0 },
-  { name:'Crypt Spider',hp:16,atk:10,spd:100,xp:7,h:1.4,sprite:'enemy_crypt_spider',tier:0 },
-  { name:'Cursed Knight',hp:35,atk:15,spd:63,xp:14,h:1.9,sprite:'enemy_cursed_knight',tier:0 },
   { name:'Plague Rat',hp:10,atk:6,spd:120,xp:5,h:1.1,sprite:'enemy_plague_rat',tier:0 },
-  { name:'Grave Arbalist',hp:24,atk:13,spd:64,xp:12,h:1.7,sprite:'enemy_grave_arbalist',tier:0 },
   // tier 1 — Fenmire
   { name:'Bog Fiend',hp:32,atk:13,spd:70,xp:10,h:1.8,sprite:'enemy_bog_fiend',tier:1 },
   { name:'Marsh Lurker',hp:22,atk:11,spd:90,xp:8,h:1.5,sprite:'enemy_marsh_lurker',tier:1 },
@@ -345,7 +331,7 @@ const BIOME_NAMES = ['Bleakfield','Crimson Wastes','Void Citadel'];
 (function deriveSpriteManifest(){
   const set = (k,f)=>{ if(!(k in MANIFEST)) MANIFEST[k]=f; };
   const addUnit = (sp,withWalk)=>{ set(sp,sp+'.png'); set(sp+'_8dir',sp+'_8dir.png'); if(withWalk) set(sp+'_walk',sp+'_walk.png'); };
-  const staticOnly = new Set(['enemy_grave_arbalist','enemy_mire_hexer','enemy_rift_needler','enemy_doom_cantor','enemy_covenant_warder']);
+  const staticOnly = new Set(['enemy_mire_hexer','enemy_rift_needler','enemy_doom_cantor','enemy_covenant_warder']);
   ENEMY_TYPES.forEach(t=>addUnit(t.sprite,!staticOnly.has(t.sprite)));
   MINIBOSS_TYPES.forEach(t=>addUnit(t.sprite,true));
   BOSS_TYPES.forEach(t=>set(t.sprite+'_8dir',t.sprite+'_8dir.png'));
