@@ -8,9 +8,11 @@
     "audit": "node scripts/audit.mjs",
     "smoke": "node scripts/smoke.mjs",
     "smoke:browser": "node scripts/smoke-browser.mjs",
+    "test:leaderboard": "node scripts/test-leaderboard-postgres.mjs",
     "playtest:journey": "node scripts/playtest-journey.mjs",
     "optimize:png": "node scripts/optimize-png.mjs",
-    "verify": "npm run check && npm run audit && npm run smoke",
+    "optimize:webp": "python scripts/optimize_webp.py",
+    "verify": "npm run check && npm run audit && npm run test:leaderboard && npm run smoke",
     "pixellab:balance": "node scripts/pixellab.mjs balance",
     "pixellab:generate": "node scripts/pixellab.mjs generate"
   },

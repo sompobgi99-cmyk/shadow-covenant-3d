@@ -127,7 +127,9 @@ const combatSource = read("js/combat.js");
 const runtimeSource = read("js/game-runtime.js");
 const systemsSource = read("js/game-systems.js");
 const indexSource = read("index.html");
+const cssSource = read("css/game.css");
 const leaderboardSource = read("netlify/functions/leaderboard.mts");
+const leaderboardMigration = read("supabase/migrations/20260710_leaderboard_runs.sql");
 const versionJson = JSON.parse(read("version.json"));
 
 const manifest = evaluateLiteral(dataSource, "MANIFEST");
@@ -144,11 +146,31 @@ const bossSkills = evaluateLiteral(systemsSource, "BOSS_SKILLS");
 const minibossSkills = evaluateLiteral(systemsSource, "MB_SKILLS");
 const skillTable = evaluateLiteral(systemsSource, "SK");
 
+if (!runtimeSource.includes("'title.meta.heroes':'{count} นักล่า'") || !runtimeSource.includes("'title.meta.heroes':'{count} hunters'")) {
+  fail("title hero count must be rendered from CHARACTERS instead of a hardcoded number");
+}
+if (!runtimeSource.includes("Object.keys(CHARACTERS).length") || !runtimeSource.includes("guideContentSummary(kind)")) {
+  fail("title and Guide content summaries must read from live game data");
+}
+if (!indexSource.includes('data-content-count="characters"') || !indexSource.includes('data-content-count="maps"')) {
+  fail("index title metadata must use dynamic content-count placeholders");
+}
+if (!cssSource.includes("assets/ui/title-covenant.webp")) fail("title screen must use the optimized WebP background");
+for (const key of ["map2_ground", "map2_border_wall", "map3_ground", "map3_border_wall", "floor_challenge_treasure"]) {
+  if (!String(manifest[key] || "").endsWith(".webp")) fail(`MANIFEST.${key} must use its lossless WebP asset`);
+}
+
 const htmlBuild = (indexSource.match(/SHADOW_BUILD_VERSION='([^']+)'/) || [])[1];
 const apiBuild = (leaderboardSource.match(/REQUIRED_BUILD\s*=\s*"([^"]+)"/) || [])[1];
 if (!versionJson.version) fail("version.json has no version");
 if (htmlBuild !== versionJson.version) fail(`index.html build ${htmlBuild || "(missing)"} does not match version.json ${versionJson.version}`);
 if (apiBuild !== versionJson.version) fail(`leaderboard REQUIRED_BUILD ${apiBuild || "(missing)"} does not match version.json ${versionJson.version}`);
+if (!leaderboardSource.includes('SUPABASE_SERVICE_ROLE_KEY') || !leaderboardSource.includes('insertPostgresRows') || !leaderboardSource.includes('storage: "postgres"')) {
+  fail("leaderboard function must use server-side Supabase Postgres storage");
+}
+if (!leaderboardMigration.includes("dedupe_key text not null unique") || !leaderboardMigration.includes("enable row level security") || !leaderboardMigration.includes("revoke all on table public.leaderboard_runs from anon, authenticated")) {
+  fail("leaderboard migration must include atomic dedupe and locked-down RLS");
+}
 if (!runtimeSource.includes("const APP_VERSION = window.SHADOW_BUILD_VERSION || 'dev';")) {
   fail("game-runtime.js APP_VERSION must read window.SHADOW_BUILD_VERSION so the reload prompt can clear after refresh");
 }
@@ -237,11 +259,23 @@ for (const [owner, names] of Object.entries({ ...bossSkills, ...minibossSkills }
   }
 }
 
-const spriteFiles = fs.readdirSync(spriteDir).filter((file) => file.toLowerCase().endsWith(".png"));
+const spriteFiles = fs.readdirSync(spriteDir).filter((file) => /\.(png|webp)$/i.test(file));
 const spriteBytes = spriteFiles.reduce((sum, file) => sum + fs.statSync(path.join(spriteDir, file)).size, 0);
+const deferredUnits = new Set(enemyTypes.filter((e) => (e.tier || 0) > 0).flatMap((e) => [e.sprite, `${e.sprite}_8dir`, `${e.sprite}_walk`]));
+const isBootLazy = (key) => key.startsWith("map2_") || key.startsWith("map3_")
+  || key.startsWith("floor_challenge_") || key.startsWith("prop_challenge_")
+  || key.startsWith("boss_") || key.startsWith("miniboss_") || key.startsWith("pet_")
+  || /^char_.+_(walk|idle|portrait)$/.test(key)
+  || key === "obj_normal_portal" || key === "obj_challenge_gate" || deferredUnits.has(key);
+const bootFiles = new Set(Object.entries(derivedManifest).filter(([key]) => !isBootLazy(key)).map(([, file]) => stripAssetQuery(file)));
+const bootSpriteBytes = [...bootFiles].reduce((sum, file) => sum + (assetExists(file) ? fs.statSync(assetPath(file)).size : 0), 0);
+const titleAsset = path.join(root, "assets", "ui", "title-covenant.webp");
+const initialVisualBytes = bootSpriteBytes + (fs.existsSync(titleAsset) ? fs.statSync(titleAsset).size : 0);
 
 console.log(`Audit: ${Object.keys(derivedManifest).length} manifest assets, ${weaponEntries.length} weapons, ${items.length} items, ${enemyTypes.length} enemies, ${minibossTypes.length} minibosses, ${bossTypes.length} bosses.`);
-console.log(`Sprites: ${spriteFiles.length} PNG files, ${(spriteBytes / 1024 / 1024).toFixed(2)} MB.`);
+console.log(`Sprites: ${spriteFiles.length} PNG/WebP files, ${(spriteBytes / 1024 / 1024).toFixed(2)} MB.`);
+console.log(`Initial visual payload estimate: ${(initialVisualBytes / 1024 / 1024).toFixed(2)} MB (${bootFiles.size} boot textures + title).`);
+if (initialVisualBytes > 6 * 1024 * 1024) warn(`Initial visual payload exceeds 6 MB: ${(initialVisualBytes / 1024 / 1024).toFixed(2)} MB`);
 if (warnings.length) {
   console.warn(`Warnings (${warnings.length}):`);
   for (const message of warnings) console.warn(`- ${message}`);

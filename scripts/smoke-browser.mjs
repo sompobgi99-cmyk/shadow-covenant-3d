@@ -61,6 +61,48 @@ try {
   await page.goto(`${baseUrl}/?smoke=1`, { waitUntil: "networkidle" });
   await page.waitForSelector("#title", { state: "visible", timeout: 15000 });
 
+  const coinSyncRegression = await page.evaluate(() => {
+    const key = "sc3_soul_coins_v1";
+    const original = localStorage.getItem(key);
+    localStorage.setItem(key, "100");
+    importPlayerProgress({ soulCoins:50, migrations:{ petRetroDeduct20260708:"2026-07-08T00:00:00.000Z" } }, { silent:true });
+    const staleMarkerBalance = soulCoins();
+    importPlayerProgress({ soulCoins:50, retroPetDeducted:50, migrations:{ petRetroDeduct20260708:"2026-07-08T00:00:00.000Z" } }, { silent:true });
+    const activeDeductionBalance = soulCoins();
+    if(original == null) localStorage.removeItem(key); else localStorage.setItem(key, original);
+    return { staleMarkerBalance, activeDeductionBalance };
+  });
+  if (coinSyncRegression.staleMarkerBalance !== 100 || coinSyncRegression.activeDeductionBalance !== 50) {
+    throw new Error(`Soul Coin sync regression: ${JSON.stringify(coinSyncRegression)}`);
+  }
+  const runCoinRewards = await page.evaluate(() => {
+    const previous = { gameTime, mapStage, won, runBossKills, runMinibossKills, pactMultiplier };
+    gameTime=600; mapStage=3; won=true; runBossKills=3; runMinibossKills=2; pactMultiplier=1;
+    const fullClear=calcRunSoulCoins();
+    gameTime=120; runBossKills=0; runMinibossKills=0;
+    const fastClear=calcRunSoulCoins();
+    gameTime=previous.gameTime; mapStage=previous.mapStage; won=previous.won; runBossKills=previous.runBossKills; runMinibossKills=previous.runMinibossKills; pactMultiplier=previous.pactMultiplier;
+    return { fullClear:fullClear.total, fastClear:fastClear.total };
+  });
+  if (runCoinRewards.fullClear !== 63 || runCoinRewards.fastClear !== 34) {
+    throw new Error(`Soul Coin reward calculation changed: ${JSON.stringify(runCoinRewards)}`);
+  }
+
+  const bootTextures = await page.evaluate(() => ({
+    map2: !!tex.map2_ground,
+    map3: !!tex.map3_ground,
+    deferredHero: !!tex.char_sorceress_walk,
+    deferredEnemy: !!tex.enemy_bog_fiend_walk,
+  }));
+  if (Object.values(bootTextures).some(Boolean)) {
+    throw new Error(`Lazy textures loaded during boot: ${JSON.stringify(bootTextures)}`);
+  }
+  const selectedHeroReady = await page.evaluate(async () => {
+    await prefetchTextureKeys(characterTextureKeys("sorceress"));
+    return !!tex.char_sorceress_walk && !!tex.char_sorceress_idle;
+  });
+  if (!selectedHeroReady) throw new Error("Selected character animation textures did not lazy-load");
+
   const identityVisible = await page.locator("#identityOverlay").isVisible().catch(() => false);
   if (identityVisible) {
     await page.locator("#guestchoice").click();
@@ -73,9 +115,11 @@ try {
 
   await page.locator("#nameconfirm").click();
   await page.locator(".ccard").first().click();
+  await page.locator(".charselectconfirm").click();
   const firstHelp = page.locator("#firsthelp");
   if (await firstHelp.isVisible().catch(() => false)) await page.locator("#firsthelpstart").click();
   await page.locator(".difficultycard.normal").click();
+  await page.locator("#difficultyconfirm").click();
 
   await page.waitForTimeout(2500);
   await page.waitForSelector("#c", { state: "visible", timeout: 5000 });

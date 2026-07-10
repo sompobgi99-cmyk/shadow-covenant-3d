@@ -69,7 +69,7 @@ createServer(async (req, res) => {
     if (url.pathname === '/api/leaderboard') {
       if (req.method !== 'GET') return sendJson(res, { error: 'Local dev server is read-only for leaderboard.' }, 501);
       const version = JSON.parse(await readFile(path.join(root, 'version.json'), 'utf8')).version;
-      return sendJson(res, { rows: [], required_build: version, auth_enabled: !!process.env.SUPABASE_URL });
+      return sendJson(res, { rows: [], required_build: version, auth_enabled: !!process.env.SUPABASE_URL, postgres_enabled: false, storage: 'local-read-only' });
     }
 
     if (url.pathname === '/api/player-progress') {

@@ -46,8 +46,10 @@
     document.body.classList.toggle('hud-full', hudMode==='full');
     document.body.classList.toggle('hud-compact', hudMode==='compact');
     document.body.classList.toggle('hud-min', hudMode==='min');
-    hud.textContent = hudMode==='full' ? 'HUD' : (hudMode==='compact' ? 'HUD-' : 'MIN');
+    hud.dataset.mode = hudMode;
+    hud.textContent = hudMode==='full' ? '\u25a6' : (hudMode==='compact' ? '\u25ab' : '\u00b7');
     hud.title = hudMode==='full' ? 'HUD full' : (hudMode==='compact' ? 'HUD compact' : 'HUD minimal');
+    hud.setAttribute('aria-label',hud.title);
   }
   applyHudMode();
   hud.addEventListener('touchstart', e=>{

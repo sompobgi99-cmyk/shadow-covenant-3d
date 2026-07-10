@@ -77,7 +77,7 @@
     if (state.user) {
       const name = displayName(state.user);
       status.innerHTML = '<b>Verified</b> ' + html(name);
-      if (titleStatus) titleStatus.innerHTML = '<b>Verified</b> ' + html(name);
+      if (titleStatus) titleStatus.innerHTML = '<b>' + html(tt('auth.verified','Verified')) + '</b> ' + html(name);
       if (titleLogin) titleLogin.style.display = 'none';
       if (googleChoice) {
         setGoogleDisabled(false);
@@ -91,7 +91,8 @@
       if (titleLogout) titleLogout.style.display = 'inline-flex';
     } else if (state.enabled) {
       status.innerHTML = '<b>Guest</b> ' + html((window.gameLang && window.gameLang()==='en') ? 'Login for verified ranking' : 'Login เพื่อ Ranking แบบ verified');
-      if (titleStatus) titleStatus.innerHTML = '<b>Guest</b> ' + html((window.gameLang && window.gameLang()==='en') ? 'Saved on this device' : 'บันทึกในเครื่องนี้');
+      if (titleStatus) titleStatus.innerHTML = '<b>Guest</b> ' + html(tt('auth.guestDevice','Saved on this device'));
+      if (titleLogin) titleLogin.textContent = tt('auth.loginUpgrade','Switch to Google');
       if (titleLogin) titleLogin.style.display = titleMode === 'guest' ? 'inline-flex' : 'none';
       if (titleLogout) titleLogout.style.display = 'none';
       if (googleChoice) {

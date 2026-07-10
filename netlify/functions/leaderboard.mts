@@ -4,12 +4,14 @@ import { createHash } from "node:crypto";
 const STORE_NAME = "shadow-covenant-ranking";
 const SCORE_KEY = "scores-v5";
 const RATE_KEY = "post-rate-v1";
+const POSTGRES_MIGRATION_KEY = "postgres-migration-v1";
+const POSTGRES_TABLE = "leaderboard_runs";
 const MAX_STORED = 100;
 const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260709-soul-comp";
+const REQUIRED_BUILD = "20260710-release";
 const RANKED_DIFFICULTY_MULTIPLIERS = {
   normal: 1,
   hard: 1.4,
@@ -58,7 +60,13 @@ function supabaseEnv() {
   return {
     url: (Netlify.env.get("SUPABASE_URL") || "").trim().replace(/\/+$/, ""),
     anonKey: (Netlify.env.get("SUPABASE_ANON_KEY") || "").trim(),
+    serviceKey: (Netlify.env.get("SUPABASE_SERVICE_ROLE_KEY") || Netlify.env.get("SUPABASE_SECRET_KEY") || "").trim(),
   };
+}
+
+function postgresReady() {
+  const { url, serviceKey } = supabaseEnv();
+  return !!(url && serviceKey);
 }
 
 function bearerToken(req) {
@@ -250,6 +258,133 @@ function publicScore(row) {
   };
 }
 
+function scoreDedupeKey(entry, identity, createdAt = "") {
+  const parsed = Date.parse(createdAt || entry.created_at || "");
+  const bucket = Math.floor((Number.isFinite(parsed) ? parsed : Date.now()) / (5 * 60 * 1000));
+  const stable = [
+    identity,
+    bucket,
+    entry.player_name,
+    entry.country_code,
+    entry.character,
+    entry.score,
+    entry.kills,
+    entry.time,
+    entry.level,
+    entry.stage,
+    entry.build,
+  ];
+  return createHash("sha256").update(JSON.stringify(stable)).digest("hex");
+}
+
+function databaseScore(entry, dedupeKey, source = "game") {
+  return {
+    dedupe_key: dedupeKey,
+    player_name: entry.player_name,
+    country_code: entry.country_code,
+    character: entry.character,
+    score: entry.score,
+    score_before_penalty: entry.score_before_penalty,
+    death_penalty_percent: entry.death_penalty_percent,
+    death_penalty_amount: entry.death_penalty_amount,
+    death_penalty_reason: entry.death_penalty_reason,
+    kills: entry.kills,
+    time_seconds: entry.time,
+    won: entry.won,
+    player_level: entry.level,
+    map_stage: entry.stage,
+    damage_taken: entry.damage,
+    item_count: entry.items,
+    difficulty_id: entry.difficulty_id,
+    difficulty_name: entry.difficulty_name,
+    difficulty_multiplier: entry.difficulty_multiplier,
+    pact_ids: entry.pact_ids,
+    pact_multiplier: entry.pact_multiplier,
+    pact_label: entry.pact_label,
+    pact_count: entry.pact_count,
+    build: entry.build,
+    user_id: entry.user_id || null,
+    auth_name: entry.auth_name || "",
+    verified: !!entry.verified,
+    source,
+    created_at: entry.created_at || new Date().toISOString(),
+  };
+}
+
+function databaseToPublicScore(row) {
+  return publicScore({
+    ...row,
+    time: row.time_seconds,
+    level: row.player_level,
+    stage: row.map_stage,
+    damage: row.damage_taken,
+    items: row.item_count,
+  });
+}
+
+async function postgresRequest(path, init = {}) {
+  const { url, serviceKey } = supabaseEnv();
+  if (!url || !serviceKey) throw new Error("Supabase Postgres is not configured");
+  const headers = {
+    apikey: serviceKey,
+    "Content-Type": "application/json",
+    ...(init.headers || {}),
+  };
+  return fetch(`${url}/rest/v1/${path}`, { ...init, headers });
+}
+
+async function postgresError(res, action) {
+  let detail = "";
+  try { detail = cleanText(await res.text(), "", 240); } catch {}
+  return new Error(`Supabase ${action} failed (${res.status})${detail ? `: ${detail}` : ""}`);
+}
+
+async function readPostgresScores(limit) {
+  const params = new URLSearchParams({
+    select: "player_name,country_code,character,score,score_before_penalty,death_penalty_percent,death_penalty_amount,death_penalty_reason,kills,time_seconds,won,player_level,map_stage,damage_taken,item_count,difficulty_id,difficulty_name,difficulty_multiplier,pact_ids,pact_multiplier,pact_label,pact_count,build,created_at,verified",
+    build: `eq.${REQUIRED_BUILD}`,
+    order: "score.desc,created_at.asc",
+    limit: String(limit),
+  });
+  const res = await postgresRequest(`${POSTGRES_TABLE}?${params.toString()}`, { method: "GET" });
+  if (!res.ok) throw await postgresError(res, "leaderboard read");
+  const rows = await res.json();
+  return (Array.isArray(rows) ? rows : []).map(databaseToPublicScore);
+}
+
+async function insertPostgresRows(rows) {
+  if (!rows.length) return [];
+  const params = new URLSearchParams({ on_conflict: "dedupe_key" });
+  const res = await postgresRequest(`${POSTGRES_TABLE}?${params.toString()}`, {
+    method: "POST",
+    headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
+    body: JSON.stringify(rows),
+  });
+  if (!res.ok) throw await postgresError(res, "leaderboard insert");
+  const inserted = await res.json();
+  return Array.isArray(inserted) ? inserted : [];
+}
+
+async function ensureBlobScoresMigrated(store) {
+  const marker = await store.get(POSTGRES_MIGRATION_KEY, { type: "json" });
+  if (marker && marker.complete) return marker;
+  const rows = await readScores(store);
+  const payload = rows.map((row) => {
+    const entry = cleanScore(row, row.user_id ? { id: row.user_id, name: row.auth_name || "" } : null);
+    entry.created_at = row.created_at || entry.created_at;
+    const identity = row.user_id ? `user:${row.user_id}` : `legacy:${row.player_name || "Player"}:${row.country_code || "TH"}`;
+    return databaseScore(entry, scoreDedupeKey(entry, identity, entry.created_at), "netlify-blobs-migration");
+  });
+  const inserted = await insertPostgresRows(payload);
+  const result = { complete: true, scanned: rows.length, inserted: inserted.length, migrated_at: new Date().toISOString() };
+  await store.setJSON(POSTGRES_MIGRATION_KEY, result);
+  return result;
+}
+
+async function markBlobMigrationPending(store) {
+  await store.setJSON(POSTGRES_MIGRATION_KEY, { complete: false, pending_at: new Date().toISOString() });
+}
+
 async function checkRateLimit(store, req) {
   const fingerprint = clientFingerprint(req);
   const now = Date.now();
@@ -276,11 +411,22 @@ export default async (req) => {
   if (req.method === "GET") {
     const url = new URL(req.url);
     const limit = cleanInt(url.searchParams.get("limit"), 8, 50);
+    if (postgresReady()) {
+      try {
+        const migration = await ensureBlobScoresMigrated(store);
+        const rows = await readPostgresScores(limit);
+        const env = supabaseEnv();
+        return json({ rows, required_build: REQUIRED_BUILD, auth_enabled: !!(env.url && env.anonKey), postgres_enabled: true, storage: "postgres", migration });
+      } catch (error) {
+        console.warn("leaderboard postgres read fallback", error && error.message ? error.message : error);
+      }
+    }
     const rows = (await readScores(store))
       .sort((a, b) => (b.score || 0) - (a.score || 0) || String(a.created_at || "").localeCompare(String(b.created_at || "")))
       .slice(0, limit)
       .map(publicScore);
-    return json({ rows, required_build: REQUIRED_BUILD, auth_enabled: !!(supabaseEnv().url && supabaseEnv().anonKey) });
+    const env = supabaseEnv();
+    return json({ rows, required_build: REQUIRED_BUILD, auth_enabled: !!(env.url && env.anonKey), postgres_enabled: postgresReady(), storage: "netlify-blobs-fallback" });
   }
 
   if (req.method === "POST") {
@@ -304,12 +450,26 @@ export default async (req) => {
     const entry = cleanScore(body, auth.user);
     const problem = validateScore(entry);
     if (problem) return json({ error: problem, required_build: REQUIRED_BUILD }, problem.startsWith("Outdated") ? 426 : 400);
+    if (postgresReady()) {
+      try {
+        await ensureBlobScoresMigrated(store);
+        const identity = auth.user ? `user:${auth.user.id}` : `guest:${clientFingerprint(req)}`;
+        const payload = databaseScore(entry, scoreDedupeKey(entry, identity));
+        const inserted = await insertPostgresRows([payload]);
+        return json({ ok: true, duplicate: inserted.length === 0, verified: entry.verified, storage: "postgres" });
+      } catch (error) {
+        console.warn("leaderboard postgres write fallback", error && error.message ? error.message : error);
+        try { await markBlobMigrationPending(store); } catch (markerError) {
+          console.warn("leaderboard migration marker fallback", markerError && markerError.message ? markerError.message : markerError);
+        }
+      }
+    }
     const rows = await readScores(store);
-    if (isDuplicateScore(rows, entry)) return json({ ok: true, duplicate: true, verified: entry.verified });
+    if (isDuplicateScore(rows, entry)) return json({ ok: true, duplicate: true, verified: entry.verified, storage: "netlify-blobs-fallback" });
     rows.push(entry);
     rows.sort((a, b) => (b.score || 0) - (a.score || 0) || String(a.created_at || "").localeCompare(String(b.created_at || "")));
     await store.setJSON(SCORE_KEY, rows.slice(0, MAX_STORED));
-    return json({ ok: true, verified: entry.verified });
+    return json({ ok: true, verified: entry.verified, storage: "netlify-blobs-fallback" });
   }
 
   return json({ error: "Method not allowed" }, 405);
@@ -318,4 +478,12 @@ export default async (req) => {
 export const config = {
   path: "/api/leaderboard",
   method: ["GET", "POST"],
+};
+
+export const leaderboardContract = {
+  cleanScore,
+  validateScore,
+  scoreDedupeKey,
+  databaseScore,
+  databaseToPublicScore,
 };

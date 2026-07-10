@@ -66,6 +66,7 @@ try {
 
   const lb = JSON.parse(leaderboard);
   if (lb.required_build !== version) throw new Error("local leaderboard required_build mismatch");
+  if (lb.storage !== "local-read-only") throw new Error("local leaderboard storage mode mismatch");
   JSON.parse(authConfig);
 
   console.log(`Smoke passed on ${baseUrl} (${version})`);

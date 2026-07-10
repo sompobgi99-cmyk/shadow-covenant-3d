@@ -1158,12 +1158,12 @@ function openShop(o){
 function buildShop(){
   const wrap=document.getElementById('shopcards'); wrap.innerHTML='';
   shopOffers.forEach((o,i)=>{ if(o.base!=null && !o.sold) o.price=Math.round(o.base*shopBuyMul(currentShopMerchant)); const aff=player.gold>=o.price && !o.sold;
-    const d=document.createElement('div'); d.className='card'; d.style.opacity=o.sold?0.4:1;
+    const d=document.createElement('button'); d.type='button'; d.className='card shopcard '+(o.rarity||'common')+(o.sold?' sold':'')+(!aff&&!o.sold?' unaffordable':'');
     const rc = o.rarity ? {common:'#7ecf5a',uncommon:'#5a9ecf',rare:'#cf5acf',legendary:'#cfc05a'}[o.rarity] : null;
     if (rc) d.style.borderColor = rc;
-    d.innerHTML='<img src="'+escHtml(spriteSrc(o.icon))+'"><div class="nm">'+o.name+'</div><div class="ds">'+o.desc+'</div><div class="key" style="color:'+(aff?'#ffe08a':'#a55')+'">\u2b24 '+o.price+(o.sold?' \u2713':'')+'</div>';
+    d.innerHTML='<span class="cardtype rarity '+escHtml(o.rarity||'common')+'">'+escHtml(String(o.rarity||'common').toUpperCase())+'</span><div class="cardart"><img src="'+escHtml(spriteSrc(o.icon))+'"></div><div class="nm">'+escHtml(o.name)+'</div><div class="ds">'+escHtml(o.desc)+'</div><div class="shopprice"><span>'+(o.sold?'SOLD':'\u2b24 '+o.price)+'</span><small>'+escHtml(o.sold?'ซื้อแล้ว':aff?'ซื้อไอเทม':'ทองไม่พอ')+'</small></div>';
     d.onclick=()=>buyOffer(i); wrap.appendChild(d); });
-  document.getElementById('shopgold').textContent='\u2b24 '+player.gold+(currentShopMerchant&&currentShopMerchant.secretShop?' · SECRET -30%':'');
+  document.getElementById('shopgold').innerHTML='<span>GOLD</span><b>\u2b24 '+player.gold+'</b>'+(currentShopMerchant&&currentShopMerchant.secretShop?'<em>SECRET SHOP -30%</em>':'');
   const rr=document.getElementById('shopreroll');
   if(rr && currentShopMerchant){
     const cost=shopRerollCost(currentShopMerchant), can=player.gold>=cost;
@@ -2104,7 +2104,10 @@ let shakeT = 0, shakeMag = 0;
 let camDist = 13;   // camera zoom
 const cameraTarget=new THREE.Vector3();
 function isScreenShakeOff(){
-  try { return localStorage.getItem('sc3_screen_shake_off_v1') === '1'; } catch(_) { return false; }
+  try {
+    const saved=localStorage.getItem('sc3_screen_shake_off_v1');
+    return saved===null ? true : saved==='1';
+  } catch(_) { return true; }
 }
 function setScreenShakeOff(off){
   try { localStorage.setItem('sc3_screen_shake_off_v1', off ? '1' : '0'); } catch(_) {}
@@ -2263,32 +2266,35 @@ function loadLeaderboard(){
 function renderLeaderboard(board, source, emptyMessage){
   const el = document.getElementById('leaderboard');
   if (!el) return;
-  const rankHead = (scoreText)=>'<div class="rankhead"><span>'+escHtml(source||'Ranking')+'</span><div class="ranktools"><b>'+escHtml(scoreText)+'</b><button id="ranktoggle" class="ranktoggle" type="button">Hide Ranking</button></div></div>';
-  if (!board.length) {
-    el.innerHTML='<div class="rankpanel empty">'+rankHead('No records')+'<p>'+escHtml(emptyMessage||'Finish a run to carve your name into the covenant.')+'</p></div>';
+  const tt=(key,fallback)=>(typeof tr==='function' ? tr(key) : fallback);
+  const rows=Array.isArray(board)?board:[];
+  const bindRankControls=()=>{
     const btn=document.getElementById('ranktoggle'); if(btn && typeof toggleTitleRanking==='function') btn.onclick=toggleTitleRanking;
     if(typeof updateRankToggleLabel==='function') updateRankToggleLabel();
+  };
+  const rankHead = (scoreText)=>'<div class="rankhead"><span>'+escHtml(source||tt('rank.title','Ranking'))+'</span><div class="ranktools"><b>'+escHtml(scoreText)+'</b><button id="ranktoggle" class="ranktoggle" type="button">'+escHtml(tt('title.rank.hide','Hide Ranking'))+'</button></div></div>';
+  if (!rows.length) {
+    el.innerHTML='<div class="rankpanel empty">'+rankHead(tt('rank.none','No records'))+'<p>'+escHtml(emptyMessage||tt('rank.empty','Finish a run to carve your name into the covenant.'))+'</p></div>';
+    bindRankControls();
     return;
   }
-  const best=board[0];
-  let h = '<div class="rankpanel">'+rankHead((best.score||0).toLocaleString()+' pts')+'<div class="rankrows">';
-  board.forEach((e,i) => {
+  const best=rows[0];
+  let h = '<div class="rankpanel">'+rankHead((best.score||0).toLocaleString()+' '+tt('rank.points','pts'))+'<div class="rankrows">';
+  rows.forEach((e,i) => {
     const cls=i<3?' top':'';
     const medal = ['I','II','III'][i] || String(i+1).padStart(2,'0');
-    const result=e.won?'CLEAR':'FALL';
-    const hero=e.character ? " | "+e.character : "";
+    const result=e.won?tt('rank.clear','CLEAR'):tt('rank.fall','FALL');
+    const hero=e.character || 'Unknown';
     const diffName=e.difficultyName || (e.difficultyId ? String(e.difficultyId).replace(/^./,c=>c.toUpperCase()) : "Normal");
     const diffMult=Number(e.difficultyMultiplier || (e.difficultyId==="casual"?0.6:e.difficultyId==="hard"?1.4:1));
-    const diff=" | "+diffName+" x"+diffMult.toFixed(2);
-    const pact=e.pactMultiplier&&e.pactMultiplier>1 ? " | Pact x"+Number(e.pactMultiplier).toFixed(2)+" - "+(e.pactCount||((e.pactIds||[]).length)||1) : "";
+    const pact=e.pactMultiplier&&e.pactMultiplier>1 ? 'Pact x'+Number(e.pactMultiplier).toFixed(2) : '';
     const flag=countryFlag(e.country_code||e.country||"TH");
     const badge=e.verified?"<em class=\"rankverified\">ID</em>":"";
-    h += `<div class="rankrow${cls}"><div class="rankno">${medal}</div><div class="rankwho"><b><span class="rankflag">${flag}</span><span class="rankname">${escHtml(e.name||"Player")}</span>${badge}</b><span>${result}${hero}${diff}${pact} | ${fmt(e.time||0)} | ${e.kills||0} kills | Lv ${e.level||1}</span></div><div class="rankscore">${(e.score||0).toLocaleString()}</div></div>`;
+    h += `<div class="rankrow${cls}"><div class="rankno">${medal}</div><div class="rankwho"><b><span class="rankflag">${flag}</span><span class="rankname">${escHtml(e.name||"Player")}</span>${badge}</b><div class="rankmeta"><span class="result ${e.won?'clear':'fall'}">${result}</span><span>${escHtml(hero)}</span><span>${escHtml(diffName)} x${diffMult.toFixed(2)}</span>${pact?'<span class="pact">'+escHtml(pact)+'</span>':''}<span>${fmt(e.time||0)}</span><span>${e.kills||0} ${tt('rank.kills','K')}</span><span>${tt('rank.level','Lv')} ${e.level||1}</span></div></div><div class="rankscore"><b>${(e.score||0).toLocaleString()}</b><small>${escHtml(tt('rank.points','PTS'))}</small></div></div>`;
   });
   h += '</div></div>';
   el.innerHTML = h;
-  const btn=document.getElementById('ranktoggle'); if(btn && typeof toggleTitleRanking==='function') btn.onclick=toggleTitleRanking;
-  if(typeof updateRankToggleLabel==='function') updateRankToggleLabel();
+  bindRankControls();
 }
 function showLeaderboardLegacy(){
   const board = loadLeaderboard();
@@ -2303,13 +2309,13 @@ function showLeaderboardLegacy(){
 }
 function showLeaderboard(){
   if(typeof loadOnlineLeaderboard==='function' && typeof onlineLeaderboardReady==='function' && onlineLeaderboardReady()){
-    renderLeaderboard([], 'Online Ranking', 'Loading shared scores...');
+    renderLeaderboard([], tr('rank.online'), tr('rank.loading'));
     loadOnlineLeaderboard()
-      .then(rows=>{ renderLeaderboard(rows,'Online Ranking','No shared scores yet. Finish a run to claim the first rank.'); })
-      .catch(err=>{ console.warn(err.message||err); renderLeaderboard(loadLeaderboard(), 'Local Ranking'); });
+      .then(rows=>{ renderLeaderboard(rows,tr('rank.online'),tr('rank.emptyOnline')); })
+      .catch(err=>{ console.warn(err.message||err); renderLeaderboard(loadLeaderboard(), tr('rank.local')); });
     return;
   }
-  renderLeaderboard(loadLeaderboard(), 'Ranking');
+  renderLeaderboard(loadLeaderboard(), tr('rank.title'));
 }
 function renderRunRanking(){
   let el=document.getElementById('overrank');
@@ -2348,29 +2354,29 @@ function renderRunSummary(){
   const weapons=topRows(runStats.weaponDamage,r=>r.damage,5);
   const items=topRows(runStats.itemStats,r=>(r.damage||0)+(r.heal||0)+(r.blocked||0)+(r.procs||0)*25,5);
   const death=runStats.deathCause || runStats.lastHit;
-  const weaponHtml=weapons.length ? weapons.map(w=>{
+  const weaponHtml=weapons.length ? weapons.map((w,index)=>{
     const dps=(w.damage/seconds).toFixed(1);
-    return `<div><b>${escHtml(w.name)}</b><span>${fmtStatNumber(w.damage)} dmg · ${dps} DPS</span></div>`;
+    return `<div class="summaryline"><i>${index+1}</i><b>${escHtml(w.name)}</b><span>${fmtStatNumber(w.damage)} DMG<small>${dps} DPS</small></span></div>`;
   }).join('') : '<p>No weapon damage recorded</p>';
-  const itemHtml=items.length ? items.map(it=>{
+  const itemHtml=items.length ? items.map((it,index)=>{
     const bits=[];
     if(it.damage) bits.push(fmtStatNumber(it.damage)+' dmg');
     if(it.heal) bits.push(fmtStatNumber(it.heal)+' heal');
     if(it.blocked) bits.push(fmtStatNumber(it.blocked)+' blocked');
     if(it.procs) bits.push(fmtStatNumber(it.procs)+' procs');
-    return `<div><b>${escHtml(it.name)}</b><span>${bits.join(' · ')}</span></div>`;
+    return `<div class="summaryline"><i>${index+1}</i><b>${escHtml(it.name)}</b><span>${bits.join(' · ')}</span></div>`;
   }).join('') : '<p>No major item procs</p>';
   const deathText=won?'Cleared the covenant':death?`${death.label} · ${fmtStatNumber(death.amount)} damage at ${fmt(death.time||gameTime)}`:'Unknown';
   const unlockHtml=achievementSummaryHtml();
   const pactHtml=(typeof currentPactSummaryHtml==='function'?currentPactSummaryHtml():'')+(typeof pactUnlockSummaryHtml==='function'?pactUnlockSummaryHtml():'');
   const soulHtml=typeof soulCoinSummaryHtml==='function' ? soulCoinSummaryHtml() : '';
   const pet=player.petId && typeof petById==='function' ? petById(player.petId) : null;
-  const petHtml='<section><h3>Pet</h3><div><b>'+escHtml(pet?pet.name:'No Pet')+'</b><span>'+escHtml(pet?pet.buff:'ยังไม่ได้เลือกสัตว์เลี้ยง')+'</span></div></section>';
+  const petHtml='<section class="summarypet"><h3>Pet</h3><div class="summaryline"><b>'+escHtml(pet?pet.name:'No Pet')+'</b><span>'+escHtml(pet?pet.buff:'ยังไม่ได้เลือกสัตว์เลี้ยง')+'</span></div></section>';
   const dp=deathPenalty || { rate:0, percent:0, baseScore:score, finalScore:score, amount:0, reason:won?'Cleared':'' };
-  const scoreHtml='<section><h3>Score</h3><div><b>'+fmtStatNumber(score)+' pts</b><span>'
+  const scoreHtml='<section class="summaryscore"><h3>Final Score</h3><div><b>'+fmtStatNumber(score)+'</b><span>'
     +(dp.rate>0 ? 'Base '+fmtStatNumber(dp.baseScore)+' - Death Penalty '+dp.percent+'% ('+escHtml(dp.reason)+')' : 'No death penalty')
     +'</span></div></section>';
-  el.innerHTML=`<div class="summarypanel"><div class="summaryhead"><span>Run Summary</span><b>${won?'Victory':'Death Cause'}: ${escHtml(deathText)}</b></div><div class="summarycols${unlockHtml||pactHtml||soulHtml?' hasunlock':''}">${scoreHtml}<section><h3>Weapon DPS</h3>${weaponHtml}</section><section><h3>Best Items</h3>${itemHtml}</section>${petHtml}${soulHtml}${pactHtml}${unlockHtml}</div></div>`;
+  el.innerHTML=`<div class="summarypanel ${won?'victory':'defeat'}"><div class="summaryhead"><div><span>RUN SUMMARY</span><h2>${won?'COVENANT CLEARED':'RUN ENDED'}</h2></div><b>${won?'Victory':'Death Cause'}<small>${escHtml(deathText)}</small></b></div><div class="summarycols${unlockHtml||pactHtml||soulHtml?' hasunlock':''}">${scoreHtml}<section class="summaryweapons"><h3>Weapon DPS</h3>${weaponHtml}</section><section class="summaryitems"><h3>Best Items</h3>${itemHtml}</section>${petHtml}${soulHtml}${pactHtml}${unlockHtml}</div></div>`;
 }
 function restart(){
   clearTimeout(deathCinematicTimer); deathCinematic=false;
