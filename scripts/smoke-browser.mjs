@@ -144,18 +144,23 @@ try {
   }
   const enemyTextureRegression = await page.evaluate(async () => {
     const fallback = entitySprite("enemy_bog_fiend", 1.8);
+    scene.add(fallback.spr);
     const fallbackVisible = !!(fallback.spr && fallback.spr.material && fallback.spr.material.map);
-    const fallbackUsesBootArt = fallback.spr.material.map === tex.enemy_shade;
+    const fallbackUsesBootArt = fallback.spr.material.map !== tex.enemy_bog_fiend;
     const room = CHALLENGE_ROOMS.find(item => item.id === "soul_trial");
     const roomKeys = challengeRoomTextureKeys(room, 2);
     await prefetchTextureKeys(roomKeys);
-    return {
+    await Promise.resolve();
+    const result = {
       fallbackVisible,
       fallbackUsesBootArt,
+      fallbackHydrated: fallback.spr.material.map === tex.enemy_bog_fiend,
       includesCrossTier: roomKeys.includes("enemy_void_walker_8dir"),
       crossTierLoaded: !!tex.enemy_void_walker_8dir,
       deferredLoaded: !!tex.enemy_bog_fiend_8dir,
     };
+    scene.remove(fallback.spr);
+    return result;
   });
   if (Object.values(enemyTextureRegression).some(value => value !== true)) {
     throw new Error(`Enemy texture regression: ${JSON.stringify(enemyTextureRegression)}`);
@@ -172,6 +177,27 @@ try {
   });
   if (enemyVisualRoster.total !== 28 || enemyVisualRoster.missing.length) {
     throw new Error(`Enemy visual roster failed: ${JSON.stringify(enemyVisualRoster)}`);
+  }
+  const scenePropRegression = await page.evaluate(async () => {
+    const prop = billboard("map3_obelisk", 2.9);
+    scene.add(prop);
+    const fallbackVisible = !!prop.material.map;
+    const fallbackBeforeLoad = prop.material.map !== tex.map3_obelisk;
+    await prefetchTextureKeys(["map3_obelisk"]);
+    await Promise.resolve();
+    const hydrated = prop.material.map === tex.map3_obelisk;
+    const challenge = billboard("prop_challenge_merchant_1", 2.1);
+    scene.add(challenge);
+    const challengeFallbackVisible = !!challenge.material.map;
+    await prefetchTextureKeys(["prop_challenge_merchant_1"]);
+    await Promise.resolve();
+    const challengeHydrated = challenge.material.map === tex.prop_challenge_merchant_1;
+    scene.remove(prop);
+    scene.remove(challenge);
+    return { fallbackVisible, fallbackBeforeLoad, hydrated, challengeFallbackVisible, challengeHydrated };
+  });
+  if (Object.values(scenePropRegression).some(value => value !== true)) {
+    throw new Error(`Scene prop texture regression: ${JSON.stringify(scenePropRegression)}`);
   }
   const selectedHeroReady = await page.evaluate(async () => {
     await prefetchTextureKeys(characterTextureKeys("sorceress"));

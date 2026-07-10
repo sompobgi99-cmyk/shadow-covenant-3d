@@ -9,6 +9,7 @@
     "smoke": "node scripts/smoke.mjs",
     "smoke:browser": "node scripts/smoke-browser.mjs",
     "check:live-enemies": "node scripts/check-live-enemy-assets.mjs",
+    "check:live-scenes": "node scripts/check-live-scene-assets.mjs",
     "test:leaderboard": "node scripts/test-leaderboard-postgres.mjs",
     "playtest:journey": "node scripts/playtest-journey.mjs",
     "optimize:png": "node scripts/optimize-png.mjs",

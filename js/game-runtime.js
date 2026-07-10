@@ -3665,11 +3665,26 @@ function buildStageScenery(stage){
 }
 
 function billboard(key, height) {
-  const mat = new THREE.SpriteMaterial({ map: tex[key], transparent:true, alphaTest:0.4, depthWrite:true });
+  const desired=tex[key];
+  const fallback=tex.px_rock_small||tex.px_rock||tex.obj_portal||tex.enemy_shade||tex.player||null;
+  const mat = new THREE.SpriteMaterial({ map: desired||fallback, transparent:true, alphaTest:0.4, depthWrite:true });
   const s = new THREE.Sprite(mat);
-  const ar = tex[key] ? (tex[key].image.width / tex[key].image.height) : 1;
+  const source=desired||fallback;
+  const ar = source&&source.image ? (source.image.width / source.image.height) : 1;
   s.center.set(0.5, 0);              // pivot at feet
   s.scale.set(height*ar, height, 1);
+  s.userData.requestedTexture=key;
+  if(!desired&&MANIFEST[key]){
+    loadTextureKey(key).then(t=>{
+      if(!t||!s.parent||!s.material) return;
+      s.material.map=t;
+      s.material.needsUpdate=true;
+      const nextAr=t.image&&t.image.height?t.image.width/t.image.height:1;
+      s.scale.set(height*nextAr,height,1);
+      s.userData.hydratedWidth=height*nextAr;
+      s.userData.hydratedHeight=height;
+    });
+  }
   return s;
 }
 function ensureMagnetPillarTexture(){
@@ -4900,8 +4915,7 @@ function entitySprite(baseKey, height) {
   // A transient CDN miss must never create a permanently invisible enemy.
   // Keep it visible with boot art while retrying the dedicated unit textures.
   prefetchTextureKeys(unitTextureKeys(baseKey));
-  const fallbackKey=tex.enemy_shade?'enemy_shade':Object.keys(tex).find(k=>k.startsWith('enemy_')&&tex[k]);
-  return { spr: billboard(fallbackKey||baseKey, height), anim: null, fallback:true };
+  return { spr: billboard(baseKey, height), anim: null, fallback:true };
 }
 
 function checkoutGridTexture(c){

@@ -708,7 +708,7 @@ const CHALLENGE_ASSET_SETS = {
   }
 };
 function addChallengeSpriteProp(group,key,x,z,h){
-  if(!tex[key]) return false;
+  if(!tex[key]&&!MANIFEST[key]) return false;
   const spr=billboard(key,h);
   spr.position.set(x,groundHeight(x,z)+0.03,z);
   group.add(spr);
@@ -1994,6 +1994,12 @@ function cull(arr){ for(let i=arr.length-1;i>=0;i--){ const o=arr[i]; if(!o.aliv
 // ---------- view sync ----------
 // Give billboards life: spawn pop-in, idle breathe/bob, facing flip, hit punch
 function animSprite(o, x, y, z, flash, hitColor, moving) {
+  if(o.spr&&o.spr.userData&&o.spr.userData.hydratedWidth){
+    o.bw=o.spr.userData.hydratedWidth;
+    o.bh=o.spr.userData.hydratedHeight||o.bh;
+    delete o.spr.userData.hydratedWidth;
+    delete o.spr.userData.hydratedHeight;
+  }
   const age = gameTime - o.born;
   const pop = age < 0.25 ? 0.45 + 0.55*(age/0.25) : 1;
   const br  = Math.sin(gameTime*4 + x*0.7 + z*0.3);
