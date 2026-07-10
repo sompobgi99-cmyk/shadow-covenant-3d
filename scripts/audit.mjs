@@ -129,6 +129,7 @@ const systemsSource = read("js/game-systems.js");
 const indexSource = read("index.html");
 const cssSource = read("css/game.css");
 const leaderboardSource = read("netlify/functions/leaderboard.mts");
+const progressSource = read("netlify/functions/player-progress.mts");
 const leaderboardMigration = read("supabase/migrations/20260710_leaderboard_runs.sql");
 const versionJson = JSON.parse(read("version.json"));
 
@@ -173,6 +174,18 @@ if (!leaderboardMigration.includes("dedupe_key text not null unique") || !leader
 }
 if (!runtimeSource.includes("const APP_VERSION = window.SHADOW_BUILD_VERSION || 'dev';")) {
   fail("game-runtime.js APP_VERSION must read window.SHADOW_BUILD_VERSION so the reload prompt can clear after refresh");
+}
+if (!indexSource.includes('id="mailbtn"') || !indexSource.includes('id="mailbox"')) {
+  fail("title screen must expose the mailbox button and modal");
+}
+if (!runtimeSource.includes("MAILBOX_MESSAGES") || !runtimeSource.includes("claimMailboxReward") || !runtimeSource.includes("mailbox:loadMailboxState()")) {
+  fail("mailbox must be data-driven, claim rewards once, and export its sync state");
+}
+if (!progressSource.includes("cleanMailbox") || !progressSource.includes("mergeMailbox") || !progressSource.includes("mailbox: payload.mailbox")) {
+  fail("online player progress must sanitize, merge, and return mailbox state");
+}
+if (progressSource.includes("function applySoulCoinCompensation")) {
+  fail("legacy Soul Coin compensation must be claimed from mailbox instead of auto-awarded");
 }
 
 const derivedManifest = { ...manifest };

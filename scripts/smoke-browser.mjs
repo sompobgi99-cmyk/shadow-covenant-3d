@@ -87,6 +87,41 @@ try {
   if (runCoinRewards.fullClear !== 63 || runCoinRewards.fastClear !== 34) {
     throw new Error(`Soul Coin reward calculation changed: ${JSON.stringify(runCoinRewards)}`);
   }
+  const mailboxRegression = await page.evaluate(() => {
+    const keys = [SOUL_COINS_STORAGE_KEY, SOUL_COIN_COMPENSATION_STORAGE_KEY, MAILBOX_STORAGE_KEY];
+    const original = Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)]));
+    localStorage.setItem(SOUL_COINS_STORAGE_KEY, "100");
+    localStorage.removeItem(SOUL_COIN_COMPENSATION_STORAGE_KEY);
+    localStorage.setItem(MAILBOX_STORAGE_KEY, '{"read":{},"claimed":{}}');
+    const initialPending = mailboxPendingCount();
+    selectMailbox("update_20260710_release");
+    const newsPending = mailboxPendingCount();
+    const firstClaim = claimMailboxReward("compensation_20260709");
+    const afterFirst = soulCoins();
+    const secondClaim = claimMailboxReward("compensation_20260709");
+    const afterSecond = soulCoins();
+    const claimed = !!loadMailboxState().claimed.compensation_20260709;
+    localStorage.setItem(MAILBOX_STORAGE_KEY, '{"read":{},"claimed":{}}');
+    const legacyClaimed = !!loadMailboxState().claimed.compensation_20260709;
+    for (const key of keys) {
+      if (original[key] == null) localStorage.removeItem(key);
+      else localStorage.setItem(key, original[key]);
+    }
+    updateMailboxBadge();
+    return { initialPending, newsPending, firstClaim, secondClaim, afterFirst, afterSecond, claimed, legacyClaimed };
+  });
+  if (
+    mailboxRegression.initialPending !== 2 ||
+    mailboxRegression.newsPending !== 1 ||
+    mailboxRegression.firstClaim !== true ||
+    mailboxRegression.secondClaim !== false ||
+    mailboxRegression.afterFirst !== 1100 ||
+    mailboxRegression.afterSecond !== 1100 ||
+    !mailboxRegression.claimed ||
+    !mailboxRegression.legacyClaimed
+  ) {
+    throw new Error(`Mailbox reward regression: ${JSON.stringify(mailboxRegression)}`);
+  }
 
   const bootTextures = await page.evaluate(() => ({
     map2: !!tex.map2_ground,

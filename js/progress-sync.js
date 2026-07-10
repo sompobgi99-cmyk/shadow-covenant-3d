@@ -33,6 +33,7 @@
         done: parsed && parsed.done ? parsed.done : {},
         soulCoins: Math.max(0, parseInt(localStorage.getItem('sc3_soul_coins_v1')||'0', 10) || 0),
         pets: JSON.parse(localStorage.getItem('sc3_pets_v1') || '{"owned":{},"selected":""}'),
+        mailbox: JSON.parse(localStorage.getItem('sc3_mailbox_v1') || '{"read":{},"claimed":{}}'),
       };
     } catch (_) {
       return { done:{}, soulCoins:0, pets:{ owned:{}, selected:'' } };

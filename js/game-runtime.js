@@ -345,7 +345,7 @@ function applyStaticI18n(){
   if(metas[1]) metas[1].innerHTML='<i></i>'+escHtml(tr('title.meta.maps',{count:Object.keys(MAP_THEMES).length}));
   if(metas[2]) metas[2].innerHTML='<i></i>'+escHtml(tr('title.meta.minutes'));
   const howtoBtn=document.querySelector('.titlemenu button[data-guide="howto"]'); if(howtoBtn) howtoBtn.textContent=tr('title.howto');
-  const latestBtn=document.getElementById('latestbtn'); if(latestBtn) latestBtn.textContent=tr('title.latest');
+  updateMailboxBadge();
   const petsBtn=document.querySelector('.titlemenu button[data-guide="pets"]'); if(petsBtn) petsBtn.textContent=tr('title.pets');
   const guideBtn=document.querySelector('.titlemenu button[data-guide="hub"]'); if(guideBtn) guideBtn.textContent=tr('title.guide');
   const controls=document.querySelectorAll('.titlecontrols span');
@@ -361,6 +361,7 @@ function applyStaticI18n(){
   updateScreenShakeButton();
   updateAudioButtons();
   updateLatestButtonState();
+  updateMailboxBadge();
   document.querySelectorAll('.langtoggle').forEach(langBox=>{ const span=langBox.querySelector('span'); if(span) span.textContent=tr('lang.label'); langBox.querySelector('[data-lang="th"]').textContent=tr('lang.th'); langBox.querySelector('[data-lang="en"]').textContent=tr('lang.en'); langBox.querySelectorAll('button').forEach(btn=>btn.classList.toggle('active', btn.dataset.lang===lang)); });
 }
 window.tr=tr; window.setGameLanguage=setGameLanguage; window.gameLang=gameLang; window.updateRankToggleLabel=updateRankToggleLabel;
@@ -909,6 +910,7 @@ const SOUL_COINS_STORAGE_KEY='sc3_soul_coins_v1';
 const SOUL_COINS_SPEND_GUARD_KEY='sc3_soul_coin_spend_guard_v1';
 const SOUL_COIN_COMPENSATION_STORAGE_KEY='sc3_soul_coin_comp_20260709_v1';
 const SOUL_COIN_COMPENSATION_AMOUNT=1000;
+const MAILBOX_STORAGE_KEY='sc3_mailbox_v1';
 const PET_STATE_STORAGE_KEY='sc3_pets_v1';
 let playerName = localStorage.getItem(PLAYER_NAME_KEY) || 'Player';
 let playerCountry = localStorage.getItem(PLAYER_COUNTRY_KEY) || 'TH';
@@ -1177,7 +1179,168 @@ function maybeShowWhatsNew(){
   openWhatsNew(false);
 }
 function scheduleWhatsNew(){
-  setTimeout(maybeShowWhatsNew, 180);
+  setTimeout(notifyNewMailbox, 180);
+}
+const MAILBOX_MESSAGES=[
+  {
+    id:'update_20260710_release', type:'update', date:'2026-07-10',
+    title:{th:'อัปเดต Shadow Covenant',en:'Shadow Covenant Update'},
+    sender:{th:'ทีมพัฒนา',en:'Development Team'},
+    body:{
+      th:'ปรับหน้าแรกและหน้าหยุดเกมให้กระชับขึ้น ลดเวลาโหลดด้วย WebP และ Lazy Loading พร้อมแก้การ Sync Soul Coins ไม่ให้ข้อมูลเก่าทับรางวัลจากรันใหม่',
+      en:'The title and pause screens are cleaner, WebP and lazy loading reduce startup time, and Soul Coin sync no longer lets stale cloud data overwrite new run rewards.'
+    }
+  },
+  {
+    id:'compensation_20260709', type:'reward', date:'2026-07-09',
+    title:{th:'จดหมายชดเชย Soul Coins',en:'Soul Coin Compensation'},
+    sender:{th:'ผู้ดูแลพันธสัญญา',en:'Covenant Keeper'},
+    body:{
+      th:'ขออภัยสำหรับปัญหาที่ทำให้รางวัล Soul Coins หลังจบรันไม่ถูกบันทึก กรุณารับ Soul Coins ชดเชยจากจดหมายฉบับนี้',
+      en:'We apologize for an issue that prevented Soul Coin run rewards from being saved. Please claim the compensation attached to this message.'
+    },
+    reward:{type:'coins',amount:SOUL_COIN_COMPENSATION_AMOUNT}
+  }
+];
+let selectedMailboxId='';
+function mailboxText(mail,key){
+  const value=mail&&mail[key];
+  if(value&&typeof value==='object') return value[gameLang()]||value.th||value.en||'';
+  return String(value||'');
+}
+function normalizeMailboxState(value){
+  value=value&&typeof value==='object'?value:{};
+  const state={read:{},claimed:{}};
+  for(const kind of ['read','claimed']){
+    const src=value[kind]&&typeof value[kind]==='object'?value[kind]:{};
+    for(const mail of MAILBOX_MESSAGES){
+      if(!src[mail.id]) continue;
+      const parsed=Date.parse(src[mail.id]);
+      state[kind][mail.id]=Number.isFinite(parsed)?new Date(parsed).toISOString():new Date().toISOString();
+    }
+  }
+  try{
+    if(localStorage.getItem(SOUL_COIN_COMPENSATION_STORAGE_KEY)==='1'){
+      const at=state.claimed.compensation_20260709||new Date().toISOString();
+      state.claimed.compensation_20260709=at;
+      state.read.compensation_20260709=state.read.compensation_20260709||at;
+    }
+  }catch(_){}
+  return state;
+}
+function loadMailboxState(){
+  try{ return normalizeMailboxState(JSON.parse(localStorage.getItem(MAILBOX_STORAGE_KEY)||'{}')); }
+  catch(_){ return normalizeMailboxState({}); }
+}
+function saveMailboxState(state){
+  const clean=normalizeMailboxState(state);
+  try{ localStorage.setItem(MAILBOX_STORAGE_KEY,JSON.stringify(clean)); }catch(_){}
+  updateMailboxBadge();
+  return clean;
+}
+function mergeMailboxState(remote){
+  const local=loadMailboxState(), incoming=normalizeMailboxState(remote);
+  let changed=false;
+  for(const kind of ['read','claimed']) for(const [id,at] of Object.entries(incoming[kind])){
+    if(local[kind][id]) continue;
+    local[kind][id]=at;
+    changed=true;
+  }
+  if(changed) saveMailboxState(local); else updateMailboxBadge();
+  return changed;
+}
+function mailboxPendingCount(){
+  const state=loadMailboxState();
+  return MAILBOX_MESSAGES.filter(mail=>!state.read[mail.id] || (mail.reward&&!state.claimed[mail.id])).length;
+}
+function updateMailboxBadge(){
+  const btn=document.getElementById('mailbtn');
+  if(!btn) return;
+  const count=mailboxPendingCount();
+  btn.classList.toggle('unread',count>0);
+  btn.innerHTML=escHtml(gameLang()==='en'?'Mail':'จดหมาย')+(count?'<i class="mailbadge">'+Math.min(99,count)+'</i>':'');
+}
+function markMailboxRead(id){
+  const state=loadMailboxState();
+  if(state.read[id]) return false;
+  state.read[id]=new Date().toISOString();
+  saveMailboxState(state);
+  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('mail_read');
+  return true;
+}
+function renderMailbox(){
+  const body=document.getElementById('mailboxbody');
+  if(!body) return;
+  const state=loadMailboxState();
+  const selected=MAILBOX_MESSAGES.find(m=>m.id===selectedMailboxId)||MAILBOX_MESSAGES[0];
+  if(selected) selectedMailboxId=selected.id;
+  const list=MAILBOX_MESSAGES.map(mail=>{
+    const unread=!state.read[mail.id], unclaimed=mail.reward&&!state.claimed[mail.id];
+    const status=unclaimed?(gameLang()==='en'?'REWARD':'มีของแนบ'):unread?'NEW':state.claimed[mail.id]?(gameLang()==='en'?'CLAIMED':'รับแล้ว'):'';
+    return '<button class="mailrow '+(mail.id===selectedMailboxId?'active ':'')+(unread?'unread ':'')+'" data-mail-id="'+escHtml(mail.id)+'" type="button">'
+      +'<span class="mailseal">'+(mail.type==='reward'?'SC':'!')+'</span><span><b>'+escHtml(mailboxText(mail,'title'))+'</b><small>'+escHtml(mailboxText(mail,'sender'))+' · '+escHtml(mail.date)+'</small></span>'
+      +(status?'<i>'+escHtml(status)+'</i>':'')+'</button>';
+  }).join('');
+  let detail='';
+  if(selected){
+    const claimed=!!state.claimed[selected.id];
+    const reward=selected.reward;
+    detail='<div class="mailpaper"><div class="mailtype">'+escHtml(selected.type==='reward'?(gameLang()==='en'?'COMPENSATION':'จดหมายชดเชย'):(gameLang()==='en'?'UPDATE NOTICE':'ข่าวอัปเดต'))+'</div>'
+      +'<h2>'+escHtml(mailboxText(selected,'title'))+'</h2><div class="mailmeta">'+escHtml(mailboxText(selected,'sender'))+' · '+escHtml(selected.date)+'</div>'
+      +'<p>'+escHtml(mailboxText(selected,'body'))+'</p>'
+      +(reward?'<div class="mailreward"><span>SOUL COINS</span><b>+'+Number(reward.amount||0).toLocaleString()+'</b></div>':'')
+      +'<div class="mailactions">'+(reward?'<button id="mailclaim" type="button" '+(claimed?'disabled':'')+'>'+(claimed?(gameLang()==='en'?'Claimed':'รับแล้ว'):(gameLang()==='en'?'Claim reward':'รับรางวัล'))+'</button>':'<button id="mailack" type="button">'+(gameLang()==='en'?'Mark as read':'อ่านแล้ว')+'</button>')+'</div></div>';
+  }
+  body.innerHTML='<div class="mailhead"><div><span>SHADOW POST</span><h2>'+(gameLang()==='en'?'Mailbox':'กล่องจดหมาย')+'</h2></div><b>'+mailboxPendingCount()+' '+(gameLang()==='en'?'pending':'รอดำเนินการ')+'</b></div>'
+    +'<div class="mailboxlayout"><div class="maillist">'+list+'</div><div class="maildetail">'+detail+'</div></div>';
+  body.querySelectorAll('[data-mail-id]').forEach(btn=>btn.onclick=()=>selectMailbox(btn.dataset.mailId));
+  const claim=document.getElementById('mailclaim'); if(claim) claim.onclick=()=>claimMailboxReward(selectedMailboxId);
+  const ack=document.getElementById('mailack'); if(ack) ack.onclick=()=>{ markMailboxRead(selectedMailboxId); renderMailbox(); };
+}
+function selectMailbox(id){
+  if(!MAILBOX_MESSAGES.some(m=>m.id===id)) return;
+  selectedMailboxId=id;
+  markMailboxRead(id);
+  renderMailbox();
+}
+function openMailbox(){
+  const box=document.getElementById('mailbox');
+  if(!box) return;
+  const state=loadMailboxState();
+  const pending=MAILBOX_MESSAGES.find(m=>!state.read[m.id] || (m.reward&&!state.claimed[m.id]));
+  selectedMailboxId=(pending||MAILBOX_MESSAGES[0]||{}).id||'';
+  if(selectedMailboxId) markMailboxRead(selectedMailboxId);
+  renderMailbox();
+  box.style.display='flex';
+}
+function closeMailbox(){ const box=document.getElementById('mailbox'); if(box) box.style.display='none'; updateMailboxBadge(); }
+function claimMailboxReward(id){
+  const mail=MAILBOX_MESSAGES.find(m=>m.id===id);
+  if(!mail||!mail.reward) return false;
+  const state=loadMailboxState();
+  if(state.claimed[id]) return false;
+  const at=new Date().toISOString();
+  state.claimed[id]=at; state.read[id]=state.read[id]||at;
+  if(mail.reward.type==='coins') setSoulCoins(soulCoins()+Math.max(0,Math.floor(mail.reward.amount||0)));
+  if(id==='compensation_20260709'){
+    try{ localStorage.setItem(SOUL_COIN_COMPENSATION_STORAGE_KEY,'1'); }catch(_){}
+  }
+  saveMailboxState(state);
+  showToast((gameLang()==='en'?'Mail reward claimed: +':'รับรางวัลจากจดหมาย +')+Number(mail.reward.amount||0).toLocaleString()+' Soul Coins',3.4);
+  renderMailbox();
+  if(typeof syncOnlineAchievements==='function') syncOnlineAchievements('mail_claim');
+  return true;
+}
+function notifyNewMailbox(){
+  updateMailboxBadge();
+  const count=mailboxPendingCount();
+  if(!count) return;
+  try{
+    const key='sc3_mail_notice_'+APP_VERSION;
+    if(sessionStorage.getItem(key)==='1') return;
+    sessionStorage.setItem(key,'1');
+  }catch(_){}
+  showToast(gameLang()==='en'?'You have '+count+' new mail item(s)':'มีจดหมายรออ่าน/รับ '+count+' ฉบับ',3.2);
 }
 function selectStartMode(mode){
   const googleInput=document.getElementById('startmode_google');
@@ -1307,7 +1470,6 @@ function resetStartChoiceAfterLogout(){
 function beginTitleRun(){
   initAudio();
   resumeAudio();
-  applyGuestSoulCoinCompensation();
   stopTitleBGM();
   openPlayerSetup();
 }
@@ -3028,12 +3190,14 @@ function init() {
   };
   document.getElementById('pactstart').onclick = ()=>{ setActivePacts(selectedPactIds); beginSelectedRun(); };
   document.querySelectorAll('.titlemenu button[data-guide]').forEach(btn=>btn.onclick=()=>openGuide(btn.dataset.guide));
-  { const lb=document.getElementById('latestbtn'); if(lb) lb.onclick = ()=>openWhatsNew(true); }
+  { const mb=document.getElementById('mailbtn'); if(mb) mb.onclick = openMailbox; }
   { const rb=document.getElementById('ranktoggle'); if(rb) rb.onclick = toggleTitleRanking; const rr=document.getElementById('rankrestore'); if(rr) rr.onclick = toggleTitleRanking; }
   document.getElementById('guideclose').onclick = closeGuide;
   document.getElementById('guide').onclick = e=>{ if(e.target.id==='guide') closeGuide(); };
   { const wc=document.getElementById('whatsnewclose'); if(wc) wc.onclick = closeWhatsNew; }
   { const wn=document.getElementById('whatsnew'); if(wn) wn.onclick = e=>{ if(e.target.id==='whatsnew') closeWhatsNew(); }; }
+  { const mc=document.getElementById('mailboxclose'); if(mc) mc.onclick = closeMailbox; }
+  { const mb=document.getElementById('mailbox'); if(mb) mb.onclick = e=>{ if(e.target.id==='mailbox') closeMailbox(); }; }
 
   addEventListener('resize', onResize);
   document.getElementById('pausebtn').onclick = togglePause;
@@ -3872,16 +4036,6 @@ function addSoulCoins(amount, reason, opts){
   else if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('coins');
   return total;
 }
-function applyGuestSoulCoinCompensation(){
-  if(typeof currentAuthUser==='function' && currentAuthUser()) return false;
-  try{
-    if(localStorage.getItem(SOUL_COIN_COMPENSATION_STORAGE_KEY)==='1') return false;
-    setSoulCoins(soulCoins()+SOUL_COIN_COMPENSATION_AMOUNT);
-    localStorage.setItem(SOUL_COIN_COMPENSATION_STORAGE_KEY,'1');
-    showToast('ชดเชย Soul Coins +'+SOUL_COIN_COMPENSATION_AMOUNT.toLocaleString(),3.2);
-    return true;
-  }catch(_){ return false; }
-}
 function localProgressMigrations(){
   const out={};
   try{
@@ -4443,6 +4597,7 @@ function exportPlayerProgress(){
     pacts:loadPactUnlockState(),
     soulCoins:soulCoins(),
     pets:loadPetState(),
+    mailbox:loadMailboxState(),
     migrations:localProgressMigrations()
   };
 }
@@ -4487,6 +4642,7 @@ function importPlayerProgress(progress, opts){
   if(progress.migrations && progress.migrations.soulCoinCompensation20260709){
     try{ localStorage.setItem(SOUL_COIN_COMPENSATION_STORAGE_KEY,'1'); }catch(_){}
   }
+  const mailboxChanged=mergeMailboxState(progress.mailbox);
   const imported=importAchievementProgress(progress.done||{}, opts);
   const pactsChanged=importPactProgress(progress.pacts || progress.pactUnlocks);
   const remoteCoins=Math.max(0, Math.floor(Number(progress.soulCoins||0)));
@@ -4515,7 +4671,7 @@ function importPlayerProgress(progress, opts){
     }
     if(petsChanged) savePetState(local);
   }
-  return { imported, coinsChanged, petsChanged, pactsChanged };
+  return { imported, coinsChanged, petsChanged, pactsChanged, mailboxChanged };
 }
 function hasAchievement(id){
   return !!(loadAchievementState().done||{})[id];
