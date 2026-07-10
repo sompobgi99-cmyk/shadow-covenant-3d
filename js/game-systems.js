@@ -905,8 +905,11 @@ function enterChallengeDoor(o){
 }
 async function startChallengeRoom(room,nextStage){
   if(!room) return false;
-  if(typeof prefetchTextureKeys==='function' && typeof stageTextureKeys==='function'){
-    await prefetchTextureKeys(stageTextureKeys(Math.max(2,nextStage||mapStage||2)));
+  if(typeof prefetchTextureKeys==='function'){
+    const keys=typeof challengeRoomTextureKeys==='function'
+      ? challengeRoomTextureKeys(room,nextStage)
+      : stageTextureKeys(Math.max(2,nextStage||mapStage||2));
+    await prefetchTextureKeys(keys);
   }
   const relic=document.getElementById('relicup'); if(relic) relic.style.display='none';
   const level=document.getElementById('levelup'); if(level) level.style.display='none';

@@ -142,6 +142,37 @@ try {
   if (Object.values(bootTextures).some(Boolean)) {
     throw new Error(`Lazy textures loaded during boot: ${JSON.stringify(bootTextures)}`);
   }
+  const enemyTextureRegression = await page.evaluate(async () => {
+    const fallback = entitySprite("enemy_bog_fiend", 1.8);
+    const fallbackVisible = !!(fallback.spr && fallback.spr.material && fallback.spr.material.map);
+    const fallbackUsesBootArt = fallback.spr.material.map === tex.enemy_shade;
+    const room = CHALLENGE_ROOMS.find(item => item.id === "soul_trial");
+    const roomKeys = challengeRoomTextureKeys(room, 2);
+    await prefetchTextureKeys(roomKeys);
+    return {
+      fallbackVisible,
+      fallbackUsesBootArt,
+      includesCrossTier: roomKeys.includes("enemy_void_walker_8dir"),
+      crossTierLoaded: !!tex.enemy_void_walker_8dir,
+      deferredLoaded: !!tex.enemy_bog_fiend_8dir,
+    };
+  });
+  if (Object.values(enemyTextureRegression).some(value => value !== true)) {
+    throw new Error(`Enemy texture regression: ${JSON.stringify(enemyTextureRegression)}`);
+  }
+  const enemyVisualRoster = await page.evaluate(async () => {
+    await prefetchTextureKeys(ENEMY_TYPES.flatMap(enemy => unitTextureKeys(enemy.sprite)));
+    const missing = [];
+    for (const enemy of ENEMY_TYPES) {
+      const visual = entitySprite(enemy.sprite, enemy.h);
+      const map = visual.spr && visual.spr.material && visual.spr.material.map;
+      if (!map || !map.image || !map.image.width || !map.image.height) missing.push(enemy.name);
+    }
+    return { total: ENEMY_TYPES.length, missing };
+  });
+  if (enemyVisualRoster.total !== 33 || enemyVisualRoster.missing.length) {
+    throw new Error(`Enemy visual roster failed: ${JSON.stringify(enemyVisualRoster)}`);
+  }
   const selectedHeroReady = await page.evaluate(async () => {
     await prefetchTextureKeys(characterTextureKeys("sorceress"));
     return !!tex.char_sorceress_walk && !!tex.char_sorceress_idle;

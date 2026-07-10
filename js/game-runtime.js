@@ -3039,6 +3039,7 @@ function loadTextureKey(k){
   const p=new Promise(resolve=>{
     loader.load(spriteSrc(k), t=>resolve(installTexture(k,t)), undefined, ()=>{
       console.warn('tex load fail', spriteSrc(k));
+      lazyTextureLoads.delete(k);
       resolve(null);
     });
   });
@@ -3076,8 +3077,19 @@ function stageTextureKeys(stage){
   }
   return keys;
 }
+function challengeRoomTextureKeys(room,nextStage){
+  const keys=stageTextureKeys(Math.max(2,nextStage||mapStage||2));
+  const names=new Set(room&&Array.isArray(room.enemies)?room.enemies:[]);
+  ENEMY_TYPES.filter(e=>names.has(e.name)).forEach(e=>keys.push(...unitTextureKeys(e.sprite)));
+  return [...new Set(keys)];
+}
 function scheduleLazyTextureWarmup(){
-  setTimeout(()=>prefetchTextureKeys([].concat(...(BOSS_TYPES||[]).map(b=>unitTextureKeys(b.sprite))).concat([].concat(...(MINIBOSS_TYPES||[]).map(m=>unitTextureKeys(m.sprite))))), 1500);
+  setTimeout(()=>prefetchTextureKeys(
+    [unitTextureKeys('boss_butcher')]
+      .concat((BOSS_TYPES||[]).map(b=>unitTextureKeys(b.sprite)))
+      .concat((MINIBOSS_TYPES||[]).map(m=>unitTextureKeys(m.sprite)))
+      .flat()
+  ), 1500);
 }
 for (const [k,f] of Object.entries(MANIFEST)) {
   if(isLazyTextureKey(k)) continue;
@@ -4888,7 +4900,12 @@ function entitySprite(baseKey, height) {
   }
   const w = WALK_SHEETS[baseKey];
   if (w && tex[w.sheet]) return { spr: animBillboard(w.sheet, height, w.frames), anim: { frames: w.frames, fps: w.fps } };
-  return { spr: billboard(baseKey, height), anim: null };
+  if(tex[baseKey]) return { spr: billboard(baseKey, height), anim: null };
+  // A transient CDN miss must never create a permanently invisible enemy.
+  // Keep it visible with boot art while retrying the dedicated unit textures.
+  prefetchTextureKeys(unitTextureKeys(baseKey));
+  const fallbackKey=tex.enemy_shade?'enemy_shade':Object.keys(tex).find(k=>k.startsWith('enemy_')&&tex[k]);
+  return { spr: billboard(fallbackKey||baseKey, height), anim: null, fallback:true };
 }
 
 function checkoutGridTexture(c){

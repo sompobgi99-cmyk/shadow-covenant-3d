@@ -177,6 +177,12 @@ if (!leaderboardMigration.includes("dedupe_key text not null unique") || !leader
 if (!runtimeSource.includes("const APP_VERSION = window.SHADOW_BUILD_VERSION || 'dev';")) {
   fail("game-runtime.js APP_VERSION must read window.SHADOW_BUILD_VERSION so the reload prompt can clear after refresh");
 }
+if (!runtimeSource.includes("challengeRoomTextureKeys") || !runtimeSource.includes("fallbackKey=tex.enemy_shade")) {
+  fail("deferred enemies must prefetch cross-tier challenge art and use visible fallback art");
+}
+if (!runtimeSource.includes("lazyTextureLoads.delete(k)")) {
+  fail("failed lazy textures must be retryable during the same run");
+}
 if (!indexSource.includes('id="mailbtn"') || !indexSource.includes('id="mailbox"')) {
   fail("title screen must expose the mailbox button and modal");
 }
