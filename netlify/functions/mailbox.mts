@@ -21,6 +21,19 @@ type MailMessage = {
 
 const SEED_MESSAGES: MailMessage[] = [
   {
+    id: "compensation_20260712",
+    type: "reward",
+    date: "2026-07-12",
+    title: { th: "ของขวัญตลาดวิญญาณ 1,000 Soul Coins", en: "1,000 Soul Coin Market Gift" },
+    sender: { th: "ผู้ดูแลพันธสัญญา", en: "Covenant Keeper" },
+    body: {
+      th: "ฉลองการเปิดตลาดวิญญาณและระบบวิญญาณเทพ รับของขวัญ 1,000 Soul Coins ได้หนึ่งครั้งจากจดหมายฉบับนี้",
+      en: "Celebrate the Soul Market and Divine Spirit update. Claim this one-time gift of 1,000 Soul Coins.",
+    },
+    reward: { type: "coins", amount: 1000 },
+    active: true,
+  },
+  {
     id: "compensation_20260710",
     type: "reward",
     date: "2026-07-10",

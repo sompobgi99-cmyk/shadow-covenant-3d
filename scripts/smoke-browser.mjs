@@ -106,6 +106,11 @@ try {
     const repeatedNewClaim = claimMailboxReward("compensation_20260710");
     const afterRepeatedNewClaim = soulCoins();
     const newClaimed = !!loadMailboxState().claimed.compensation_20260710;
+    const latestClaim = claimMailboxReward("compensation_20260712");
+    const afterLatestClaim = soulCoins();
+    const repeatedLatestClaim = claimMailboxReward("compensation_20260712");
+    const afterRepeatedLatestClaim = soulCoins();
+    const latestClaimed = !!loadMailboxState().claimed.compensation_20260712;
     localStorage.setItem(MAILBOX_STORAGE_KEY, '{"read":{},"claimed":{}}');
     const legacyClaimed = !!loadMailboxState().claimed.compensation_20260709;
     for (const key of keys) {
@@ -113,11 +118,11 @@ try {
       else localStorage.setItem(key, original[key]);
     }
     updateMailboxBadge();
-    return { initialPending, newsPending, firstClaim, secondClaim, afterFirst, afterSecond, claimed, newClaim, afterNewClaim, repeatedNewClaim, afterRepeatedNewClaim, newClaimed, legacyClaimed };
+    return { initialPending, newsPending, firstClaim, secondClaim, afterFirst, afterSecond, claimed, newClaim, afterNewClaim, repeatedNewClaim, afterRepeatedNewClaim, newClaimed, latestClaim, afterLatestClaim, repeatedLatestClaim, afterRepeatedLatestClaim, latestClaimed, legacyClaimed };
   });
   if (
-    mailboxRegression.initialPending !== 3 ||
-    mailboxRegression.newsPending !== 2 ||
+    mailboxRegression.initialPending !== 4 ||
+    mailboxRegression.newsPending !== 3 ||
     mailboxRegression.firstClaim !== true ||
     mailboxRegression.secondClaim !== false ||
     mailboxRegression.afterFirst !== 1100 ||
@@ -126,6 +131,11 @@ try {
     mailboxRegression.afterNewClaim !== 2100 ||
     mailboxRegression.repeatedNewClaim !== false ||
     mailboxRegression.afterRepeatedNewClaim !== 2100 ||
+    mailboxRegression.latestClaim !== true ||
+    mailboxRegression.afterLatestClaim !== 3100 ||
+    mailboxRegression.repeatedLatestClaim !== false ||
+    mailboxRegression.afterRepeatedLatestClaim !== 3100 ||
+    !mailboxRegression.latestClaimed ||
     !mailboxRegression.newClaimed ||
     !mailboxRegression.claimed ||
     !mailboxRegression.legacyClaimed
