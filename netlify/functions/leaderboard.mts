@@ -2,7 +2,7 @@ import { getStore } from "@netlify/blobs";
 import { createHash } from "node:crypto";
 
 const STORE_NAME = "shadow-covenant-ranking";
-const SCORE_KEY = "scores-v5";
+const SCORE_KEY = "scores-v6";
 const RATE_KEY = "post-rate-v1";
 const POSTGRES_MIGRATION_KEY = "postgres-migration-v1";
 const POSTGRES_TABLE = "leaderboard_runs";
