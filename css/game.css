@@ -2,7 +2,75 @@
     --font-ui:"Leelawadee UI","Noto Sans Thai",Tahoma,"Segoe UI",sans-serif;
     --font-display:"Segoe UI",Tahoma,sans-serif;
     --font-mono:Consolas,"Courier New",monospace;
-  }
+}
+
+/* Divine Offering ------------------------------------------------------- */
+#offeringselect{
+  position:absolute; inset:0; z-index:34; display:none; flex-direction:column; align-items:center; justify-content:center;
+  gap:12px; padding:20px; overflow:auto; pointer-events:auto;
+  background:radial-gradient(circle at 50% 40%,rgba(91,50,121,.34),rgba(7,4,13,.97) 64%);
+}
+#offeringselect h2{ margin:0; color:#fff0bf; font-size:26px; text-shadow:0 0 20px rgba(206,142,255,.34); }
+#offeringselect .sub{ color:#bda8e0; font-size:12px; text-align:center; }
+#offeringcards{ width:min(1120px,95vw); display:grid; grid-template-columns:repeat(5,minmax(160px,1fr)); gap:9px; }
+.offeringcard{
+  min-width:0; min-height:172px; display:grid; grid-template-rows:68px 1fr; gap:7px; padding:10px; text-align:left;
+  color:#e9ddff; border:1px solid rgba(122,91,168,.66); border-radius:7px; cursor:pointer;
+  background:linear-gradient(180deg,rgba(34,20,48,.94),rgba(14,9,24,.96)); transition:.16s ease;
+}
+.offeringcard:hover{ transform:translateY(-2px); border-color:var(--deity-color); box-shadow:0 8px 24px rgba(0,0,0,.34); }
+.offeringcard.selected{ border-color:var(--deity-color); box-shadow:0 0 0 2px color-mix(in srgb,var(--deity-color) 26%,transparent),0 0 24px color-mix(in srgb,var(--deity-color) 22%,transparent); }
+.offeringcard.locked{ filter:saturate(.52); opacity:.72; border-style:dashed; }
+.offeringcard.locked:hover{ opacity:1; filter:saturate(.86); }
+.offeringcard.locked .deityportrait::after{ content:"1500"; position:absolute; right:-5px; bottom:-3px; padding:2px 4px; border-radius:3px; background:#7d2947; color:#ffe7a3; font:7px var(--font-mono); z-index:2; }
+.deityportrait{ position:relative; width:64px; height:64px; display:grid; place-items:center; justify-self:center; overflow:visible; border-radius:6px;
+  color:var(--deity-color); border:1px solid color-mix(in srgb,var(--deity-color) 62%,#332545);
+  background:radial-gradient(circle,color-mix(in srgb,var(--deity-color) 28%,#171022),#0b0712 70%); }
+.deityportrait i{ grid-area:1/1; font:normal bold 30px var(--font-mono); filter:drop-shadow(0 0 8px var(--deity-color)); }
+.deityportrait img{ grid-area:1/1; width:60px; height:60px; object-fit:contain; image-rendering:pixelated; z-index:1; filter:drop-shadow(0 0 7px var(--deity-color)); }
+.deitycopy{ min-width:0; display:block; }
+.deitycopy b{ display:block; color:#fff8e8; font-size:14px; text-align:center; }
+.deitycopy em{ display:block; color:var(--deity-color); font-size:9px; font-style:normal; text-align:center; margin:2px 0 7px; }
+.deitycopy small{ display:block; color:#ffb1bd; font-size:8px; line-height:1.3; }
+.deitycopy p{ color:#c9bae7; font-size:9px; line-height:1.35; margin:5px 0 0; }
+#offeringactions{ width:min(900px,95vw); display:grid; grid-template-columns:1fr auto auto; gap:10px; }
+#offeringsummary{ min-width:0; display:flex; gap:10px; align-items:center; padding:8px 12px; border:1px solid rgba(122,91,168,.55); border-radius:7px; background:rgba(14,9,24,.88); }
+#offeringsummary>span{ font:normal bold 24px var(--font-mono); }
+#offeringsummary b,#offeringsummary small{ display:block; }
+#offeringsummary b{ color:#fff0bf; font-size:12px; }
+#offeringsummary small{ color:#9f91c2; font-size:9px; margin-top:3px; }
+#offeringstart{ min-width:210px; padding:8px 16px; border:1px solid #e5b55a; border-radius:7px; color:#fff8e8; font-weight:bold; cursor:pointer; background:linear-gradient(180deg,#7c294b,#42182e); }
+#offeringnone{ min-width:120px; padding:8px 12px; border:1px solid #5a4a8a; border-radius:7px; color:#cdbff0; cursor:pointer; background:rgba(14,9,24,.88); }
+#offeringnone:hover{ border-color:#c994ff; color:#fff; }
+#offeringstart:hover{ filter:brightness(1.15); transform:translateY(-1px); }
+#offeringhud{ display:none; width:224px; min-height:42px; margin-top:7px; grid-template-columns:36px 1fr; grid-template-rows:1fr 1fr; align-items:center; padding:4px 7px; text-align:left;
+  border:1px solid color-mix(in srgb,var(--deity-color,#c994ff) 55%,#3d2c59); border-radius:6px; color:#b9a9ce; pointer-events:auto; cursor:pointer; background:rgba(12,8,20,.88); }
+body.playing #offeringhud{ display:grid; }
+#offeringhud.ready{ color:#fff5cf; box-shadow:0 0 18px color-mix(in srgb,var(--deity-color,#c994ff) 28%,transparent); animation:divine-ready 1.25s ease-in-out infinite alternate; }
+#offeringhud.cooling{ opacity:.76; animation:none; }
+.offeringhudicon{ grid-row:1/3; width:30px; height:30px; display:grid; place-items:center; color:var(--deity-color,#c994ff); font:bold 17px var(--font-mono); border:1px solid currentColor; border-radius:4px; }
+#offeringhud b{ font-size:9px; line-height:1.15; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#offeringhud small{ font-size:7px; line-height:1.15; color:#8f80aa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+@keyframes divine-ready{ from{ filter:brightness(.92); } to{ filter:brightness(1.18); } }
+
+@media(max-width:760px){
+  #offeringselect{ justify-content:flex-start; padding:8px 10px; gap:7px; }
+  #offeringselect h2{ font-size:18px; }
+  #offeringselect .sub{ display:none; }
+  #offeringcards{ width:100%; grid-template-columns:repeat(5,minmax(118px,1fr)); gap:6px; }
+  .offeringcard{ min-height:138px; grid-template-rows:48px 1fr; padding:7px; }
+  .deityportrait{ width:44px; height:44px; }
+  .deityportrait i{ font-size:22px; }
+  .deityportrait img{ width:42px; height:42px; }
+  .deitycopy b{ font-size:10px; }
+  .deitycopy em,.deitycopy small,.deitycopy p{ font-size:7px; }
+  #offeringactions{ width:100%; grid-template-columns:1fr 105px 160px; gap:7px; }
+  #offeringstart{ min-width:0; font-size:9px; }
+  body.touch.playing #offeringhud{ position:fixed; left:max(8px,env(safe-area-inset-left)); bottom:max(8px,env(safe-area-inset-bottom)); width:140px; min-height:38px; margin:0; z-index:21; opacity:.92; }
+  body.touch.hud-min #offeringhud{ width:48px; grid-template-columns:1fr; }
+  body.touch.hud-min #offeringhud b,body.touch.hud-min #offeringhud small{ display:none; }
+  body.touch.hud-min .offeringhudicon{ grid-row:auto; justify-self:center; }
+}
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0a060f; font-family:var(--font-ui); overscroll-behavior:none; }
   button,input,select{ font-family:inherit; }
@@ -821,7 +889,7 @@
   .runonline.verified{ color:#9ee7ff; }
   .runonline.guest{ color:#ffe08a; }
   .runonline.failed{ color:#ff8aa0; }
-  #title,#authchoice,#guide,#whatsnew,#mailbox,#firsthelp,#playersetup,#select,#difficultyselect,#pactselect,#shop,#levelup,#relicup,#pause,#over{
+  #title,#authchoice,#guide,#whatsnew,#mailbox,#firsthelp,#playersetup,#select,#difficultyselect,#pactselect,#offeringselect,#shop,#levelup,#relicup,#pause,#over{
     font-family:var(--font-ui);
   }
   #title h1,.authcrest,.eyebrow,.guidehead h2,.guidesection b,.ccard .cn,.charpreview h3{

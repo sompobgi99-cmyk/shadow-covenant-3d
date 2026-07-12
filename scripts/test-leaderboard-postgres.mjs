@@ -20,7 +20,7 @@ const validInput = {
   pact_ids: [],
   pact_multiplier: 1,
   pact_count: 0,
-  build: "20260710-prop-visibility",
+  build: "20260712-soul-rewards",
 };
 
 const entry = leaderboardContract.cleanScore(validInput, null);

@@ -84,7 +84,7 @@ try {
     gameTime=previous.gameTime; mapStage=previous.mapStage; won=previous.won; runBossKills=previous.runBossKills; runMinibossKills=previous.runMinibossKills; pactMultiplier=previous.pactMultiplier;
     return { fullClear:fullClear.total, fastClear:fastClear.total };
   });
-  if (runCoinRewards.fullClear !== 63 || runCoinRewards.fastClear !== 34) {
+  if (runCoinRewards.fullClear !== 99 || runCoinRewards.fastClear !== 50) {
     throw new Error(`Soul Coin reward calculation changed: ${JSON.stringify(runCoinRewards)}`);
   }
   const mailboxRegression = await page.evaluate(() => {
@@ -211,17 +211,28 @@ try {
   }
 
   await page.locator("#guestchoice").click().catch(() => {});
+  await page.evaluate(() => openGuide("pets"));
+  await page.locator("#guide").waitFor({ state: "visible", timeout: 5000 });
+  if (await page.locator("#guide [data-pet-buy], #guide [data-pet-box-open]").count()) throw new Error("Pet Guide still contains purchase controls");
+  if (await page.locator("#guide [data-open-soul-market='pets']").count() !== 1) throw new Error("Pet Guide is missing its Soul Market link");
+  await page.evaluate(() => openGuide("divine"));
+  if (await page.locator("#guide .guidegrid.divine .guidecard").count() !== 10) throw new Error("Divine Guide does not list all ten spirits");
+  if (await page.locator("#guide [data-open-soul-market='divine']").count() !== 1) throw new Error("Divine Guide is missing its market link");
+  await page.evaluate(() => closeGuide());
+  const marketButton = page.locator("#marketbtn");
+  await marketButton.waitFor({ state: "visible", timeout: 8000 });
+  await marketButton.click();
+  await page.locator("#soulmarket").waitFor({ state: "visible", timeout: 5000 });
+  await page.locator("#marketclose").click({timeout:5000});
+  await page.locator("#soulmarket").waitFor({ state: "hidden", timeout: 5000 });
   const play = page.locator("#playbtn");
   await play.waitFor({ state: "visible", timeout: 12000 });
   await play.click();
-
-  await page.locator("#nameconfirm").click();
-  await page.locator(".ccard").first().click();
-  await page.locator(".charselectconfirm").click();
+  await page.locator("#runsetup").waitFor({ state: "visible", timeout: 8000 });
+  if (await page.locator("#soulmarket").isVisible()) throw new Error("Soul Market opened from the Start button");
+  await page.locator("#runstartconfigured").click();
   const firstHelp = page.locator("#firsthelp");
   if (await firstHelp.isVisible().catch(() => false)) await page.locator("#firsthelpstart").click();
-  await page.locator(".difficultycard.normal").click();
-  await page.locator("#difficultyconfirm").click();
 
   await page.waitForTimeout(2500);
   await page.waitForSelector("#c", { state: "visible", timeout: 5000 });

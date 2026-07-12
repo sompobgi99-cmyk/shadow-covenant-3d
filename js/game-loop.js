@@ -143,6 +143,7 @@ function update(dt) {
   if(updateFinalBossDeadline()) return;
 
   if (player.dashCd > 0) player.dashCd -= dt;
+  if(typeof updateDivineOffering==='function') updateDivineOffering(dt);
 
   // shrine buffs
   if (player.speedBoostTimer > 0) { player.speedBoostTimer -= dt; if (player.speedBoostTimer <= 0) player.speedBoost = 0; }
@@ -167,7 +168,7 @@ function update(dt) {
   let moveX, moveZ;
   if (player.dashTime > 0){ player.dashTime -= dt; moveX = player.dashX*DASH_SPEED; moveZ = player.dashZ*DASH_SPEED;
     player.trailT -= dt; if (player.trailT <= 0){ spawnAfterimage(); player.trailT = 0.02; } }
-  else if (player.moving){ const spd=player.spd*(1+(player.speedBoost||0)+(player.pickupSpeedBoost||0)); moveX = mx*spd; moveZ = mz*spd; }
+  else if (player.moving){ const spd=player.spd*(1+(player.speedBoost||0)+(player.pickupSpeedBoost||0)+(player.divineSpeedBoost||0)); moveX = mx*spd; moveZ = mz*spd; }
   if (moveX !== undefined){
     const nx = clamp(player.x + moveX*dt, -MAP_BOUND, MAP_BOUND);
     const nz = clamp(player.z + moveZ*dt, -MAP_BOUND, MAP_BOUND);
@@ -208,7 +209,7 @@ function update(dt) {
   rebuildEnemyGrid();
 
   // weapons — each on its own cooldown / orbit
-  for (const w of player.weapons) updateWeapon(w, dt);
+  if(!(player.divineWeaponLockT>0)) for (const w of player.weapons) updateWeapon(w, dt);
   for (const b of breakables) if(b.flash>0) b.flash=Math.max(0,b.flash-dt);
 
   // enemies chase
@@ -244,6 +245,22 @@ function update(dt) {
       }
       if(e.hp<=0){ killEnemy(e); continue; }
     }
+    if(e.cursedEyeMark){
+      const remain=Math.max(0,(e._cursedEyeUntil||0)-gameTime);
+      if(!e.alive || remain<=0){
+        scene.remove(e.cursedEyeMark);
+        freeObj(e.cursedEyeMark);
+        e.cursedEyeMark=null;
+      } else {
+        const pulse=1+Math.sin(gameTime*18)*0.08;
+        const size=Math.max(0.72,e.r*0.82)*pulse;
+        e.cursedEyeMark.position.set(e.x,groundHeight(e.x,e.z)+(e.bh||1.2)+0.38,e.z);
+        e.cursedEyeMark.scale.set(size,size,1);
+        e.cursedEyeMark.material.opacity=Math.min(0.95,0.38+remain/3*0.55);
+        e.cursedEyeMark.material.rotation+=dt*1.7;
+      }
+    }
+    if(player.divineTimeStopT>0) continue;
     if (e.slowT>0) e.slowT-=dt;
     if (e.wardT>0) e.wardT-=dt;
     if (e.buffT>0) e.buffT-=dt;
@@ -329,7 +346,7 @@ function update(dt) {
     if (e.shieldT>0) e.shieldT-=dt;
     if (e.final) updateFinalBossPhase(e, dt);
     if (e.skills && e.hp<e.maxHp*0.5) spd*=1.25;
-    const sp = spd*speedMul*dt*(e.slowT>0?0.5:1)*(e.buffT>0?(e.buffSpeedMul||1):1);
+    const sp = spd*speedMul*dt*(player.divineTimeStopT>0?0:(e.slowT>0?0.5:1))*(e.buffT>0?(e.buffSpeedMul||1):1);
     let dirx=nx, dirz=nz;
     if (e.charging>0 && e.cdx!==undefined){ dirx=e.cdx; dirz=e.cdz; }   // charge straight, no homing
     const mvx=dirx*sp, mvz=dirz*sp;
@@ -379,6 +396,28 @@ function update(dt) {
       const reach=p.range||3, width=p.width||0.35;
       p.x = player.x + p.dx*reach*0.55;
       p.z = player.z + p.dz*reach*0.55;
+      if(p.charge>0){
+        p.charge-=dt;
+        if(p.chargeMesh){
+          const handX=player.x+p.dx*0.42, handZ=player.z+p.dz*0.42;
+          p.chargeMesh.position.set(handX,groundHeight(handX,handZ)+0.92,handZ);
+          const pulse=1+0.22*Math.sin(gameTime*48);
+          p.chargeMesh.scale.multiplyScalar(pulse/Math.max(0.01,p.chargeMesh.userData._pulse||1));
+          p.chargeMesh.userData._pulse=pulse;
+        }
+        if(p.charge>0) continue;
+      }
+      if(!p.activated){
+        p.activated=true;
+        if(p.chargeMesh){ scene.remove(p.chargeMesh); freeObj(p.chargeMesh); p.chargeMesh=null; }
+        if(p.mesh && p.mesh.material) p.mesh.material.opacity=p.chidoriBranch?0.62:1;
+        if(p.chidori){
+          spawnAfterimage(p.color||0xb45cff);
+          if(!p.chidoriBranch) spawnAfterimage(0xe8c8ff);
+          spawnRing(player.x+p.dx*0.72,player.z+p.dz*0.72,p.color||0xb45cff,p.chidoriBranch?0.72:1.18,p.chidoriBranch?0.11:0.16);
+          spawnBurst(player.x+p.dx*0.76,player.z+p.dz*0.76,p.color||0xb45cff,p.chidoriBranch?3:7,p.chidoriBranch?0.30:0.48);
+        }
+      }
       p.life -= dt;
       if (p.mesh && p.mesh.material) p.mesh.material.opacity=Math.max(0,p.life/(p.maxLife||0.16));
       const sx=player.x+p.dx*0.45, sz=player.z+p.dz*0.45;
@@ -392,13 +431,39 @@ function update(dt) {
         if (sideX*sideX+sideZ*sideZ < radius*radius){
           p.hit.add(e);
           dealEnemyDamage(e, p.dmg, p.color, p.dx, p.dz, 2.2, false, { weapon:p.sourceKey });
-          spawnBurst(e.x, e.z, p.color||0x64d7ff, 3, 0.32);
+          spawnBurst(e.x, e.z, p.color||0x64d7ff, p.chidori?6:3, p.chidori?0.46:0.32);
+          if(p.chidori){
+            spawnRing(e.x,e.z,p.color||0xb45cff,p.chidoriBranch?0.82:1.28,p.chidoriBranch?0.12:0.18);
+            if(!p.chidoriBranch) spawnObjectPulse(e.x,e.z,0x8e3dff,1.65,0.18);
+          }
           if (p.hit.size > p.pierce){ p.alive=false; return false; }
         }
       });
       if (hitBreakablesAt(sx+p.dx*reach*0.55, sz+p.dz*reach*0.55, width+0.25, p.dmg, p.color, p.pierce>=99?0:1) && p.pierce<=0) p.alive=false;
       if (p.life<=0) p.alive=false;
       continue;
+    }
+    if(p.charge>0){
+      p.charge-=dt;
+      p.x=player.x; p.z=player.z;
+      if(p.chargeMesh){
+        const hx=player.x+p.dx*0.42, hz=player.z+p.dz*0.42;
+        p.chargeMesh.position.set(hx,groundHeight(hx,hz)+0.92,hz);
+        const pulse=1+0.20*Math.sin(gameTime*48);
+        p.chargeMesh.scale.multiplyScalar(pulse/Math.max(0.01,p.chargeMesh.userData._pulse||1));
+        p.chargeMesh.userData._pulse=pulse;
+      }
+      if(p.charge>0) continue;
+    }
+    if(!p.activated){
+      p.activated=true;
+      if(p.chargeMesh){ scene.remove(p.chargeMesh); freeObj(p.chargeMesh); p.chargeMesh=null; }
+      if(p.mesh && p.mesh.material) p.mesh.material.opacity=1;
+      if(p.shape==='chidori'){
+        spawnAfterimage(p.color||0xb45cff);
+        spawnRing(player.x+p.dx*0.62,player.z+p.dz*0.62,p.color||0xb45cff,1.05,0.15);
+        spawnBurst(player.x+p.dx*0.68,player.z+p.dz*0.68,p.color||0xb45cff,6,0.42);
+      }
     }
     p.x += p.dx*p.speed*dt; p.z += p.dz*p.speed*dt; p.life-=dt;
     if(p.spin && p.mesh.material) p.mesh.material.rotation+=p.spin*dt;
@@ -427,6 +492,11 @@ function update(dt) {
         dealEnemyDamage(e, p.dmg, p.color, p.dx, p.dz, 4.5, false, { weapon:p.sourceKey });
         projectileHitFlash(p, e);
         projectileImpactSplash(p, e);
+        if(p.shape==='chidori'){
+          spawnRing(e.x,e.z,p.color||0xb45cff,1.28*(p.scale||1),0.18);
+          spawnObjectPulse(e.x,e.z,0x8e3dff,1.7*(p.scale||1),0.18);
+          spawnBurst(e.x,e.z,p.color||0xb45cff,7,0.48);
+        }
         if (p.hit.size > p.pierce){
           if(tryProjectileRicochet(p, e)) return false;
           p.alive=false; return false;
@@ -471,6 +541,7 @@ function update(dt) {
 
   // cull dead
   for (const sh of enemyShots){ if(!sh.alive) continue;
+    if(player.divineTimeStopT>0) continue;
     sh.x+=sh.dx*sh.speed*dt; sh.z+=sh.dz*sh.speed*dt; sh.life-=dt;
     if (frameN%6===0) spawnTrail(sh.x, sh.z, sh.color||0xff5066, sh.trailScale||0.48);
     if (sh.life<=0 || blocked(sh.x,sh.z)){ sh.alive=false; continue; }

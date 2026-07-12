@@ -22,6 +22,8 @@ const WEAPON_TYPES = {
             dmg:18, rate:0.94, range:11, count:1, pierce:1, speed:14, life:1.2, color:0x7ce7ff, radius:1.25, shape:'lightning', evolveTo:'lightningX', evolveTome:'focus' },
   dagger: { name:'Throwing Knives', icon:'wpn_dagger', desc:'ปามีดเร็วใส่ศัตรูใกล้ตัว', mode:'aim',
             dmg:9, rate:2.05, range:7.4, count:2, pierce:0, speed:26, life:0.9, color:0xdde7ff, shape:'dagger', evolveTo:'daggerX', evolveTome:'execution' },
+  chidori_fang:{ name:'Chidori Fang', icon:'wpn_chidori_fang', desc:'อัดสายฟ้าสีม่วงเป็นก้อนแหลมแล้วยิงระยะสั้น ทะลุศัตรูและระเบิดเมื่อกระแทก', mode:'aim',
+            dmg:25, rate:1.72, range:4.2, count:1, pierce:3, speed:18, life:0.24, charge:0.12, color:0xb45cff, shape:'chidori', evolveTo:'chidori_fangX', evolveTome:'execution' },
   toolstab:{ name:'Multi-Tool Screwdriver', icon:'wpn_screwdriver', desc:'แทงระยะประชิดอย่างรวดเร็ว ทะลุศัตรูทั้งแนว', mode:'stab',
             dmg:22, rate:2.42, range:3.0, count:1, pierce:99, speed:0, life:0.16, color:0x64d7ff, shape:'screwdriver', width:0.36, evolveTo:'toolstabX', evolveTome:'growth' },
   bladewhirl:{ name:'Blade Wave',   icon:'wpn_bladewhirl',     desc:'ปล่อยคลื่นดาบโค้งระยะสั้น', mode:'slash',
@@ -55,6 +57,8 @@ const WEAPON_TYPES = {
             dmg:31, rate:1.75, range:14, count:3, pierce:3, speed:14, life:1.4, color:0xa7f2ff, radius:2.2, shape:'lightning' },
   daggerX:{ name:'Execution Knives', icon:'wpn_dagger_evolved', desc:'ร่างวิวัฒน์: พายุมีดแทงทะลุ', mode:'aim', hidden:true,
             dmg:18, rate:3.35, range:9.8, count:5, pierce:2, speed:32, life:1.0, color:0xffd8f2, shape:'dagger' },
+  chidori_fangX:{ name:'Raikiri Fang', icon:'wpn_chidori_fang_evolved', desc:'ร่างวิวัฒน์: ยิงเขี้ยวสายฟ้าขนาดใหญ่พร้อม Raijin Wraith และก้อนเสริมที่รุมเป้าหมายเดี่ยวได้', mode:'aim', hidden:true,
+            dmg:42, rate:2.28, range:5.1, count:2, pierce:6, speed:21, life:0.25, charge:0.10, color:0xe2b8ff, shape:'chidori' },
   toolstabX:{ name:'Admin Override', icon:'wpn_screwdriver_evolved', desc:'ร่างวิวัฒน์: แทงกว้างหลายจังหวะแบบแก้ปัญหาเร่งด่วน', mode:'stab', hidden:true,
             dmg:34, rate:3.15, range:4.2, count:2, pierce:99, speed:0, life:0.18, color:0x7cffd8, shape:'screwdriver', width:0.55 },
   bladewhirlX:{ name:'Tempest Blades', icon:'wpn_bladewhirl_evolved', desc:'ร่างวิวัฒน์: พายุคลื่นดาบหลายชุด', mode:'slash', hidden:true,
@@ -304,6 +308,7 @@ function hitMul(e){
   if (player._creditCard) m *= 1 + 0.025*player._creditCard*chestsOpened;
   if (player._idle && (player.stillT||0) > 3) m *= 1 + 1.0*player._idle;
   if (player.killDmgBonus) m *= 1 + player.killDmgBonus;
+  if (player._cursedEye && e._cursedEyeUntil && e._cursedEyeUntil > (typeof gameTime==='number'?gameTime:0)) m *= 1 + Math.min(0.30, player._cursedEye);
   return m;
 }
 function rollCrit(){
@@ -322,12 +327,117 @@ function rollCrit(){
   player._critChainUntil=now+1.1;
   return { crit:true, mul:Math.max(1, (player.critDmg||1.5)+overflow)*(1+0.04*(chain-1)), chain };
 }
+let raijinWraithTexture=null;
+function getRaijinWraithTexture(){
+  if(typeof tex!=='undefined' && tex.fx_raijin_wraith) return tex.fx_raijin_wraith;
+  if(raijinWraithTexture) return raijinWraithTexture;
+  const cv=document.createElement('canvas'); cv.width=48; cv.height=64;
+  const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  const px=(x,y,w,h,c)=>{ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); };
+  const dark='rgba(30,8,64,0.76)', mid='rgba(128,54,224,0.84)', light='rgba(224,164,255,0.94)', white='rgba(255,238,255,0.98)';
+  px(21,2,6,5,light); px(18,7,12,8,mid); px(16,13,16,8,dark);
+  px(12,19,24,20,dark); px(15,21,18,16,mid); px(20,24,8,8,light);
+  px(8,18,8,20,dark); px(32,18,8,20,dark); px(5,30,9,7,mid); px(34,30,9,7,mid);
+  px(18,39,12,10,dark); px(14,49,20,5,mid); px(11,55,26,3,dark);
+  px(13,10,4,4,light); px(31,10,4,4,light); px(22,15,4,3,white);
+  px(7,8,4,8,mid); px(37,8,4,8,mid); px(3,14,5,3,light); px(40,14,5,3,light);
+  px(4,42,8,2,light); px(36,42,8,2,light); px(17,57,14,2,light);
+  const t=new THREE.CanvasTexture(cv);
+  t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
+  raijinWraithTexture=t; return t;
+}
+let cursedEyeMarkTexture=null;
+function getCursedEyeMarkTexture(){
+  if(cursedEyeMarkTexture) return cursedEyeMarkTexture;
+  const cv=document.createElement('canvas'); cv.width=32; cv.height=32;
+  const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  const px=(x,y,w,h,c)=>{ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); };
+  const dark='rgba(34,8,72,0.92)', mid='rgba(164,70,255,0.94)', light='rgba(232,168,255,0.96)', white='rgba(255,238,255,0.98)';
+  px(8,15,16,2,dark); px(6,13,4,2,mid); px(22,13,4,2,mid); px(10,11,12,2,mid); px(10,19,12,2,mid);
+  px(13,12,6,8,dark); px(14,13,4,6,mid); px(15,14,2,4,light); px(16,15,1,2,white);
+  px(15,4,2,5,mid); px(15,23,2,5,mid); px(4,15,5,2,mid); px(23,15,5,2,mid);
+  px(8,7,3,3,light); px(21,7,3,3,light); px(8,22,3,3,light); px(21,22,3,3,light);
+  const t=new THREE.CanvasTexture(cv);
+  t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
+  cursedEyeMarkTexture=t; return t;
+}
+function ensureCursedEyeMark(e){
+  if(e.cursedEyeMark) return e.cursedEyeMark;
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:getCursedEyeMarkTexture(), color:0xffffff, transparent:true, opacity:0.92,
+    alphaTest:0.08, depthWrite:false, blending:THREE.AdditiveBlending
+  }));
+  spr.scale.set(0.82,0.82,1);
+  scene.add(spr);
+  e.cursedEyeMark=spr;
+  return spr;
+}
+function currentChidoriWeapon(){
+  return (player.weapons||[]).find(w=>w.key==='chidori_fang'||w.key==='chidori_fangX') || null;
+}
+function spawnRaijinWraith(target, seedDamage, meta){
+  if(!player || player.char!=='kuro_raijin' || !target || !target.alive) return false;
+  if(meta && meta.raijinWraith) return false;
+  const w=currentChidoriWeapon();
+  if(!w) return false;
+  const now=typeof gameTime==='number'?gameTime:0;
+  const evolved=w.key==='chidori_fangX';
+  if(now < (player._raijinWraithReadyAt||0)) return false;
+  player._raijinWraithReadyAt = now + (evolved ? 2.65 : 3.20);
+  let dx=target.x-player.x, dz=target.z-player.z;
+  const len=Math.hypot(dx,dz)||1; dx/=len; dz/=len;
+  const s=wstats(w.key,w.lvl);
+  const range=evolved?5.9:5.2, width=evolved?1.75:1.42;
+  const dmg=Math.max(1,Math.round(s.dmg*(evolved?1.35:1.60)));
+  const color=evolved?0xe2b8ff:0xb45cff;
+  const group=new THREE.Group();
+  const avatar=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:getRaijinWraithTexture(), color:0xffffff, transparent:true, opacity:0.78,
+    alphaTest:0.08, depthWrite:false, blending:THREE.AdditiveBlending
+  }));
+  avatar.scale.set(evolved?2.8:2.45,evolved?3.65:3.25,1);
+  avatar.position.set(player.x-dx*0.82,groundHeight(player.x,player.z)+1.72,player.z-dz*0.82);
+  group.add(avatar);
+  const slash=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:getPixelProjectileTexture('chidori',color), color:0xffffff, transparent:true, opacity:0.96,
+    alphaTest:0.08, depthWrite:false, blending:THREE.AdditiveBlending
+  }));
+  slash.material.rotation=-Math.atan2(dz,dx);
+  slash.scale.set(range*0.92,width*0.74,1);
+  slash.position.set(player.x+dx*range*0.46,groundHeight(player.x,player.z)+1.05,player.z+dz*range*0.46);
+  group.add(slash);
+  scene.add(group);
+  capEffectList(slashFx, MAX_SLASH_FX);
+  slashFx.push({ mesh:group, life:0.48, max:0.48, grow:0.18, fade:0.86, baseScale:group.scale.clone() });
+  spawnRing(player.x,player.z,color,2.2,0.22);
+  spawnObjectPulse(player.x,player.z,0xa54cff,evolved?5.4:4.6,0.42);
+  spawnBurst(player.x,player.z,color,evolved?18:12,evolved?1.05:0.82);
+  if(evolved) spawnDmg(player.x,player.z,'RAIJIN',color,false,'critproc');
+  forEachNearbyEnemy(player.x,player.z,range+2,e=>{
+    if(!e.alive) return;
+    const ex=e.x-player.x, ez=e.z-player.z;
+    const along=ex*dx+ez*dz;
+    if(along<0 || along>range) return;
+    const side=Math.abs(ex*dz-ez*dx);
+    if(side <= width+e.r) dealEnemyDamage(e,dmg,color,dx,dz,3.2,true,{ weapon:w.key, raijinWraith:true });
+  });
+  hitBreakablesAt(player.x+dx*range*0.52,player.z+dz*range*0.52,width+0.8,dmg,color);
+  return true;
+}
 function onCritProcs(e,d,color,meta,chain){
   if(!e || !e.alive || d<=0) return;
+  if(runStats) runStats.critHits=(runStats.critHits||0)+1;
+  const now=typeof gameTime==='number'?gameTime:0;
+  const wasCursed=!!(player._cursedEye && e._cursedEyeUntil && e._cursedEyeUntil>now);
+  if(player._cursedEye){
+    e._cursedEyeUntil=now+3.0;
+    e._cursedEyeMul=Math.min(0.30,player._cursedEye);
+    ensureCursedEyeMark(e);
+  }
+  if(wasCursed) spawnRaijinWraith(e,d,meta);
   e.bleedDps=Math.max(e.bleedDps||0, d*0.10*(1+0.12*Math.max(0,(chain||1)-1)));
   e.bleedT=Math.max(e.bleedT||0,1.6);
   e.bleedMeta=meta||null;
-  const now=typeof gameTime==='number'?gameTime:0;
   if(now>(player._critFxAt||0)){
     player._critFxAt=now+0.12;
     spawnRing(e.x,e.z,0xffd86a,Math.max(1.2,e.r*1.7),0.20);
@@ -468,10 +578,12 @@ function fireStab(s){
   if (target){ dx=target.x-player.x; dz=target.z-player.z; }
   if (!dx && !dz){ dx=player.face||1; dz=0; }
   const len=Math.hypot(dx,dz)||1, base=Math.atan2(dz/len,dx/len);
-  const spread=s.count>1 ? 0.26 : 0;
+  const isChidori=s.shape==='chidori';
+  const spread=s.count>1 ? (isChidori?0.15:0.26) : 0;
   for(let i=0;i<s.count;i++){
     const a=base+(s.count>1?(i/(s.count-1)-0.5)*spread:0);
-    spawnStabProjectile(Math.cos(a),Math.sin(a),statsForCountSlot(s,i));
+    const slot=statsForCountSlot(s,i);
+    spawnStabProjectile(Math.cos(a),Math.sin(a),isChidori?Object.assign({},slot,{ chidoriBranch:i>0, branchIndex:i }):slot);
   }
 }
 function fireSmite(s){

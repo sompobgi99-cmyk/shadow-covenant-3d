@@ -36,9 +36,10 @@ function forEachNearbyEnemy(x,z,radius,visit){
   return true;
 }
 const afterimages = [];                     // dash trail ghosts
-function spawnAfterimage(){
+function spawnAfterimage(color=0x7CE7FF){
+  if(!player || !player.spr || !player.spr.material || !player.spr.material.map) return;
   const p = player.spr;
-  const m = new THREE.SpriteMaterial({ map:p.material.map, color:0x7CE7FF, transparent:true, opacity:0.55, alphaTest:0.3, depthWrite:false, fog:true, blending:THREE.AdditiveBlending });
+  const m = new THREE.SpriteMaterial({ map:p.material.map, color, transparent:true, opacity:0.55, alphaTest:0.3, depthWrite:false, fog:true, blending:THREE.AdditiveBlending });
   const g = new THREE.Sprite(m);
   g.center.copy(p.center); g.scale.copy(p.scale); g.position.copy(p.position);
   scene.add(g); afterimages.push({ spr:g, life:0.28, max:0.28 });
@@ -109,8 +110,8 @@ const I18N={
     'start.needChoice':'เลือก Guest หรือ Google ก่อน','start.needChoiceStatus':'เลือกวิธีเข้าเกมก่อน','start.guestBtn':'เริ่มเกมแบบ Guest','start.guestStatus':'Guest · บันทึกสิ่งที่ปลดล็อกในเครื่องนี้ · คะแนนออนไลน์ใช้ชื่อ Guest','start.verifiedBtn':'เริ่มเกมแบบยืนยันตัวตน','start.loadingBtn':'กำลังโหลด Google Login...','start.loadingStatus':'รอระบบ Login พร้อมใช้งาน','start.notReadyBtn':'Google Login ยังไม่พร้อม','start.notReadyStatus':'ยังไม่ได้ตั้งค่า Supabase/Netlify auth สำหรับ Google Login','start.loginGoogleBtn':'เข้าสู่ระบบด้วย Google','start.loginGoogleStatus':'Google · เข้าสู่ระบบก่อนเริ่มแบบยืนยันตัวตน',
     'rank.online':'Online Ranking','rank.local':'Ranking ในเครื่อง','rank.title':'Ranking','rank.none':'ยังไม่มีคะแนน','rank.loading':'กำลังโหลดคะแนนออนไลน์...','rank.emptyOnline':'ยังไม่มีคะแนนร่วม จบรันเพื่อเป็นอันดับแรก','rank.empty':'จบรันเพื่อบันทึกชื่อในพันธสัญญา','rank.points':'แต้ม','rank.clear':'เคลียร์','rank.fall':'พ่าย','rank.kills':'ฆ่า','rank.level':'Lv',
     'title.control.move':'เคลื่อนที่','title.control.dash':'พุ่งหลบ','title.control.interact':'โต้ตอบ','title.control.pause':'หยุดเกม','title.control.joystick':'เคลื่อนที่','title.control.touch':'ปุ่มบนจอ',
-    'guide.open':'เปิดคู่มือ','guide.hub.title':'คู่มือ / ข้อมูลเกม','guide.hub.note':'รวมข้อมูลหลักของระบบและสิ่งที่ปลดล็อกได้','guide.characters':'ตัวละคร','guide.characters.desc':'อาวุธเริ่มต้น สกิลติดตัว และค่าสถานะพื้นฐาน','guide.weapons':'อาวุธ','guide.weapons.desc':'อาวุธพื้นฐานและร่างวิวัฒน์','guide.tomes':'Tome','guide.tomes.desc':'อัปเกรดติดตัวและคู่สำหรับวิวัฒน์อาวุธ','guide.evolution':'วิวัฒน์อาวุธ','guide.evolution.desc':'กติกาอาวุธ Lv8 พร้อม Tome ที่ตรงกัน','guide.items':'ไอเทม','guide.items.desc':'ของดรอปที่ซ้อนทับได้และระดับความหายาก','guide.relics':'Relic','guide.relics.desc':'รางวัลหลังฆ่าบอสที่เปลี่ยนแนวเล่นของรัน','guide.monsters':'สารานุกรมมอนสเตอร์','guide.monsters.desc':'ระดับและพฤติกรรมของศัตรูทั่วไป','guide.bosses':'สารานุกรมบอส','guide.bosses.desc':'สกิลสำคัญของมินิบอสและบอส','guide.events':'อีเวนต์','guide.events.desc':'เหตุการณ์พิเศษและความปั่นระหว่างรัน','guide.maps':'แผนที่','guide.maps.desc':'ความต่างของแต่ละด่าน','guide.combat':'ระบบต่อสู้','guide.combat.desc':'Crit, knockback, pierce, guard และ overtime','guide.shrine':'Shrine','guide.shrine.desc':'เสาแม่เหล็ก, Shrine, Chest, Merchant, Altar และ Portal','guide.shop':'ร้านค้า / NPC','guide.shop.desc':'การซื้อของ reroll และโอกาสพ่อค้าทรยศ','guide.pets':'Pets','guide.pets.desc':'ซื้อสัตว์เลี้ยงด้วย Soul Coins และเลือกติดตาม 1 ตัวต่อรัน','guide.achievements':'Achievements','guide.achievements.desc':'ปลดล็อกตัวละคร อาวุธ และไอเทม พร้อม sync เมื่อใช้ Google','guide.ranking':'Ranking','guide.ranking.desc':'กติกาคะแนนและ leaderboard online',
-    'pets.title':'Pets','pets.note':'Soul Coins {coins} · ซื้อแล้ว {owned}/{total} · {selected}','pets.none':'ยังไม่ได้เลือก Pet','pets.noPet':'เล่นโดยไม่มี Pet','pets.selected':'เลือกใช้อยู่','pets.select':'เลือกใช้','pets.buy':'ซื้อ {price}','pets.price':'ราคา {price} Soul Coins','pets.notEnough':'Soul Coins ไม่พอ: ต้องมี {price}','pets.bought':'ซื้อ Pet: {name}','pets.notOwned':'ยังไม่ได้ซื้อ Pet ตัวนี้','pets.selectedToast':'เลือก Pet: {name} — {quip}','pets.noPetToast':'เล่นโดยไม่มี Pet','pets.testUnlock':'TEST: ปลดล็อก Pet ทั้งหมดแล้ว','pets.coinInfoTitle':'Soul Coins','pets.coinInfoDesc':'ได้จากการจบรันแบบจำนวนน้อย และจาก Achievement บางอันครั้งเดียว','pets.coinInfoMeta':'Pet ราคาแพงเพื่อเป็นเป้าหมายระยะยาว',
+    'guide.open':'เปิดคู่มือ','guide.hub.title':'คู่มือ / ข้อมูลเกม','guide.hub.note':'รวมข้อมูลหลักของระบบและสิ่งที่ปลดล็อกได้','guide.characters':'ตัวละคร','guide.characters.desc':'อาวุธเริ่มต้น สกิลติดตัว และค่าสถานะพื้นฐาน','guide.weapons':'อาวุธ','guide.weapons.desc':'อาวุธพื้นฐานและร่างวิวัฒน์','guide.tomes':'Tome','guide.tomes.desc':'อัปเกรดติดตัวและคู่สำหรับวิวัฒน์อาวุธ','guide.evolution':'วิวัฒน์อาวุธ','guide.evolution.desc':'กติกาอาวุธ Lv8 พร้อม Tome ที่ตรงกัน','guide.items':'ไอเทม','guide.items.desc':'ของดรอปที่ซ้อนทับได้และระดับความหายาก','guide.relics':'Relic','guide.relics.desc':'รางวัลหลังฆ่าบอสที่เปลี่ยนแนวเล่นของรัน','guide.monsters':'สารานุกรมมอนสเตอร์','guide.monsters.desc':'ระดับและพฤติกรรมของศัตรูทั่วไป','guide.bosses':'สารานุกรมบอส','guide.bosses.desc':'สกิลสำคัญของมินิบอสและบอส','guide.events':'อีเวนต์','guide.events.desc':'เหตุการณ์พิเศษและความปั่นระหว่างรัน','guide.maps':'แผนที่','guide.maps.desc':'ความต่างของแต่ละด่าน','guide.combat':'ระบบต่อสู้','guide.combat.desc':'Crit, knockback, pierce, guard และ overtime','guide.shrine':'Shrine','guide.shrine.desc':'เสาแม่เหล็ก, Shrine, Chest, Merchant, Altar และ Portal','guide.shop':'ร้านค้า / NPC','guide.shop.desc':'การซื้อของ reroll และโอกาสพ่อค้าทรยศ','guide.pets':'Pets','guide.pets.desc':'ข้อมูลบัฟสัตว์เลี้ยงและแหล่งที่ได้รับ ซื้อและเลือกใช้ในตลาดวิญญาณ','guide.divine':'วิญญาณเทพ','guide.divine.desc':'สกิลบูชาที่กดใช้ด้วย Q ซื้อและเลือกได้จากตลาดวิญญาณ','guide.achievements':'Achievements','guide.achievements.desc':'ปลดล็อกตัวละคร อาวุธ และไอเทม พร้อม sync เมื่อใช้ Google','guide.ranking':'Ranking','guide.ranking.desc':'กติกาคะแนนและ leaderboard online',
+    'pets.title':'Pets','pets.note':'Soul Coins {coins} · ซื้อแล้ว {owned}/{total} · {selected}','pets.none':'ยังไม่ได้เลือก Pet','pets.noPet':'เล่นโดยไม่มี Pet','pets.selected':'เลือกใช้อยู่','pets.select':'เลือกใช้','pets.buy':'ซื้อ {price}','pets.price':'ราคา {price} Soul Coins','pets.notEnough':'Soul Coins ไม่พอ: ต้องมี {price}','pets.bought':'ซื้อ Pet: {name}','pets.notOwned':'ยังไม่ได้ซื้อ Pet ตัวนี้','pets.selectedToast':'เลือก Pet: {name} — {quip}','pets.noPetToast':'เล่นโดยไม่มี Pet','pets.testUnlock':'TEST: ปลดล็อก Pet ทั้งหมดแล้ว','pets.coinInfoTitle':'Soul Coins','pets.coinInfoDesc':'ได้จากเวลาเล่น มินิบอส บอส การผ่านแผนที่ และ Achievement บางอัน','pets.coinInfoMeta':'เคลียร์ครบหนึ่งรันได้ประมาณ 99 Soul Coins ก่อนโบนัส Pact',
     'ach.title':'Achievements','ach.note':'{done}/{total} สำเร็จ · Soul Coins {coins}','ach.done':'DONE','ach.locked':'LOCKED','ach.rewards':'รางวัล','ach.synced':'Achievement Synced: {name}','ach.unlocked':'Achievement Unlocked: {name}','ach.unlockedSection':'Unlocked','unlock.ready':'ปลดล็อกแล้ว',
     'card.weapon':'อาวุธ','card.passive':'สกิลติดตัว','locked':'LOCKED',
     'update.kicker':'New Update','update.title':'Scoring & Overtime Update','update.lead':'สรุปสิ่งสำคัญของเวอร์ชันนี้ก่อนเริ่มรัน คะแนนและ balance อาจต่างจาก build เก่า','update.ok':'เข้าใจแล้ว','update.meta':'Build {version} · Ranking ควรเล่นด้วยเวอร์ชันล่าสุดเพื่อให้กติกาตรงกัน'
@@ -124,18 +125,18 @@ const I18N={
     'start.needChoice':'Choose Guest or Google first','start.needChoiceStatus':'Choose a login method first','start.guestBtn':'Start as Guest','start.guestStatus':'Guest · Unlocks stay on this device · Online scores use a Guest identity','start.verifiedBtn':'Start as Verified','start.loadingBtn':'Loading Google Login...','start.loadingStatus':'Waiting for login service','start.notReadyBtn':'Google Login unavailable','start.notReadyStatus':'Supabase/Netlify auth is not configured for Google Login yet','start.loginGoogleBtn':'Login with Google','start.loginGoogleStatus':'Google · Sign in before starting as Verified',
     'rank.online':'Online Ranking','rank.local':'Local Ranking','rank.title':'Ranking','rank.none':'No records','rank.loading':'Loading shared scores...','rank.emptyOnline':'No shared scores yet. Finish a run to claim the first rank.','rank.empty':'Finish a run to carve your name into the covenant.','rank.points':'pts','rank.clear':'CLEAR','rank.fall':'FALL','rank.kills':'K','rank.level':'Lv',
     'title.control.move':'Move','title.control.dash':'Dash','title.control.interact':'Interact','title.control.pause':'Pause','title.control.joystick':'Move','title.control.touch':'On-screen buttons',
-    'guide.open':'Open guide','guide.hub.title':'Guide / Game Info','guide.hub.note':'Core systems, unlocks, and run mechanics','guide.characters':'Characters','guide.characters.desc':'Starting weapons, passives, and base stats','guide.weapons':'Weapons','guide.weapons.desc':'Base weapons and evolved forms','guide.tomes':'Tomes','guide.tomes.desc':'Passive upgrades and weapon evolution pairs','guide.evolution':'Weapon Evolution','guide.evolution.desc':'Lv8 weapon plus the matching Tome','guide.items':'Items','guide.items.desc':'Stackable drops and rarity tiers','guide.relics':'Relics','guide.relics.desc':'Boss rewards that reshape the run','guide.monsters':'Monster Codex','guide.monsters.desc':'Enemy tiers and behavior types','guide.bosses':'Boss Codex','guide.bosses.desc':'Major miniboss and boss skills','guide.events':'Events','guide.events.desc':'Special encounters and chaotic run twists','guide.maps':'Maps','guide.maps.desc':'How each stage changes the run','guide.combat':'Combat','guide.combat.desc':'Crit, knockback, pierce, guard, and overtime','guide.shrine':'Shrines','guide.shrine.desc':'Magnet pillars, shrines, chests, merchants, altars, and portals','guide.shop':'Shop / NPC','guide.shop.desc':'Buying, rerolling, and merchant betrayal risk','guide.pets':'Pets','guide.pets.desc':'Buy pets with Soul Coins and bring one per run','guide.achievements':'Achievements','guide.achievements.desc':'Unlock characters, weapons, and items; sync with Google','guide.ranking':'Ranking','guide.ranking.desc':'Score rules and online leaderboard',
-    'pets.title':'Pets','pets.note':'Soul Coins {coins} · Owned {owned}/{total} · {selected}','pets.none':'No pet selected','pets.noPet':'Play without a Pet','pets.selected':'Selected','pets.select':'Select','pets.buy':'Buy {price}','pets.price':'Price {price} Soul Coins','pets.notEnough':'Not enough Soul Coins: need {price}','pets.bought':'Bought Pet: {name}','pets.notOwned':'You do not own this Pet yet','pets.selectedToast':'Selected Pet: {name} — {quip}','pets.noPetToast':'Playing without a Pet','pets.testUnlock':'TEST: unlocked all Pets','pets.coinInfoTitle':'Soul Coins','pets.coinInfoDesc':'Earned slowly from run rewards and one-time Achievement rewards','pets.coinInfoMeta':'Pets are long-term goals and intentionally expensive',
+    'guide.open':'Open guide','guide.hub.title':'Guide / Game Info','guide.hub.note':'Core systems, unlocks, and run mechanics','guide.characters':'Characters','guide.characters.desc':'Starting weapons, passives, and base stats','guide.weapons':'Weapons','guide.weapons.desc':'Base weapons and evolved forms','guide.tomes':'Tomes','guide.tomes.desc':'Passive upgrades and weapon evolution pairs','guide.evolution':'Weapon Evolution','guide.evolution.desc':'Lv8 weapon plus the matching Tome','guide.items':'Items','guide.items.desc':'Stackable drops and rarity tiers','guide.relics':'Relics','guide.relics.desc':'Boss rewards that reshape the run','guide.monsters':'Monster Codex','guide.monsters.desc':'Enemy tiers and behavior types','guide.bosses':'Boss Codex','guide.bosses.desc':'Major miniboss and boss skills','guide.events':'Events','guide.events.desc':'Special encounters and chaotic run twists','guide.maps':'Maps','guide.maps.desc':'How each stage changes the run','guide.combat':'Combat','guide.combat.desc':'Crit, knockback, pierce, guard, and overtime','guide.shrine':'Shrines','guide.shrine.desc':'Magnet pillars, shrines, chests, merchants, altars, and portals','guide.shop':'Shop / NPC','guide.shop.desc':'Buying, rerolling, and merchant betrayal risk','guide.pets':'Pets','guide.pets.desc':'Pet buffs and acquisition; purchase and equip them in the Soul Market','guide.divine':'Divine Spirits','guide.divine.desc':'Q-activated offerings purchased and selected in the Soul Market','guide.achievements':'Achievements','guide.achievements.desc':'Unlock characters, weapons, and items; sync with Google','guide.ranking':'Ranking','guide.ranking.desc':'Score rules and online leaderboard',
+    'pets.title':'Pets','pets.note':'Soul Coins {coins} · Owned {owned}/{total} · {selected}','pets.none':'No pet selected','pets.noPet':'Play without a Pet','pets.selected':'Selected','pets.select':'Select','pets.buy':'Buy {price}','pets.price':'Price {price} Soul Coins','pets.notEnough':'Not enough Soul Coins: need {price}','pets.bought':'Bought Pet: {name}','pets.notOwned':'You do not own this Pet yet','pets.selectedToast':'Selected Pet: {name} — {quip}','pets.noPetToast':'Playing without a Pet','pets.testUnlock':'TEST: unlocked all Pets','pets.coinInfoTitle':'Soul Coins','pets.coinInfoDesc':'Earned from survival time, minibosses, bosses, map clears, and selected Achievements','pets.coinInfoMeta':'A full clear grants about 99 Soul Coins before Pact bonuses',
     'ach.title':'Achievements','ach.note':'{done}/{total} complete · Soul Coins {coins}','ach.done':'DONE','ach.locked':'LOCKED','ach.rewards':'Rewards','ach.synced':'Achievement Synced: {name}','ach.unlocked':'Achievement Unlocked: {name}','ach.unlockedSection':'Unlocked','unlock.ready':'Unlocked',
     'card.weapon':'Weapon','card.passive':'Passive','locked':'LOCKED',
     'update.kicker':'New Update','update.title':'Scoring & Overtime Update','update.lead':'A quick summary of what changed in this version before you start a run. Scores and balance may differ from older builds.','update.ok':'Got it','update.meta':'Build {version} · Ranking runs should use the latest version so everyone plays by the same rules'
   }
 };
 Object.assign(I18N.th,{
-  'title.howto':'วิธีเล่น','guide.howto':'วิธีเล่น','guide.howto.desc':'สรุป core loop สำหรับรันแรกแบบจบในหน้าเดียว'
+  'title.howto':'วิธีเล่น','guide.howto':'วิธีเล่น','guide.howto.desc':'สรุป core loop สำหรับรันแรกแบบจบในหน้าเดียว','update.title':'Run Setup & Soul Market','update.lead':'รวมการเตรียมรันและร้านค้าระยะยาวให้ใช้ง่ายขึ้น พร้อมสรุประบบคะแนนและ balance ปัจจุบัน'
 });
 Object.assign(I18N.en,{
-  'title.howto':'How to Play','guide.howto':'How to Play','guide.howto.desc':'A one-page first-run summary of the core loop'
+  'title.howto':'How to Play','guide.howto':'How to Play','guide.howto.desc':'A one-page first-run summary of the core loop','guide.divine':'Divine Spirits','guide.divine.desc':'Q-activated offerings purchased and selected in the Soul Market','update.title':'Run Setup & Soul Market','update.lead':'Run preparation and long-term purchases are now easier to manage, with current scoring and balance notes included.'
 });
 Object.assign(I18N.th,{
   'common.items':'ไอเทม','common.relic':'Relic','common.weapon':'อาวุธ','common.passive':'สกิลติดตัว','common.emptyWeapon':'ช่องอาวุธว่าง','common.emptyTome':'ช่อง Tome ว่าง','common.stackUnlimited':'stack ได้ไม่จำกัด','common.moreItems':'มีไอเทมอีก {count} stack เปิด Pause เพื่อดูทั้งหมด','common.locked':'ล็อก','common.unlocked':'ปลดล็อกแล้ว',
@@ -223,6 +224,8 @@ Object.assign(WEAPON_I18N,{
   smite:{en:{desc:'Calls holy power down from above.'}},
   lightning:{en:{desc:'Strikes one target at a time with focused lightning.'}},
   dagger:{en:{desc:'Throws fast knives at nearby enemies.'}},
+  chidori_fang:{en:{desc:'Fires a compact purple lightning fang at short range, piercing enemies and bursting on impact.'}},
+  chidori_fangX:{en:{desc:'Evolved: fires stronger Raikiri fangs with Raijin Wraith pressure and focused single-target follow-up shots.'}},
   toolstab:{en:{desc:'A rapid close-range screwdriver thrust that pierces an entire line.'}},
   bladewhirl:{en:{desc:'Launches a short curved blade wave.'}},
   soulspiral:{en:{desc:'Fires spiraling souls in all directions.'}},
@@ -292,6 +295,7 @@ Object.assign(CHAR_I18N,{
   priestess:{en:{bio:'Heals with a smile, then politely smites anyone who forgets to say thanks.',passive:'Regeneration +0.3 and heal / Lv'}},
   stormcaller:{en:{bio:'Calls lightning very precisely, except when her phone also needs charging.',passive:'Critical damage +5% / Lv'}},
   assassin:{en:{bio:'So good at vanishing that teammates forget to split loot with her.',passive:'Critical chance +1%, evade +0.5% / Lv'}},
+  kuro_raijin:{en:{bio:'A shadow-lightning shinobi who reads the fight with a cursed eye, then strikes the exact spot that hurts.',passive:'Cursed Eye: critical chance +0.7% / Lv; critical hits mark enemies for 3s. Critting an already-marked target summons Raijin Wraith to strike.'}},
   it_support:{en:{bio:'Always called when systems crash, and always asks, "Have you tried restarting it?"',passive:'Skill size +1%, attack range +1% / Lv'}},
   striker:{en:{bio:'A tournament forward who turned match pressure into a cursed pact.',passive:'Move speed +0.5%, projectile/object speed +2% / Lv'}},
   bamboo_man:{en:{bio:'A bamboo-shoot addict with suspiciously aggressive gardening skills.',passive:'Skill size +1%, ground effect duration +1% / Lv'}}
@@ -347,6 +351,7 @@ function applyStaticI18n(){
   const howtoBtn=document.querySelector('.titlemenu button[data-guide="howto"]'); if(howtoBtn) howtoBtn.textContent=tr('title.howto');
   updateMailboxBadge();
   const petsBtn=document.querySelector('.titlemenu button[data-guide="pets"]'); if(petsBtn) petsBtn.textContent=tr('title.pets');
+  const marketBtn=document.getElementById('marketbtn'); if(marketBtn) marketBtn.textContent=gameLang()==='en'?'Soul Market':'ตลาดวิญญาณ';
   const guideBtn=document.querySelector('.titlemenu button[data-guide="hub"]'); if(guideBtn) guideBtn.textContent=tr('title.guide');
   const controls=document.querySelectorAll('.titlecontrols span');
   const controlLabels=[['WASD','title.control.move'],['SPACE','title.control.dash'],['F','title.control.interact'],['P','title.control.pause'],[gameLang()==='en'?'Joystick':'จอยสติ๊ก','title.control.joystick'],['DASH / F','title.control.touch']];
@@ -940,6 +945,7 @@ function buildPauseInfo(){
   const critDmg=(player.critDmg||1.5)+Math.max(0,(player.critChance||0)-1);
   const diff=activeDifficulty();
   const pet=player.petId&&typeof petById==='function'?petById(player.petId):null;
+  const deity=typeof activeDivineOffering==='function'?activeDivineOffering():null;
   const pactNames=(activePactIds||[]).map(id=>pactById(id)).filter(Boolean).map(p=>pactName(p));
   const tomeIds=Object.keys(player.tomeCount||{}).filter(id=>player.tomeCount[id]>0);
   const hpPct=Math.max(0,Math.min(100,Math.round(100*player.hp/player.maxHp)));
@@ -960,7 +966,7 @@ function buildPauseInfo(){
     +'<header class="pausehero"><div class="pauseportrait"><img src="'+escHtml(characterPortrait(player.char))+'" alt=""></div><div class="pauseidentity"><span>'+escHtml(stageName)+' · '+fmt(gameTime)+'</span><h3>'+escHtml(charField(player.char,'name',C.name||''))+'</h3><div class="pausehp"><i style="width:'+hpPct+'%"></i><b>HP '+Math.ceil(player.hp)+' / '+player.maxHp+'</b></div></div><div class="pausestats"><span><b>LV</b>'+player.level+'</span><span><b>SPD</b>'+player.spd.toFixed(1)+'</span><span><b>CRIT</b>'+Math.round(critChance*100)+'%</span><span><b>CRIT DMG</b>'+Math.round(critDmg*100)+'%</span></div></header>'
     +'<div class="pausegrid"><section class="pauseweapons"><h3>'+(gameLang()==='en'?'Weapons':'อาวุธ')+'</h3><div class="piw">'+weapons+'</div></section>'
     +'<section class="pausetomes"><h3>Tome</h3><div class="pitomes">'+tomes+'</div></section>'
-    +'<section class="pauserules"><h3>'+(gameLang()==='en'?'Run Rules':'กติการัน')+'</h3><div class="pirules"><div><span>DIFFICULTY</span><b>'+escHtml(diff.name)+' · Score x'+Number(diff.mult).toFixed(2)+'</b></div><div><span>PACT</span><b>'+escHtml(pactNames.length?pactNames.join(', '):'No Pact')+'</b></div><div><span>PET</span><b>'+escHtml(pet?pet.name:'No Pet')+'</b></div><div><span>DASH</span><b>'+Math.round(100*(player.dashCdMul||1))+'% CD · '+Math.round(100*(player.dashDistMul||1))+'% DIST</b></div></div></section>'
+    +'<section class="pauserules"><h3>'+(gameLang()==='en'?'Run Rules':'กติการัน')+'</h3><div class="pirules"><div><span>DIFFICULTY</span><b>'+escHtml(diff.name)+' · Score x'+Number(diff.mult).toFixed(2)+'</b></div><div><span>PACT</span><b>'+escHtml(pactNames.length?pactNames.join(', '):'No Pact')+'</b></div><div><span>DIVINE</span><b>'+escHtml(deity?deity.name+' · '+deity.title:'None')+'</b></div><div><span>PET</span><b>'+escHtml(pet?pet.name:'No Pet')+'</b></div><div><span>DASH</span><b>'+Math.round(100*(player.dashCdMul||1))+'% CD · '+Math.round(100*(player.dashDistMul||1))+'% DIST</b></div></div></section>'
     +'<section class="pauseitems"><h3>'+escHtml(tr('common.items'))+' ('+(player.items||[]).length+')</h3><div class="piitems">'+items+'</div></section>'
     +'<section class="pauserelics"><h3>'+escHtml(tr('common.relic'))+'</h3><div class="pirelics">'+relics+'</div></section></div></div>';
 }
@@ -1025,6 +1031,7 @@ document.addEventListener('click', e=>{
 // Dash trigger shared by keyboard (Space) and the mobile Dash button.
 function tryDash(){
   if (!started || paused || gameOver || won || player.dashCd>0 || player.dashTime>0) return;
+  if(player.divineDashLockT>0){ showToast('Tharos ปิดผนึก Dash อีก '+Math.ceil(player.divineDashLockT)+'s',1.2); return; }
   let dx=player.ldx, dz=player.ldz;
   if (!dx && !dz){ dx=player.face||1; dz=0; }
   const l=Math.hypot(dx,dz)||1; player.dashX=dx/l; player.dashZ=dz/l;
@@ -1036,7 +1043,9 @@ function quitToTitle(){
   clearTimeout(deathCinematicTimer);
   started=false; userPaused=false; paused=false; gameOver=false; deathCinematic=false; won=false; pendingUps=0;
   pendingRelicPortal=null; currentRelicChoices=[];
-  for (const id of ['pause','shop','playersetup','select','difficultyselect','pactselect','over','levelup','relicup','deathfx']) document.getElementById(id).style.display='none';
+  for (const id of ['pause','shop','playersetup','select','difficultyselect','pactselect','offeringselect','runsetup','soulmarket','over','levelup','relicup','deathfx']){
+    const panel=document.getElementById(id); if(panel) panel.style.display='none';
+  }
   document.getElementById('pausebtn').textContent='⏸';
   document.body.classList.remove('user-paused');
   document.getElementById('title').style.display='flex';
@@ -1112,6 +1121,8 @@ function closeAuthChoice(){
 }
 function whatsNewItems(){
   if(gameLang()==='en') return [
+    ['One-page Run Setup','Character, player identity, difficulty, Pacts, Pet, and Divine Spirit are now configured on one screen. Your last loadout is remembered.'],
+    ['Soul Market','Pet purchases, Pet Boxes, and all ten Divine Spirits now live in one market. Each Divine Spirit costs 1,500 Soul Coins.'],
     ['Death penalty','Dying now reduces final score: -20% normally, -15% after Overtime, and -10% on Map 3. Clears are not penalized.'],
     ['Overtime rules','All difficulties now start Overtime at 10:00. Enemy pressure begins at x2, then rises to x3, x4, x5 and keeps climbing every 30 seconds.'],
     ['Score summary','Run Summary now shows final score, base score, and Death Penalty so you can see exactly why points changed. Ranking uses the final score.'],
@@ -1120,6 +1131,8 @@ function whatsNewItems(){
     ['Guide refresh','Combat guide, Ranking rules, Codex, Shrine, Pets, Achievements, and How to Play were refreshed for the current systems.']
   ];
   return [
+    ['เตรียมรันในหน้าเดียว','เลือกตัวละคร ชื่อผู้เล่น ประเทศ ระดับความยาก Pact, Pet และวิญญาณเทพได้ในหน้าเดียว พร้อมจำชุดที่ใช้ล่าสุด'],
+    ['ตลาดวิญญาณ','รวมการซื้อ Pet กล่องสุ่ม และวิญญาณเทพทั้ง 10 องค์ไว้ที่เดียว วิญญาณเทพราคาองค์ละ 1,500 Soul Coins'],
     ['คะแนนเมื่อตาย','ตายแล้วคะแนนสุดท้ายจะลดลง: ปกติ -20%, หลัง Overtime -15%, และ Map 3 -10% ถ้าเคลียร์สำเร็จจะไม่โดนหัก'],
     ['กติกา Overtime','ทุกระดับความยากเริ่ม Overtime ที่ 10:00 เหมือนกัน เริ่ม x2 แล้วเพิ่มเป็น x3, x4, x5 ต่อไปทุก 30 วินาที'],
     ['สรุปคะแนนชัดขึ้น','หน้า Run Summary แสดงคะแนนสุดท้าย คะแนนก่อนหัก และ Death Penalty เพื่อให้รู้ว่าคะแนนหายไปเท่าไหร่ Ranking ใช้คะแนนหลังหัก'],
@@ -1528,14 +1541,14 @@ function beginTitleRun(){
   initAudio();
   resumeAudio();
   stopTitleBGM();
-  openPlayerSetup();
+  if(typeof openRunSetup==='function') openRunSetup(); else openPlayerSetup();
 }
 function beginGoogleRun(){
   initAudio();
   resumeAudio();
   if(typeof currentAuthUser==='function' && currentAuthUser()){
     stopTitleBGM();
-    openPlayerSetup();
+    if(typeof openRunSetup==='function') openRunSetup(); else openPlayerSetup();
     return;
   }
   const st=window.gameAuthState || {};
@@ -1752,7 +1765,7 @@ function guidePetBoxCard(){
   const premiumCount=PETS.filter(p=>p.premium).length;
   return '<div class="guidecard petbox">'
     +'<div class="petboxicon"><span>?</span><i></i></div><div class="petcopy"><b>Premium Pet Box</b>'
-    +'<p>เปิดกล่องลุ้น Pet: Special 1%, Pet ปกติ 5%, ไม่ติด Pet ได้เงินปลอบใจ 5-50 Soul Coins</p>'
+    +'<p>เปิดกล่องลุ้น Pet: Special 0.5%, Pet ปกติ 5%, ไม่ติด Pet ได้เงินปลอบใจ 5-50 Soul Coins</p>'
     +'<small>ราคา '+PET_BOX_COST.toLocaleString()+' Soul Coins · มีแล้ว '+ownedCount+'/'+PETS.length+' · Special '+premiumCount+' ตัว · ซ้ำคืน 50 Soul Coins</small>'
     +'<button data-pet-box-open>เปิดกล่องสุ่ม Pet</button></div></div>';
 }
@@ -1976,6 +1989,7 @@ function evolvedFromName(evolvedKey){
 }
 function howToSteps(){
   if(gameLang()==='en') return [
+    ['Prepare the run','Choose your character, identity, difficulty, Pacts, Pet, and Divine Spirit on the Run Setup screen.','The last setup is remembered; press Start Run when ready.'],
     ['Move and survive','Use WASD or the mobile joystick. Your weapons attack automatically, so focus on positioning and dodging.','Dash with Space or the on-screen DASH button.'],
     ['Collect XP and level up','Blue XP and gold are collected automatically when close enough. Leveling up lets you choose weapons, Tomes, or items.','Ban unwanted choices if your build needs cleaner options.'],
     ['Build around evolutions','Raise a weapon to Lv8 and collect its matching Tome to evolve it. Gold glow means an evolution is ready.','Example: Holy Smite + Growth, Arrow + Velocity.'],
@@ -1984,6 +1998,7 @@ function howToSteps(){
     ['Score comes from risk','Kills, clear time, items, bosses, no-damage play, and Pact modifiers all affect Ranking.','Guest saves locally; Google syncs ranking and unlocks online.']
   ];
   return [
+    ['เตรียมรันให้พร้อม','เลือกตัวละคร ชื่อ ประเทศ ระดับความยาก Pact, Pet และวิญญาณเทพจากหน้าเตรียมรัน','เกมจำชุดล่าสุดไว้ให้ ตรวจสรุปคะแนนแล้วกดเริ่มรันได้ทันที'],
     ['เดินให้รอดก่อน','ใช้ WASD หรือจอยมือถือเคลื่อนที่ อาวุธจะโจมตีอัตโนมัติ หน้าที่หลักคือยืนตำแหน่งดี ๆ และหลบให้ทัน','พุ่งหลบด้วย Space หรือปุ่ม DASH บนจอ'],
     ['เก็บ XP แล้วอัปเลเวล','XP สีฟ้าและทองจะเก็บอัตโนมัติเมื่อเข้าใกล้ เลเวลอัปแล้วเลือกอาวุธ Tome หรือไอเทมเพื่อทำบิลด์','ใช้ Ban ตัดตัวเลือกที่ยังไม่อยากได้'],
     ['เล่นตามคู่ Evolution','อัปอาวุธให้ถึง Lv8 และมี Tome คู่กันเพื่อวิวัฒน์ อันที่พร้อมวิวัฒน์จะมีแสงทองเตือน','เช่น Holy Smite + Growth, Arrow + Velocity'],
@@ -2053,6 +2068,7 @@ function guideContentSummary(kind){
     : MINIBOSS_TYPES.length+' มินิบอส · '+BOSS_TYPES.length+' บอส · 1 บอสพิเศษ';
   if(kind==='maps') return Object.keys(MAP_THEMES).length+' '+(en?'maps':'แผนที่');
   if(kind==='pets') return PETS.length+' Pets';
+  if(kind==='divine') return DIVINE_OFFERINGS.length+' '+(en?'spirits':'วิญญาณเทพ');
   if(kind==='achievements') return ACHIEVEMENTS.length+' Achievements';
   return '';
 }
@@ -2070,12 +2086,12 @@ function renderLocalizedGuide(kind, guide, body, opts){
       ['Start Here','Learn the run, heroes, and maps.',['howto','characters','maps']],
       ['Build Lab','Weapons and rewards that shape a build.',['weapons','tomes','items','relics','combat']],
       ['World Codex','Enemies, events, and interactive objects.',['monsters','bosses','events','shrine','shop']],
-      ['Progress','Long-term unlocks and online competition.',['pets','achievements','ranking']]
+      ['Progress','Long-term unlocks, the Soul Market, and online competition.',['pets','divine','achievements','ranking']]
     ] : [
       ['เริ่มเล่น','พื้นฐานของรัน ตัวละคร และแผนที่',['howto','characters','maps']],
       ['จัดบิลด์','อาวุธและรางวัลที่กำหนดแนวทางของรัน',['weapons','tomes','items','relics','combat']],
       ['สารานุกรมโลก','ศัตรู อีเวนต์ และวัตถุที่พบระหว่างทาง',['monsters','bosses','events','shrine','shop']],
-      ['ความก้าวหน้า','ระบบปลดล็อกระยะยาวและการแข่งขันออนไลน์',['pets','achievements','ranking']]
+      ['ความก้าวหน้า','ระบบปลดล็อก ตลาดวิญญาณ และการแข่งขันออนไลน์',['pets','divine','achievements','ranking']]
     ];
     const cards=groups.map(group=>guideSectionTitle(group[0],group[1])+group[2].map(k=>{
       const summary=guideContentSummary(k);
@@ -2093,14 +2109,26 @@ function renderLocalizedGuide(kind, guide, body, opts){
     const ownedCount=Object.keys(state.owned||{}).length;
     const selected=petById(selectedPetId());
     const note=tr('pets.note',{coins:soulCoins().toLocaleString(),owned:ownedCount,total:PETS.length,selected:selected?selected.name:tr('pets.none')});
-    const cards=petShopCardsMarkup();
-    body.innerHTML=guideHeader(tr('pets.title'), note, kind)+'<div class="guidegrid pets">'+cards+'</div>';
+    const cards=PETS.map(p=>{
+      const owned=isPetOwned(p.id), source=p.premium?(gameLang()==='en'?'Special Pet Box only':'เฉพาะกล่อง Special'):(gameLang()==='en'?`Soul Market · ${p.price.toLocaleString()} Soul Coins`:`ตลาดวิญญาณ · ${p.price.toLocaleString()} Soul Coins`);
+      return guideCard(p.sprite?spriteSrc(p.sprite):petIconData(p),p.name,petText(p,'title')+' — '+petText(p,'desc'),p.buff+' · '+source+' · '+(owned?(gameLang()==='en'?'Owned':'มีแล้ว'):(gameLang()==='en'?'Not owned':'ยังไม่มี')),p.premium?'legendary':'');
+    }).join('');
+    body.innerHTML=guideHeader(tr('pets.title'), note, kind)+'<button class="guide-market-link" data-open-soul-market="pets">'+(gameLang()==='en'?'Open Soul Market':'เปิดตลาดวิญญาณ')+'</button><div class="guidegrid pets">'+cards+'</div>';
     bindGuideChrome(body);
-    body.querySelectorAll('[data-pet-box-open]').forEach(btn=>btn.onclick=()=>openPetBox());
-    body.querySelectorAll('[data-pet-buy]').forEach(btn=>btn.onclick=()=>buyPet(btn.getAttribute('data-pet-buy')||''));
-    body.querySelectorAll('[data-pet-select]').forEach(btn=>btn.onclick=()=>selectPet(btn.getAttribute('data-pet-select')||''));
+    body.querySelector('[data-open-soul-market]').onclick=()=>{ closeGuide(); openSoulMarket('pets',false); };
     guide.style.display='flex';
-    restoreGuidePetPosition(opts);
+    return true;
+  }
+  if(kind==='divine'){
+    const owned=DIVINE_OFFERINGS.filter(o=>isDivineOfferingOwned(o.id)).length;
+    const note=gameLang()==='en'
+      ? `${owned}/${DIVINE_OFFERINGS.length} owned · Buy for ${DIVINE_OFFERING_PRICE.toLocaleString()} Soul Coins each · Equip one per run · Press Q to invoke`
+      : `มีแล้ว ${owned}/${DIVINE_OFFERINGS.length} · ราคาองค์ละ ${DIVINE_OFFERING_PRICE.toLocaleString()} Soul Coins · เลือกได้ 1 องค์ต่อรัน · กด Q เพื่อใช้`;
+    const cards=DIVINE_OFFERINGS.map(o=>guideCard(`assets/sprites/deity_${o.id}.png`,`${o.name} · ${o.title}`,`${gameLang()==='en'?'Offering cost':'เครื่องบูชา'}: ${o.cost} · ${o.effect}`,`${o.short} · Cooldown ${divineOfferingCooldown(o.id)}s · ${isDivineOfferingOwned(o.id)?(gameLang()==='en'?'Owned':'มีแล้ว'):(gameLang()==='en'?'Not owned':'ยังไม่มี')}`,'legendary')).join('');
+    body.innerHTML=guideHeader(tr('guide.divine'),tr('guide.divine.desc')+' · '+note,kind)+'<button class="guide-market-link" data-open-soul-market="divine">'+(gameLang()==='en'?'Open Divine Market':'เปิดตลาดวิญญาณเทพ')+'</button><div class="guidegrid divine">'+cards+'</div>';
+    bindGuideChrome(body);
+    body.querySelector('[data-open-soul-market]').onclick=()=>{ closeGuide(); openSoulMarket('divine',false); };
+    guide.style.display='flex';
     return true;
   }
   if(kind==='achievements'){
@@ -2435,7 +2463,7 @@ function chooseDifficulty(id){
     return;
   }
   setActivePacts([]);
-  beginSelectedRun();
+  openDivineOfferingSelect();
 }
 async function beginSelectedRun(){
   document.getElementById('difficultyselect').style.display='none';
@@ -3054,7 +3082,9 @@ const deferredStageUnitKeys=new Set(
 function characterTextureKeys(key){
   const c=CHARACTERS[key] || CHARACTERS.paladin;
   const cfg=SHEETS[c.sheet] || SHEETS.player;
-  return cfg ? [cfg.walk&&cfg.walk.key,cfg.idle&&cfg.idle.key].filter(Boolean) : [];
+  const keys=cfg ? [cfg.walk&&cfg.walk.key,cfg.idle&&cfg.idle.key].filter(Boolean) : [];
+  if(key==='kuro_raijin') keys.push('fx_raijin_wraith');
+  return keys;
 }
 function stageTextureKeys(stage){
   const keys=[];
@@ -3126,7 +3156,7 @@ function prewarmEffectTextures(){
       [
         ['smite',0xfff0a8], ['lightning',0xbff8ff], ['soul',0x9a55ff],
         ['orb',0x7ce7ff], ['doom',0xff5a5a], ['shard',0x89d8ff],
-        ['dagger',0xffd6a8], ['screwdriver',0x7cffd8], ['arrow',0xd8f0ff],
+        ['dagger',0xffd6a8], ['screwdriver',0x7cffd8], ['chidori',0xb45cff], ['arrow',0xd8f0ff],
         ['football',0xffffff], ['shield',0x8bd8ff], ['bone_boomerang',0xf3e2b8],
         ['bomb',0xffb84f]
       ].forEach(([shape,color])=>getPixelProjectileTexture(shape,color));
@@ -3228,6 +3258,7 @@ function init() {
   makeAltar();
   for (let i=0;i<4;i++) spawnEnemy();
   document.getElementById('title').style.display='flex';
+  if(typeof initMenuRedesign==='function') initMenuRedesign();
   const authReady = (typeof initGameAuth==='function') ? initGameAuth() : Promise.resolve();
   showLeaderboard();
   authReady.then(()=>{
@@ -3249,14 +3280,15 @@ function init() {
   updateStartFlow();
   document.getElementById('nameconfirm').onclick = confirmPlayerName;
   document.getElementById('playername').addEventListener('keydown', e=>{ if(e.code==='Enter') confirmPlayerName(); });
-  document.getElementById('pactnone').onclick = ()=>{ selectedPactIds=[]; setActivePacts([]); beginSelectedRun(); };
+  document.getElementById('pactnone').onclick = ()=>{ selectedPactIds=[]; setActivePacts([]); document.getElementById('pactselect').style.display='none'; openDivineOfferingSelect(); };
   document.getElementById('pactlast').onclick = ()=>{
     const ids=lastPactLoadout();
     if(!ids.length){ showToast('ยังไม่มีชุด Pact ล่าสุด',1.6); return; }
     selectedPactIds=ids.slice();
     buildPactSelect();
   };
-  document.getElementById('pactstart').onclick = ()=>{ setActivePacts(selectedPactIds); beginSelectedRun(); };
+  document.getElementById('pactstart').onclick = ()=>{ setActivePacts(selectedPactIds); document.getElementById('pactselect').style.display='none'; openDivineOfferingSelect(); };
+  initDivineOfferingUi();
   document.querySelectorAll('.titlemenu button[data-guide]').forEach(btn=>btn.onclick=()=>openGuide(btn.dataset.guide));
   { const mb=document.getElementById('mailbtn'); if(mb) mb.onclick = openMailbox; }
   { const rb=document.getElementById('ranktoggle'); if(rb) rb.onclick = toggleTitleRanking; const rr=document.getElementById('rankrestore'); if(rr) rr.onclick = toggleTitleRanking; }
@@ -3290,11 +3322,12 @@ function init() {
     if (paused && (e.code==='Digit0'||e.code==='Numpad0'||e.code==='Backspace')){ skipUpgrade(); e.preventDefault(); return; }
     if (['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
     if (e.code==='Space' && !e.repeat) tryDash();
+    if (e.code==='KeyQ' && !e.repeat){ useDivineOffering(); e.preventDefault(); }
     if ((e.code==='KeyP'||e.code==='Escape') && !e.repeat && !gameOver && !paused) togglePause();
     if (e.code==='KeyF' && !e.repeat){ if (document.getElementById('shop').style.display==='flex') closeShop(); else activateNearby(); }
     if (deathCinematic) return;
     if (e.code==='KeyR' && (gameOver||won)) restart();
-    if (e.code==='KeyC' && (gameOver||won)){ started=false; selectedPactIds=[]; activePactIds=[]; document.getElementById('difficultyselect').style.display='none'; document.getElementById('pactselect').style.display='none'; document.getElementById('select').style.display='none'; document.getElementById('over').style.display='none'; openPlayerSetup(); }
+    if (e.code==='KeyC' && (gameOver||won)){ started=false; selectedPactIds=[]; activePactIds=[]; document.getElementById('difficultyselect').style.display='none'; document.getElementById('pactselect').style.display='none'; document.getElementById('offeringselect').style.display='none'; document.getElementById('select').style.display='none'; document.getElementById('over').style.display='none'; openPlayerSetup(); }
   });
   addEventListener('keyup', (e)=>{ keys[e.code]=false; });
 
@@ -3928,6 +3961,11 @@ const SHEETS = {
     idle: { key:'char_assassin_idle', cols:4, rows:8, fps:6 },
     dirRows: [0,7,6,5,4,3,2,1],
   },
+  kuro_raijin: {
+    walk: { key:'char_kuro_raijin_walk', cols:7, rows:8, fps:10 },
+    idle: { key:'char_kuro_raijin_idle', cols:5, rows:8, fps:6 },
+    dirRows: [0,7,6,5,4,3,2,1],
+  },
   it_support: {
     walk: { key:'char_it_support_walk', cols:6, rows:8, fps:10 },
     idle: { key:'char_it_support_idle', cols:4, rows:8, fps:6 },
@@ -3969,6 +4007,8 @@ const CHARACTERS = {
                  stats:{ maxHp:70, critChance:0.08 }, passive:{ desc:'ดาเมจคริติคอล +5% / Lv', apply:p=>{ p.critDmg += 0.05; } } },
   assassin:    { name:'Assassin',    sheet:'assassin',    weapon:'dagger', portrait:'assassin',
                  stats:{ maxHp:65, spd:5.9, critChance:0.12 }, passive:{ desc:'โอกาสคริติคอล +1%, หลบหลีก +0.5% / Lv', apply:p=>{ p.critChance += 0.01; p.evade=(p.evade||0)+0.005; } } },
+  kuro_raijin: { name:'Kuro Raijin', sheet:'kuro_raijin', weapon:'chidori_fang', portrait:'kuro_raijin',
+                 stats:{ maxHp:72, spd:5.75, critChance:0.10, critDmg:1.70, cursedEye:0.08 }, passive:{ desc:'Cursed Eye: คริติคอล +0.7% / Lv, คริติคอลทำ Mark 3 วิ และถ้าคริติคอลซ้ำบนตัวที่ติด Mark จะเรียก Raijin Wraith ฟันแทน', apply:p=>{ p.critChance += 0.007; p._cursedEye = Math.min(0.30, (p._cursedEye||0) + 0.012); } } },
   it_support:  { name:'IT Support',  sheet:'it_support', weapon:'toolstab', portrait:'it_support',
                  stats:{ maxHp:78, spd:5.5, magnet:3.6, critChance:0.07 }, passive:{ desc:'ขนาดสกิล +1%, ระยะสกิล +1% / Lv', apply:p=>{ p.projScale *= 1.01; p.rangeMul *= 1.01; } } },
   striker:     { name:'Striker',     sheet:'striker',     weapon:'football', portrait:'striker',
@@ -4019,6 +4059,15 @@ Object.assign(CHARACTERS.stormcaller, {
 Object.assign(CHARACTERS.assassin, {
   bio:'หายตัวเก่งจนเพื่อนร่วมทีมลืมแบ่ง loot ให้เป็นประจำ',
   quips:{ start:['ถ้าไม่เห็นฉัน แปลว่าทำงานอยู่'], level:['คมขึ้น เงียบขึ้น น่าสงสัยขึ้น'], hurt:['เห็นเมื่อกี้ไหม ไม่เห็นก็ดี'] }
+});
+Object.assign(CHARACTERS.kuro_raijin, {
+  bio:'นินจาสายเงาและสายฟ้าที่พูดน้อยกว่าดาเมจของตัวเอง ใช้ตาต้องสาปอ่านจังหวะ แล้วแทงสายฟ้าใส่จุดที่เจ็บที่สุด',
+  quips:{
+    start:['เงียบไว้ เดี๋ยวฟ้าผ่ารู้ตัว','ไม่ต้องตะโกนชื่อท่าก็แรงได้','เห็นแวบ ๆ นั่นคือผมเอง'],
+    level:['ตาข้างนี้อ่านแพตช์ออกแล้ว','เร็วขึ้นอีกนิด ศัตรูจะได้งงแบบมีมารยาท','สายฟ้าไม่รอ cooldown ทางใจ'],
+    loot:['ของดี...เดี๋ยวผมใช้แบบเงียบ ๆ','เก็บไว้ก่อน เดี๋ยวทำเป็นเท่'],
+    hurt:['โดนได้ แต่ไม่ควรโดนซ้ำ','เมื่อกี้ผมแค่ทดสอบ hitbox','จำหน้าไว้แล้ว']
+  }
 });
 Object.assign(CHARACTERS.it_support, {
   bio:'ถูกเรียกตอนระบบล่มเสมอ และถามบอสว่า ลอง Restart หรือยังครับ?',
@@ -4247,9 +4296,10 @@ function unlockEverythingForTesting(){
   pactUnlockStateCache=pact;
   try{ localStorage.setItem(PACT_UNLOCK_STORAGE_KEY, JSON.stringify(pact)); }catch(_){}
   unlockAllPetsForTesting();
+  if(typeof unlockAllDivineOfferingsForTesting==='function') unlockAllDivineOfferingsForTesting();
   setSoulCoins(Math.max(soulCoins(), 999999));
   if(typeof onAchievementProgressSynced==='function') onAchievementProgressSynced();
-  return { achievements:Object.keys(ach.done).length, pacts:PACTS.length, pets:PETS.length, coins:soulCoins() };
+  return { achievements:Object.keys(ach.done).length, pacts:PACTS.length, pets:PETS.length, divineOfferings:typeof DIVINE_OFFERINGS!=='undefined'?DIVINE_OFFERINGS.length:0, coins:soulCoins() };
 }
 function applyLocalPetTestUnlock(){
   const host=location.hostname;
@@ -4301,6 +4351,9 @@ const ACHIEVEMENTS = [
   { id:'assassin_trial', name:'งานเงียบแต่ศพเยอะ', desc:'ฆ่ามอนสเตอร์ 550 ตัวในรันเดียว',
     rewards:[{type:'character',key:'assassin'},{type:'weapon',key:'dagger'},{type:'item',key:'lucky_charm'},{type:'item',key:'sharpening_stone'},{type:'item',key:'execution_coin'},{type:'item',key:'glass_needle'},{type:'coins',amount:75}],
     test:c=>c.kills>=550 },
+  { id:'cursed_eye_trial', name:'ตาต้องสาปเริ่มทำงาน', desc:'ติดคริติคอลอย่างน้อย 180 ครั้งในรันเดียว หรือเคลียร์ Map 3 ด้วย Assassin',
+    rewards:[{type:'character',key:'kuro_raijin'},{type:'weapon',key:'chidori_fang'},{type:'coins',amount:90}],
+    test:c=>c.critHits>=180 || (c.won && c.characterKey==='assassin') },
   { id:'soul_collector', name:'บัญชีวิญญาณไม่เคยว่าง', desc:'ฆ่ามอนสเตอร์ 700 ตัว หรือถือไอเทม 14 ชิ้นในรันเดียว',
     rewards:[{type:'character',key:'necromancer'},{type:'weapon',key:'soulspiral'},{type:'item',key:'demon_soul'},{type:'item',key:'soul_harvester'},{type:'item',key:'stopwatch'},{type:'coins',amount:75}],
     test:c=>c.kills>=700 || c.items>=14 },
@@ -4629,15 +4682,15 @@ function calcRunSoulCoins(){
   let base=0;
   const parts=[];
   if((gameTime||0)>=180){
-    base+=3; parts.push('เล่นครบ 3 นาที +3');
+    base+=5; parts.push('เล่นครบ 3 นาที +5');
     const extra=Math.max(0, Math.floor(((gameTime||0)-180)/60));
-    if(extra>0){ base+=extra; parts.push('เวลาหลัง 3 นาที +'+extra); }
+    if(extra>0){ base+=extra*2; parts.push('เวลาหลัง 3 นาที +'+(extra*2)); }
   }
-  if(runMinibossKills>0){ base+=runMinibossKills*2; parts.push('มินิบอส x'+runMinibossKills+' +'+(runMinibossKills*2)); }
-  if(runBossKills>0){ base+=runBossKills*5; parts.push('บอส x'+runBossKills+' +'+(runBossKills*5)); }
-  if(mapStage>=2 || won){ base+=6; parts.push('ผ่าน Map 1 +6'); }
-  if(mapStage>=3 || won){ base+=10; parts.push('ผ่าน Map 2 +10'); }
-  if(won){ base+=18; parts.push('ชนะ Map 3 +18'); }
+  if(runMinibossKills>0){ base+=runMinibossKills*3; parts.push('มินิบอส x'+runMinibossKills+' +'+(runMinibossKills*3)); }
+  if(runBossKills>0){ base+=runBossKills*8; parts.push('บอส x'+runBossKills+' +'+(runBossKills*8)); }
+  if(mapStage>=2 || won){ base+=10; parts.push('ผ่าน Map 1 +10'); }
+  if(mapStage>=3 || won){ base+=15; parts.push('ผ่าน Map 2 +15'); }
+  if(won){ base+=25; parts.push('ชนะ Map 3 +25'); }
   const mult=Math.min(1.5, Math.max(1, typeof pactMultiplier==='number'?pactMultiplier:1));
   const total=Math.round(base*mult);
   if(mult>1 && base>0) parts.push('Pact x'+mult.toFixed(2));
@@ -4681,6 +4734,7 @@ function exportPlayerProgress(){
     pacts:loadPactUnlockState(),
     soulCoins:soulCoins(),
     pets:loadPetState(),
+    divineOfferings:typeof exportDivineOfferingProgress==='function'?exportDivineOfferingProgress():{owned:{}},
     mailbox:loadMailboxState(),
     migrations:localProgressMigrations()
   };
@@ -4729,6 +4783,7 @@ function importPlayerProgress(progress, opts){
   const mailboxChanged=mergeMailboxState(progress.mailbox);
   const imported=importAchievementProgress(progress.done||{}, opts);
   const pactsChanged=importPactProgress(progress.pacts || progress.pactUnlocks);
+  const divineOfferingsChanged=typeof importDivineOfferingProgress==='function' ? importDivineOfferingProgress(progress.divineOfferings) : false;
   const remoteCoins=Math.max(0, Math.floor(Number(progress.soulCoins||0)));
   let coinsChanged=false, petsChanged=false;
   // The migration marker is permanent; only the response that actually deducted
@@ -4755,7 +4810,7 @@ function importPlayerProgress(progress, opts){
     }
     if(petsChanged) savePetState(local);
   }
-  return { imported, coinsChanged, petsChanged, pactsChanged, mailboxChanged };
+  return { imported, coinsChanged, petsChanged, pactsChanged, divineOfferingsChanged, mailboxChanged };
 }
 function hasAchievement(id){
   return !!(loadAchievementState().done||{})[id];
@@ -4817,6 +4872,7 @@ function achievementContext(){
     kills:kills||0,
     level:player?player.level:1,
     stage:mapStage||1,
+    characterKey:player?player.char:'',
     time:gameTime||0,
     won:!!won,
     damageTaken:damageTaken||0,
@@ -4834,7 +4890,8 @@ function achievementContext(){
     evolved:evolvedCount>0,
     butcherKills:butcherKills||0,
     bossKills:runBossKills||0,
-    minibossKills:runMinibossKills||0
+    minibossKills:runMinibossKills||0,
+    critHits:(runStats&&runStats.critHits)||0
   };
 }
 function completeAchievement(a){
@@ -5076,6 +5133,7 @@ function makePlayer() {
   if (st.regen!=null) p.regen=st.regen;
   if (st.critChance!=null) p.critChance=st.critChance;
   if (st.critDmg!=null) p.critDmg=st.critDmg;
+  if (st.cursedEye!=null) p._cursedEye=st.cursedEye;
   if (st.rateMul!=null) p.rateMul=st.rateMul;
   const petId=selectedPetId();
   const pet=petById(petId);
@@ -5086,6 +5144,7 @@ function makePlayer() {
   }
   if (activePact('glass_soul')){ p.maxHp=Math.max(1,Math.round(p.maxHp*0.75)); p.hp=Math.min(p.hp,p.maxHp); }
   if (activePact('cursed_economy')) p.goldMul*=pactGoldMul();
+  resetDivineOfferingForRun(p);
   return p;
 }
 

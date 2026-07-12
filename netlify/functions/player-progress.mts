@@ -32,6 +32,10 @@ const PACT_IDS = new Set([
   "no_mercy",
   "ravenous_horde",
 ]);
+const DIVINE_OFFERING_IDS = new Set([
+  "astra", "veyra", "morvane", "solarius", "nhal",
+  "serapha", "fenrir", "tharos", "eirene", "midas",
+]);
 const PET_PRICES: Record<string, number> = {
   lumo_wisp: 1200,
   lantern_bunny: 1600,
@@ -156,6 +160,11 @@ function cleanPactState(input: unknown) {
   return { done: { normal, hard } };
 }
 
+function cleanDivineOfferingState(input: unknown) {
+  const src = input && typeof input === "object" ? input as Record<string, unknown> : {};
+  return { owned: cleanDateMap(src.owned, DIVINE_OFFERING_IDS) };
+}
+
 function cleanMigrations(input: unknown) {
   const src = input && typeof input === "object" ? input as Record<string, unknown> : {};
   const out: Record<string, string> = {};
@@ -205,6 +214,14 @@ function mergePacts(a: ReturnType<typeof cleanPactState>, b: ReturnType<typeof c
   return out;
 }
 
+function mergeDivineOfferings(a: ReturnType<typeof cleanDivineOfferingState>, b: ReturnType<typeof cleanDivineOfferingState>) {
+  const owned = { ...a.owned };
+  for (const [id, at] of Object.entries(b.owned)) {
+    if (!owned[id] || Date.parse(at) < Date.parse(owned[id])) owned[id] = at;
+  }
+  return { owned };
+}
+
 function mergePets(a: ReturnType<typeof cleanPetState>, b: ReturnType<typeof cleanPetState>) {
   const owned = { ...a.owned };
   let added = false;
@@ -218,12 +235,13 @@ function mergePets(a: ReturnType<typeof cleanPetState>, b: ReturnType<typeof cle
 
 async function readProgress(store: ReturnType<typeof getStore>, userId: string) {
   const data = await store.get(progressKey(userId), { type: "json" });
-  const obj = data && typeof data === "object" ? data as { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown; mailbox?: unknown; migrations?: unknown; updated_at?: string } : {};
+  const obj = data && typeof data === "object" ? data as { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown; divineOfferings?: unknown; mailbox?: unknown; migrations?: unknown; updated_at?: string } : {};
   return {
     done: cleanDone(obj.done),
     pacts: cleanPactState(obj.pacts),
     soulCoins: cleanCoins(obj.soulCoins),
     pets: cleanPetState(obj.pets),
+    divineOfferings: cleanDivineOfferingState(obj.divineOfferings),
     mailbox: cleanMailbox(obj.mailbox),
     migrations: cleanMigrations(obj.migrations),
     updated_at: obj.updated_at || "",
@@ -265,15 +283,15 @@ export default async (req: Request) => {
     const result = applyProgressMigrations(await readProgress(store, auth.userId));
     const progress = result.progress;
     if (result.changed) {
-      await store.setJSON(progressKey(auth.userId), { done: progress.done, pacts: progress.pacts, soulCoins: progress.soulCoins, pets: progress.pets, mailbox: progress.mailbox, migrations: progress.migrations, updated_at: new Date().toISOString() });
+      await store.setJSON(progressKey(auth.userId), { done: progress.done, pacts: progress.pacts, soulCoins: progress.soulCoins, pets: progress.pets, divineOfferings: progress.divineOfferings, mailbox: progress.mailbox, migrations: progress.migrations, updated_at: new Date().toISOString() });
     }
-    return json({ ok: true, done: progress.done, pacts: progress.pacts, soulCoins: progress.soulCoins, pets: progress.pets, mailbox: progress.mailbox, migrations: progress.migrations, updated_at: progress.updated_at, retroPetDeducted: result.deducted, compensationSoulCoins: result.compensation });
+    return json({ ok: true, done: progress.done, pacts: progress.pacts, soulCoins: progress.soulCoins, pets: progress.pets, divineOfferings: progress.divineOfferings, mailbox: progress.mailbox, migrations: progress.migrations, updated_at: progress.updated_at, retroPetDeducted: result.deducted, compensationSoulCoins: result.compensation });
   }
 
   if (req.method === "POST" || req.method === "PUT") {
     const contentLength = Number.parseInt(req.headers.get("content-length") || "0", 10);
     if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) return json({ error: "Payload too large" }, 413);
-    let body: { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown; mailbox?: unknown; migrations?: unknown; coinSpend?: unknown } = {};
+    let body: { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown; divineOfferings?: unknown; mailbox?: unknown; migrations?: unknown; coinSpend?: unknown } = {};
     try {
       body = await req.json();
     } catch {
@@ -290,13 +308,14 @@ export default async (req: Request) => {
     const pacts = mergePacts(existing.pacts, cleanPactState(body.pacts));
     const incomingPets = cleanPetState(body.pets);
     const petMerge = mergePets(existing.pets, incomingPets);
+    const divineOfferings = mergeDivineOfferings(existing.divineOfferings, cleanDivineOfferingState(body.divineOfferings));
     const mailbox = mergeMailbox(existing.mailbox, cleanMailbox(body.mailbox));
     const incomingCoins = Object.prototype.hasOwnProperty.call(body, "soulCoins") ? cleanCoins(body.soulCoins) : existing.soulCoins;
     const coinSpend = body.coinSpend === true;
     const soulCoins = coinSpend || (petMerge.added && incomingCoins < existing.soulCoins) ? incomingCoins : Math.max(existing.soulCoins, incomingCoins);
-    const payload = { done: merged, pacts, soulCoins, pets: petMerge.pets, mailbox, migrations: existing.migrations, updated_at: new Date().toISOString() };
+    const payload = { done: merged, pacts, soulCoins, pets: petMerge.pets, divineOfferings, mailbox, migrations: existing.migrations, updated_at: new Date().toISOString() };
     await store.setJSON(progressKey(auth.userId), payload);
-    return json({ ok: true, done: payload.done, pacts: payload.pacts, soulCoins: payload.soulCoins, pets: payload.pets, mailbox: payload.mailbox, migrations: payload.migrations, updated_at: payload.updated_at, retroPetDeducted: existingResult.deducted, compensationSoulCoins: existingResult.compensation });
+    return json({ ok: true, done: payload.done, pacts: payload.pacts, soulCoins: payload.soulCoins, pets: payload.pets, divineOfferings: payload.divineOfferings, mailbox: payload.mailbox, migrations: payload.migrations, updated_at: payload.updated_at, retroPetDeducted: existingResult.deducted, compensationSoulCoins: existingResult.compensation });
   }
 
   return json({ error: "Method not allowed" }, 405);

@@ -79,13 +79,10 @@ try {
   await page.waitForSelector("#title", { state: "visible", timeout: 15000 });
   await page.locator("#guestchoice").click().catch(() => {});
   await page.locator("#playbtn").click();
-  await page.locator("#nameconfirm").click();
-  await page.locator(".ccard").first().click();
-  await page.locator(".charselectconfirm").click();
+  await page.locator("#runsetup").waitFor({ state: "visible", timeout: 8000 });
+  await page.locator("#runstartconfigured").click();
   const firstHelp = page.locator("#firsthelp");
   if (await firstHelp.isVisible().catch(() => false)) await page.locator("#firsthelpstart").click();
-  await page.locator(".difficultycard.normal").click();
-  await page.locator("#difficultyconfirm").click();
   await page.waitForTimeout(1600);
   await page.screenshot({ path: "outputs/playtest/01-map1.png" });
 

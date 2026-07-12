@@ -90,6 +90,35 @@ function getPixelProjectileTexture(shape,color){
     px(7,6,5,4,mid); px(11,7,12,2,light); px(14,6,8,1,'#ffffff');
     px(22,6,5,4,dark); px(26,7,4,2,mid); px(29,7,2,2,light);
     px(4,6,1,4,'#7cffd8'); px(8,5,2,1,'#ffffff'); px(8,10,2,1,dark);
+  } else if(shape==='chidori'){
+    // Dense lightning core with jagged side arcs; reads as a charged orb, not a beam.
+    const bolt=(pts,c,w=1)=>{
+      for(let i=0;i<pts.length-1;i++){
+        let [x0,y0]=pts[i], [x1,y1]=pts[i+1];
+        const steps=Math.max(Math.abs(x1-x0),Math.abs(y1-y0))||1;
+        for(let s=0;s<=steps;s++){
+          const x=Math.round(x0+(x1-x0)*s/steps), y=Math.round(y0+(y1-y0)*s/steps);
+          px(x,y,w,w,c);
+        }
+      }
+    };
+    px(2,7,6,2,dark); px(5,6,5,4,mid); px(8,5,5,6,light);
+    px(11,3,12,10,dark); px(13,2,8,12,mid); px(14,4,8,8,light);
+    px(16,5,5,6,'#fff0ff'); px(17,6,3,4,'#ffffff');
+    px(22,5,5,6,mid); px(26,7,5,2,dark); px(25,6,3,4,light);
+    bolt([[4,6],[7,4],[9,5],[12,2],[14,3]],dark,2);
+    bolt([[4,9],[7,12],[10,11],[13,14],[16,12]],dark,2);
+    bolt([[15,1],[18,0],[20,3],[24,2],[27,4]],dark,2);
+    bolt([[16,14],[19,15],[22,12],[26,13],[30,11]],dark,2);
+    bolt([[0,5],[4,4],[7,1],[10,2]],mid,1);
+    bolt([[0,11],[5,12],[8,15],[12,13]],mid,1);
+    bolt([[18,1],[20,0],[22,3],[25,2],[28,5]],light,1);
+    bolt([[18,14],[21,15],[23,12],[27,13],[31,10]],light,1);
+    bolt([[6,7],[9,5],[12,7],[15,4],[18,6],[21,5],[25,7]],'#ffffff',1);
+    bolt([[6,9],[10,10],[13,8],[16,11],[20,9],[24,10]],'#fff0ff',1);
+    px(13,0,3,4,mid); px(16,0,2,3,'#fff0ff'); px(21,1,3,3,light);
+    px(12,12,3,3,light); px(10,14,3,2,mid); px(21,12,4,3,mid); px(24,14,3,2,light);
+    px(7,2,3,2,mid); px(5,0,2,2,light); px(7,12,3,2,mid); px(5,14,2,2,light);
   } else if(shape==='arrow'){
     px(2,7,20,2,dark); px(5,6,15,1,mid); px(5,9,15,1,mid);
     px(20,4,4,8,dark); px(23,3,7,10,dark); px(22,5,5,6,mid); px(25,6,4,4,light);
@@ -165,33 +194,49 @@ function spawnProjectile(dx,dz,s){
   } else {
     const shape=projectileShape;
     const mat=new THREE.SpriteMaterial({
-      map:getPixelProjectileTexture(shape,s.color), color:0xffffff,
+      map:getPixelProjectileTexture(shape,s.color), color:shape==='chidori'?0xd3a0ff:0xffffff,
       transparent:true, opacity:1, alphaTest:0.1, depthWrite:false
     });
-    if(shape==='arrow'||shape==='shard'||shape==='dagger'||shape==='screwdriver'||shape==='shield') { mat.rotation=-Math.atan2(dz,dx); orient=true; }
+    if(shape==='arrow'||shape==='shard'||shape==='dagger'||shape==='screwdriver'||shape==='chidori'||shape==='shield') { mat.rotation=-Math.atan2(dz,dx); orient=true; }
     m=new THREE.Sprite(mat);
     if(shape==='arrow') m.scale.set(1.15*sc,0.52*sc,1);
     else if(shape==='shard') m.scale.set(1.15*sc,0.58*sc,1);
     else if(shape==='dagger') m.scale.set(0.82*sc,0.34*sc,1);
     else if(shape==='screwdriver') m.scale.set(0.96*sc,0.26*sc,1);
+    else if(shape==='chidori') m.scale.set((s.sourceKey==='chidori_fangX'?1.28:1.02)*sc,(s.sourceKey==='chidori_fangX'?0.72:0.58)*sc,1);
     else if(shape==='football') m.scale.set(0.56*sc,0.56*sc,1);
     else if(shape==='shield') m.scale.set(0.94*sc,0.86*sc,1);
     else if(shape==='bone_boomerang') m.scale.set(0.98*sc,0.54*sc,1);
     else if(shape==='bomb') m.scale.set(0.68*sc,0.68*sc,1);
     else if(shape==='doom') m.scale.set(1.05*sc,0.62*sc,1);
     else m.scale.set(0.82*sc,0.52*sc,1);
-    hitRadius=shape==='screwdriver'?0.24:shape==='dagger'?0.28:shape==='arrow'?0.36:shape==='football'?0.30:shape==='shield'?0.38:shape==='bone_boomerang'?0.36:shape==='bomb'?0.42:0.42;
+    hitRadius=shape==='screwdriver'?0.24:shape==='chidori'?0.30:shape==='dagger'?0.28:shape==='arrow'?0.36:shape==='football'?0.30:shape==='shield'?0.38:shape==='bone_boomerang'?0.36:shape==='bomb'?0.42:0.42;
     spin=shape==='shield'?11:shape==='soul'?7:shape==='bone_boomerang'?10:shape==='football'||shape==='bomb'?8:shape==='orb'||shape==='doom'?3:0;
-    noTrail=!(shape==='orb'||shape==='doom'||shape==='shard'||shape==='soul'||shape==='football'||shape==='shield'||shape==='bone_boomerang'||shape==='bomb');
-    trailScale=shape==='shield'?0.62:shape==='bomb'?0.58:shape==='football'?0.34:shape==='bone_boomerang'?0.44:shape==='shard'?0.34:shape==='soul'?0.5:shape==='doom'?0.58:0.42;
-    trailEvery=shape==='shard'||shape==='football'?3:2;
+    noTrail=!(shape==='orb'||shape==='doom'||shape==='shard'||shape==='soul'||shape==='chidori'||shape==='football'||shape==='shield'||shape==='bone_boomerang'||shape==='bomb');
+    trailScale=shape==='shield'?0.62:shape==='bomb'?0.58:shape==='football'?0.34:shape==='bone_boomerang'?0.44:shape==='chidori'?0.32:shape==='shard'?0.34:shape==='soul'?0.5:shape==='doom'?0.58:0.42;
+    trailEvery=shape==='shard'||shape==='football'||shape==='chidori'?3:2;
   }
   scene.add(m);
+  let chargeMesh=null;
+  if(projectileShape==='chidori'){
+    m.material.opacity=0;
+    chargeMesh=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:getPixelProjectileTexture('orb',s.color||0xb45cff), color:0xffffff,
+      transparent:true, opacity:0.92, alphaTest:0.08, depthWrite:false,
+      blending:THREE.AdditiveBlending
+    }));
+    const hx=player.x+dx*0.42, hz=player.z+dz*0.42;
+    chargeMesh.position.set(hx,groundHeight(hx,hz)+0.92,hz);
+    chargeMesh.scale.set(0.48*sc,0.48*sc,1);
+    scene.add(chargeMesh);
+    spawnRing(player.x,player.z,s.color||0xb45cff,0.72*sc,0.12);
+    spawnBurst(hx,hz,s.color||0xb45cff,4,0.28);
+  }
   if(projectileShape==='shield'){
     spawnRing(player.x, player.z, s.color||0x9fd8ff, 0.9*sc, 0.14);
     spawnBurst(player.x, player.z, s.color||0x9fd8ff, 4, 0.32);
   }
-  projectiles.push({ x:player.x, z:player.z, dx, dz, dmg:s.dmg, pierce:s.pierce, speed:s.speed, life:s.life, scale:sc, color:s.color, sourceKey:s.sourceKey, shape:projectileShape, hitRadius, noTrail, spin, orient, trailScale, trailEvery, bouncesLeft:s.bounces||0, bounceRadius:s.bounceRadius||0, bounceDmgMul:s.bounceDmgMul||0.88, impactRadius:s.impactRadius||0, impactDmgMul:s.impactDmgMul||0, alive:true, hit:new Set(), mesh:m });
+  projectiles.push({ x:player.x, z:player.z, dx, dz, dmg:s.dmg, pierce:s.pierce, speed:s.speed, life:s.life, scale:sc, color:s.color, sourceKey:s.sourceKey, shape:projectileShape, hitRadius, noTrail, spin, orient, trailScale, trailEvery, bouncesLeft:s.bounces||0, bounceRadius:s.bounceRadius||0, bounceDmgMul:s.bounceDmgMul||0.88, impactRadius:s.impactRadius||0, impactDmgMul:s.impactDmgMul||0, charge:Math.max(0,s.charge||0), chargeMesh, activated:projectileShape!=='chidori', alive:true, hit:new Set(), mesh:m });
 }
 function spawnStabProjectile(dx,dz,s){
   const sc=player.projScale||1;
@@ -205,16 +250,38 @@ function spawnStabProjectile(dx,dz,s){
   const m=new THREE.Sprite(mat);
   m.scale.set(range, Math.max(0.28,width*1.25), 1);
   scene.add(m);
+  let chargeMesh=null;
+  if(s.shape==='chidori'){
+    const fxColor=s.color||0xb45cff;
+    m.material.opacity=0;
+    chargeMesh=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:getPixelProjectileTexture('orb',fxColor), color:0xffffff, transparent:true,
+      opacity:s.chidoriBranch?0.52:0.92, alphaTest:0.08, depthWrite:false,
+      blending:THREE.AdditiveBlending
+    }));
+    const handX=player.x+dx*0.42, handZ=player.z+dz*0.42;
+    chargeMesh.position.set(handX,groundHeight(handX,handZ)+0.92,handZ);
+    const chargeSize=s.chidoriBranch?0.28:0.48;
+    chargeMesh.scale.set(chargeSize,chargeSize,1);
+    scene.add(chargeMesh);
+    if(!s.chidoriBranch){
+      spawnRing(player.x,player.z,fxColor,0.72*sc,0.12);
+      spawnBurst(handX,handZ,fxColor,4,0.28);
+    }
+  }
   projectiles.push({
     x:player.x+dx*range*0.55, z:player.z+dz*range*0.55,
     dx, dz, dmg:s.dmg, pierce:s.pierce, speed:0, life:s.life||0.16, maxLife:s.life||0.16,
     sourceKey:s.sourceKey,
     scale:sc, color:s.color, hitRadius:width, range, width, noTrail:true, spin:0,
-    stab:true, alive:true, hit:new Set(), mesh:m
+    stab:true, chidori:s.shape==='chidori', chidoriBranch:!!s.chidoriBranch,
+    charge:Math.max(0,s.charge||0), chargeMax:Math.max(0,s.charge||0), chargeMesh, activated:false,
+    alive:true, hit:new Set(), mesh:m
   });
 }
 function killEnemy(e){
   e.alive=false; kills++;
+  if(typeof gainDivineSoul==='function') gainDivineSoul();
   if(e.isStageBoss) runBossKills++;
   else if(e.isBoss && e.elite) runMinibossKills++;
   sfx('kill');
@@ -513,7 +580,7 @@ function activateNearby(){
   else if (best.type==='challenge_door') enterChallengeDoor(best);
 }
 function clearCombatActors(){
-  for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); removeShadow(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
+  for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); removeShadow(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } if(e.cursedEyeMark){ scene.remove(e.cursedEyeMark); freeObj(e.cursedEyeMark); } }
   for (const p of projectiles){ scene.remove(p.mesh); freeObj(p.mesh); }
   for (const sh of enemyShots){ scene.remove(sh.mesh); freeObj(sh.mesh); }
   for (const p of particles){ scene.remove(p.mesh); freeObj(p.mesh); }
@@ -988,7 +1055,7 @@ function completeChallengeRoom(success){
   room.completed=true;
   hordeRemaining=0; hordeSpawnTimer=0; hordeWarned=false;
   const cleanTitle='Challenge complete: '+room.name;
-  for(const e of enemies){ scene.remove(e.spr); freeObj(e.spr); removeShadow(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
+  for(const e of enemies){ scene.remove(e.spr); freeObj(e.spr); removeShadow(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } if(e.cursedEyeMark){ scene.remove(e.cursedEyeMark); freeObj(e.cursedEyeMark); } }
   for(const sh of enemyShots){ scene.remove(sh.mesh); freeObj(sh.mesh); }
   enemies.length=0; clearEnemyShadowInstances(); enemyShots.length=0; boss=null; butcherActive=false;
   if(room.reward==='gold'){
@@ -1927,6 +1994,8 @@ function hurtPlayer(amt,dx,dz,force,src,kind){
   if(player.evade && Math.random()<Math.min(0.70,player.evade)) return;   // dodge cap
   const guard=typeof trySkullGuard==='function' ? trySkullGuard(amt,src) : { blocked:false, amount:amt };
   amt=guard.amount;
+  if(typeof tryDivineShield==='function') amt=tryDivineShield(amt,src);
+  if(amt<=0){ player.invuln=Math.max(player.invuln,0.16); return; }
   sfx('hurt');
   // armor = percentage mitigation (stays useful as def scales), never below 1
   const effectiveDef=player.def*(player.armorMul||1);
@@ -1989,7 +2058,7 @@ function hurtPlayer(amt,dx,dz,force,src,kind){
   }
 }
 
-function cull(arr){ for(let i=arr.length-1;i>=0;i--){ const o=arr[i]; if(!o.alive){ if(o.spr){ scene.remove(o.spr); freeObj(o.spr); } if(o.sh) removeShadow(o.sh); if(o.mesh){ scene.remove(o.mesh); freeObj(o.mesh); } if(o.aura){ scene.remove(o.aura); freeObj(o.aura); } if(o.glow){ if(o.glow.group){ scene.remove(o.glow.group); freeObj(o.glow.group); } if(o.glow.beacon){ scene.remove(o.glow.beacon); freeObj(o.glow.beacon); } } arr.splice(i,1); } } }
+function cull(arr){ for(let i=arr.length-1;i>=0;i--){ const o=arr[i]; if(!o.alive){ if(o.spr){ scene.remove(o.spr); freeObj(o.spr); } if(o.sh) removeShadow(o.sh); if(o.mesh){ scene.remove(o.mesh); freeObj(o.mesh); } if(o.chargeMesh){ scene.remove(o.chargeMesh); freeObj(o.chargeMesh); } if(o.aura){ scene.remove(o.aura); freeObj(o.aura); } if(o.cursedEyeMark){ scene.remove(o.cursedEyeMark); freeObj(o.cursedEyeMark); } if(o.glow){ if(o.glow.group){ scene.remove(o.glow.group); freeObj(o.glow.group); } if(o.glow.beacon){ scene.remove(o.glow.beacon); freeObj(o.glow.beacon); } } arr.splice(i,1); } } }
 
 // ---------- view sync ----------
 // Give billboards life: spawn pop-in, idle breathe/bob, facing flip, hit punch
@@ -2160,6 +2229,7 @@ function updateHUD(dt){
   }
   $('gold').textContent = `⬤ ${player.gold}`;
   { const rdy=player.dashCd<=0; $('dash').textContent = rdy ? '⚡ DASH [Space]' : `⚡ ${player.dashCd.toFixed(1)}s`; $('dash').style.color = rdy ? '#7CE7FF' : '#5a5a66'; }
+  if(typeof updateDivineOfferingHud==='function') updateDivineOfferingHud();
   { const st=stageTime(), ot=overtimeElapsed();
     if (challengeRoom){ $('time').textContent = 'CH '+fmt(Math.max(0,(challengeRoom.startedAt+challengeRoom.duration)-gameTime)); $('time').style.color='#c994ff'; }
     else if (overtimeLevel()){ $('time').textContent = '⚠ OT x'+otPowerMul()+' '+fmt(Math.max(0,ot)); $('time').style.color='#ff6a6a'; }
@@ -2381,16 +2451,17 @@ function renderRunSummary(){
   const soulHtml=typeof soulCoinSummaryHtml==='function' ? soulCoinSummaryHtml() : '';
   const pet=player.petId && typeof petById==='function' ? petById(player.petId) : null;
   const petHtml='<section class="summarypet"><h3>Pet</h3><div class="summaryline"><b>'+escHtml(pet?pet.name:'No Pet')+'</b><span>'+escHtml(pet?pet.buff:'ยังไม่ได้เลือกสัตว์เลี้ยง')+'</span></div></section>';
+  const divineHtml=typeof divineOfferingSummaryHtml==='function' ? divineOfferingSummaryHtml() : '';
   const dp=deathPenalty || { rate:0, percent:0, baseScore:score, finalScore:score, amount:0, reason:won?'Cleared':'' };
   const scoreHtml='<section class="summaryscore"><h3>Final Score</h3><div><b>'+fmtStatNumber(score)+'</b><span>'
     +(dp.rate>0 ? 'Base '+fmtStatNumber(dp.baseScore)+' - Death Penalty '+dp.percent+'% ('+escHtml(dp.reason)+')' : 'No death penalty')
     +'</span></div></section>';
-  el.innerHTML=`<div class="summarypanel ${won?'victory':'defeat'}"><div class="summaryhead"><div><span>RUN SUMMARY</span><h2>${won?'COVENANT CLEARED':'RUN ENDED'}</h2></div><b>${won?'Victory':'Death Cause'}<small>${escHtml(deathText)}</small></b></div><div class="summarycols${unlockHtml||pactHtml||soulHtml?' hasunlock':''}">${scoreHtml}<section class="summaryweapons"><h3>Weapon DPS</h3>${weaponHtml}</section><section class="summaryitems"><h3>Best Items</h3>${itemHtml}</section>${petHtml}${soulHtml}${pactHtml}${unlockHtml}</div></div>`;
+  el.innerHTML=`<div class="summarypanel ${won?'victory':'defeat'}"><div class="summaryhead"><div><span>RUN SUMMARY</span><h2>${won?'COVENANT CLEARED':'RUN ENDED'}</h2></div><b>${won?'Victory':'Death Cause'}<small>${escHtml(deathText)}</small></b></div><div class="summarycols${unlockHtml||pactHtml||soulHtml?' hasunlock':''}">${scoreHtml}<section class="summaryweapons"><h3>Weapon DPS</h3>${weaponHtml}</section><section class="summaryitems"><h3>Best Items</h3>${itemHtml}</section>${petHtml}${divineHtml}${soulHtml}${pactHtml}${unlockHtml}</div></div>`;
 }
 function restart(){
   clearTimeout(deathCinematicTimer); deathCinematic=false;
   { const dfx=document.getElementById('deathfx'); if(dfx) dfx.style.display='none'; }
-  for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); removeShadow(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } }
+  for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); removeShadow(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } if(e.cursedEyeMark){ scene.remove(e.cursedEyeMark); freeObj(e.cursedEyeMark); } }
   for (const p of projectiles){ scene.remove(p.mesh); freeObj(p.mesh); }
   for (const a of afterimages){ scene.remove(a.spr); freeObj(a.spr); } afterimages.length=0;
   clearEventActors();

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
-    "check": "node --check js/game-data.js && node --check js/online-leaderboard.js && node --check js/auth.js && node --check js/progress-sync.js && node --check js/run-telemetry.js && node --check js/audio.js && node --check js/combat.js && node --check js/game-runtime.js && node --check js/game-loop.js && node --check js/game-systems.js && node --check js/mobile-controls.js && node --check netlify/functions/auth-config.mts && node --check netlify/functions/leaderboard.mts && node --check netlify/functions/mailbox.mts && node --check netlify/functions/player-progress.mts",
+    "check": "node --check js/game-data.js && node --check js/online-leaderboard.js && node --check js/auth.js && node --check js/progress-sync.js && node --check js/run-telemetry.js && node --check js/audio.js && node --check js/combat.js && node --check js/game-runtime.js && node --check js/divine-offerings.js && node --check js/menu-redesign.js && node --check js/game-loop.js && node --check js/game-systems.js && node --check js/mobile-controls.js && node --check netlify/functions/auth-config.mts && node --check netlify/functions/leaderboard.mts && node --check netlify/functions/mailbox.mts && node --check netlify/functions/player-progress.mts",
     "audit": "node scripts/audit.mjs",
     "smoke": "node scripts/smoke.mjs",
     "smoke:browser": "node scripts/smoke-browser.mjs",

@@ -33,6 +33,7 @@
         done: parsed && parsed.done ? parsed.done : {},
         soulCoins: Math.max(0, parseInt(localStorage.getItem('sc3_soul_coins_v1')||'0', 10) || 0),
         pets: JSON.parse(localStorage.getItem('sc3_pets_v1') || '{"owned":{},"selected":""}'),
+        divineOfferings: JSON.parse(localStorage.getItem('sc3_divine_offerings_owned_v1') || '{"owned":{}}'),
         mailbox: JSON.parse(localStorage.getItem('sc3_mailbox_v1') || '{"read":{},"claimed":{}}'),
       };
     } catch (_) {
@@ -75,7 +76,7 @@
       if(!remoteRes.ok) throw new Error('Progress load failed: '+remoteRes.status);
       const remote = await remoteRes.json();
       const isPetPurchase = reason === 'pet_purchase';
-      const isCoinSpend = isPetPurchase || reason === 'pet_box';
+      const isCoinSpend = isPetPurchase || reason === 'pet_box' || reason === 'divine_purchase';
       const isPetWrite = isPetPurchase || reason === 'pet_box' || reason === 'pet_select';
       const imported = applyRemote(remote, { skipCoins:isCoinSpend, skipPetSelection:isPetWrite });
       const payload = localPayload();
