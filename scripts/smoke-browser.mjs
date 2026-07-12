@@ -233,6 +233,13 @@ try {
   await marketButton.waitFor({ state: "visible", timeout: 8000 });
   await marketButton.click();
   await page.locator("#soulmarket").waitFor({ state: "visible", timeout: 5000 });
+  await page.locator("[data-market-tab='divine']").click();
+  if (await page.locator(".marketgod").count() !== 10) throw new Error("Soul Market does not list all Divine Spirits");
+  await page.locator("[data-market-divine-detail='astra']").click();
+  await page.locator("#divinemarketdetail").waitFor({ state: "visible", timeout: 5000 });
+  const divineDetailText = await page.locator("#divinemarketdetail").innerText();
+  if (!divineDetailText.includes("Cooldown") || !divineDetailText.includes("1,500")) throw new Error("Locked Divine Spirit details are incomplete");
+  await page.locator(".divinedetailclose").click();
   await page.locator("#marketclose").click({timeout:5000});
   await page.locator("#soulmarket").waitFor({ state: "hidden", timeout: 5000 });
   const play = page.locator("#playbtn");

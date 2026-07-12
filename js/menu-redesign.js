@@ -104,6 +104,14 @@ function startConfiguredRun(){
 }
 
 function soulMarketIsOpen(){ return document.getElementById('soulmarket')?.style.display==='flex'; }
+function divineMarketRole(id){
+  const roles={
+    astra:['โจมตีหมู่','Area Damage'], veyra:['โจมตีเป้าหมาย','Target Damage'], morvane:['อัญเชิญ','Summon'],
+    solarius:['พิพากษาทั้งสนาม','Global Damage'], nhal:['ควบคุมฝูง','Crowd Control'], serapha:['เอาตัวรอด','Survival'],
+    fenrir:['เสริมพลัง','Offense Buff'], tharos:['ป้องกัน','Defense'], eirene:['ควบคุมเวลา','Time Control'], midas:['เสี่ยงโชค','Gamble']
+  };
+  const row=roles[id]||['สกิลพิเศษ','Special']; return gameLang()==='en'?row[1]:row[0];
+}
 function openSoulMarket(tab,fromSetup){
   activeMarketTab=tab||activeMarketTab||'pets';
   const market=document.getElementById('soulmarket'); market.dataset.returnSetup=fromSetup?'1':'0'; market.style.display='flex';
@@ -116,12 +124,29 @@ function renderSoulMarket(tab){
   document.querySelectorAll('[data-market-tab]').forEach(b=>b.classList.toggle('selected',b.dataset.marketTab===activeMarketTab));
   if(activeMarketTab==='pets') body.innerHTML=`<div class="marketgrid">${petShopCardsMarkup()}</div>`;
   else if(activeMarketTab==='box') body.innerHTML=`<div class="marketbox"><div class="marketodds"><div><b>0.5%</b><span>Special Pet</span></div><div><b>5%</b><span>Normal Pet</span></div><div><b>94.5%</b><span>Soul Coins</span></div></div>${guidePetBoxCard()}</div>`;
-  else body.innerHTML=`<div class="marketdivine">${DIVINE_OFFERINGS.map(o=>{ const owned=isDivineOfferingOwned(o.id), selected=selectedDivineOfferingId===o.id; return `<article class="marketgod${owned?' owned':''}${selected?' selected':''}"><img src="assets/sprites/deity_${o.id}.png" alt=""><b>${escHtml(o.name)}</b><em>${escHtml(o.title)}</em><p>${escHtml(owned?o.effect:o.short)}</p><small>${owned?'ปลดล็อกแล้ว':'1,500 Soul Coins'} · CD ${divineOfferingCooldown(o.id)}s</small><button data-market-divine="${o.id}">${owned?(selected?'เลือกอยู่':'เลือกใช้'):'ซื้อ'}</button></article>`; }).join('')}</div>`;
+  else body.innerHTML=`<div class="marketdivine">${DIVINE_OFFERINGS.map(o=>{ const owned=isDivineOfferingOwned(o.id), selected=selectedDivineOfferingId===o.id; return `<article class="marketgod${owned?' owned':''}${selected?' selected':''}"><img src="assets/sprites/deity_${o.id}.png" alt=""><b>${escHtml(o.name)}</b><em>${escHtml(o.title)}</em><span class="marketgodrole">${escHtml(divineMarketRole(o.id))}</span><p>${escHtml(o.effect)}</p><dl><div><dt>${gameLang()==='en'?'Offering':'เครื่องบูชา'}</dt><dd>${escHtml(o.cost)}</dd></div><div><dt>Cooldown</dt><dd>${divineOfferingCooldown(o.id)}s</dd></div></dl><small>${owned?(gameLang()==='en'?'Owned':'ปลดล็อกแล้ว'):'1,500 Soul Coins'}</small><div class="marketgodactions"><button data-market-divine-detail="${o.id}">${gameLang()==='en'?'Details':'รายละเอียด'}</button><button data-market-divine="${o.id}">${owned?(selected?(gameLang()==='en'?'Equipped':'เลือกอยู่'):(gameLang()==='en'?'Equip':'เลือกใช้')):(gameLang()==='en'?'Buy 1,500':'ซื้อ 1,500')}</button></div></article>`; }).join('')}</div>`;
   body.querySelectorAll('[data-pet-buy]').forEach(b=>b.onclick=()=>{ buyPet(b.dataset.petBuy); closeGuide(); renderSoulMarket('pets'); });
   body.querySelectorAll('[data-pet-select]').forEach(b=>b.onclick=()=>{ selectPet(b.dataset.petSelect); closeGuide(); renderSoulMarket('pets'); });
   body.querySelectorAll('[data-pet-box-open]').forEach(b=>b.onclick=()=>{ openPetBox(); closeGuide(); renderSoulMarket('box'); });
   body.querySelectorAll('[data-market-divine]').forEach(b=>b.onclick=()=>{ const id=b.dataset.marketDivine; if(isDivineOfferingOwned(id)){ selectedDivineOfferingId=id; try{localStorage.setItem(DIVINE_OFFERING_LAST_KEY,id);}catch(_){} }else buyDivineOffering(id); renderSoulMarket('divine'); });
+  body.querySelectorAll('[data-market-divine-detail]').forEach(b=>b.onclick=()=>openDivineMarketDetail(b.dataset.marketDivineDetail));
 }
+function openDivineMarketDetail(id){
+  const o=divineOfferingById(id); if(!o) return;
+  const market=document.getElementById('soulmarket'), owned=isDivineOfferingOwned(id), selected=selectedDivineOfferingId===id;
+  let modal=document.getElementById('divinemarketdetail');
+  if(!modal){ modal=document.createElement('div'); modal.id='divinemarketdetail'; market.appendChild(modal); }
+  modal.innerHTML=`<div class="divinedetailpanel"><button class="divinedetailclose" type="button">×</button><div class="divinedetailhero"><img src="assets/sprites/deity_${o.id}.png" alt=""><div><span>${escHtml(divineMarketRole(o.id))}</span><h3>${escHtml(o.name)}</h3><em>${escHtml(o.title)}</em></div></div><section><b>${gameLang()==='en'?'Skill effect':'ผลสกิล'}</b><p>${escHtml(o.effect)}</p></section><div class="divinedetailstats"><div><span>${gameLang()==='en'?'Offering cost':'เครื่องบูชา'}</span><b>${escHtml(o.cost)}</b></div><div><span>Cooldown</span><b>${divineOfferingCooldown(o.id)} ${gameLang()==='en'?'seconds':'วินาที'}</b></div><div><span>${gameLang()==='en'?'Price':'ราคา'}</span><b>${owned?(gameLang()==='en'?'Owned':'มีแล้ว'):'1,500 Soul Coins'}</b></div></div><small>${escHtml(o.short)}</small><button class="divinedetailaction" data-detail-action="${o.id}">${owned?(selected?(gameLang()==='en'?'Equipped':'เลือกใช้อยู่'):(gameLang()==='en'?'Equip this spirit':'เลือกใช้วิญญาณนี้')):(gameLang()==='en'?'Buy for 1,500 Soul Coins':'ซื้อ 1,500 Soul Coins')}</button></div>`;
+  modal.style.display='flex';
+  modal.querySelector('.divinedetailclose').onclick=closeDivineMarketDetail;
+  modal.onclick=e=>{ if(e.target===modal) closeDivineMarketDetail(); };
+  modal.querySelector('[data-detail-action]').onclick=()=>{
+    if(isDivineOfferingOwned(id)){ selectedDivineOfferingId=id; try{localStorage.setItem(DIVINE_OFFERING_LAST_KEY,id);}catch(_){} }
+    else if(!buyDivineOffering(id)) return;
+    closeDivineMarketDetail(); renderSoulMarket('divine');
+  };
+}
+function closeDivineMarketDetail(){ const modal=document.getElementById('divinemarketdetail'); if(modal) modal.style.display='none'; }
 function initMenuRedesign(){
   const back=document.getElementById('runsetupback'), close=document.getElementById('marketclose');
   const market=document.getElementById('soulmarket');
