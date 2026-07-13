@@ -233,6 +233,9 @@ try {
   await marketButton.waitFor({ state: "visible", timeout: 8000 });
   await marketButton.click();
   await page.locator("#soulmarket").waitFor({ state: "visible", timeout: 5000 });
+  if (await page.locator("#markettabs [data-market-tab]").count() !== 2) throw new Error("Soul Market should have exactly two tabs");
+  const petOdds = await page.locator(".marketpetodds").innerText();
+  if (!petOdds.includes("0.5%") || !petOdds.includes("5%") || !petOdds.includes("94.5%")) throw new Error("Pet Box odds are missing from the Pet tab");
   await page.locator("[data-market-tab='divine']").click();
   if (await page.locator(".marketgod").count() !== 10) throw new Error("Soul Market does not list all Divine Spirits");
   await page.locator("[data-market-divine-detail='astra']").click();
