@@ -113,17 +113,20 @@ function divineMarketRole(id){
   const row=roles[id]||['สกิลพิเศษ','Special']; return gameLang()==='en'?row[1]:row[0];
 }
 function openSoulMarket(tab,fromSetup){
-  activeMarketTab=tab||activeMarketTab||'pets';
+  const requestedTab=tab||activeMarketTab||'pets';
   const market=document.getElementById('soulmarket'); market.dataset.returnSetup=fromSetup?'1':'0'; market.style.display='flex';
-  renderSoulMarket(activeMarketTab);
+  renderSoulMarket(requestedTab);
+  const body=document.getElementById('marketbody'); if(body) body.scrollTop=0;
 }
 function closeSoulMarket(){ const market=document.getElementById('soulmarket'); if(market) market.style.display='none'; if(market?.dataset.returnSetup==='1') renderRunSetup(); }
 function renderSoulMarket(tab){
-  activeMarketTab=tab==='divine'?'divine':'pets'; const body=document.getElementById('marketbody'); if(!body) return;
+  const nextTab=tab==='divine'?'divine':'pets', tabChanged=nextTab!==activeMarketTab;
+  activeMarketTab=nextTab; const body=document.getElementById('marketbody'); if(!body) return;
   document.getElementById('marketcoins').textContent=soulCoins().toLocaleString();
   document.querySelectorAll('[data-market-tab]').forEach(b=>b.classList.toggle('selected',b.dataset.marketTab===activeMarketTab));
   if(activeMarketTab==='pets') body.innerHTML=`<div class="marketpetodds"><div><b>0.5%</b><span>Special Pet</span></div><div><b>5%</b><span>Normal Pet</span></div><div><b>94.5%</b><span>Soul Coins 5–50</span></div><small>${gameLang()==='en'?'Premium Pet Box · 100 Soul Coins per opening':'กล่องสุ่มสัตว์เลี้ยง · เปิดครั้งละ 100 Soul Coins'}</small></div><div class="marketgrid">${petShopCardsMarkup()}</div>`;
   else body.innerHTML=`<div class="marketdivine">${DIVINE_OFFERINGS.map(o=>{ const owned=isDivineOfferingOwned(o.id), selected=selectedDivineOfferingId===o.id; return `<article class="marketgod${owned?' owned':''}${selected?' selected':''}"><img src="assets/sprites/deity_${o.id}.png" alt=""><b>${escHtml(o.name)}</b><em>${escHtml(o.title)}</em><span class="marketgodrole">${escHtml(divineMarketRole(o.id))}</span><p>${escHtml(o.effect)}</p><dl><div><dt>${gameLang()==='en'?'Offering':'เครื่องบูชา'}</dt><dd>${escHtml(o.cost)}</dd></div><div><dt>Cooldown</dt><dd>${divineOfferingCooldown(o.id)}s</dd></div></dl><small>${owned?(gameLang()==='en'?'Owned':'ปลดล็อกแล้ว'):'1,500 Soul Coins'}</small><div class="marketgodactions"><button data-market-divine-detail="${o.id}">${gameLang()==='en'?'Details':'รายละเอียด'}</button><button data-market-divine="${o.id}">${owned?(selected?(gameLang()==='en'?'Equipped':'เลือกอยู่'):(gameLang()==='en'?'Equip':'เลือกใช้')):(gameLang()==='en'?'Buy 1,500':'ซื้อ 1,500')}</button></div></article>`; }).join('')}</div>`;
+  if(tabChanged) body.scrollTop=0;
   body.querySelectorAll('[data-pet-buy]').forEach(b=>b.onclick=()=>{ buyPet(b.dataset.petBuy); closeGuide(); renderSoulMarket('pets'); });
   body.querySelectorAll('[data-pet-select]').forEach(b=>b.onclick=()=>{ selectPet(b.dataset.petSelect); closeGuide(); renderSoulMarket('pets'); });
   body.querySelectorAll('[data-pet-box-open]').forEach(b=>b.onclick=()=>{ openPetBox(); closeGuide(); renderSoulMarket('pets'); });
@@ -135,7 +138,7 @@ function openDivineMarketDetail(id){
   const market=document.getElementById('soulmarket'), owned=isDivineOfferingOwned(id), selected=selectedDivineOfferingId===id;
   let modal=document.getElementById('divinemarketdetail');
   if(!modal){ modal=document.createElement('div'); modal.id='divinemarketdetail'; market.appendChild(modal); }
-  modal.innerHTML=`<div class="divinedetailpanel"><button class="divinedetailclose" type="button">×</button><div class="divinedetailhero"><img src="assets/sprites/deity_${o.id}.png" alt=""><div><span>${escHtml(divineMarketRole(o.id))}</span><h3>${escHtml(o.name)}</h3><em>${escHtml(o.title)}</em></div></div><section><b>${gameLang()==='en'?'Skill effect':'ผลสกิล'}</b><p>${escHtml(o.effect)}</p></section><div class="divinedetailstats"><div><span>${gameLang()==='en'?'Offering cost':'เครื่องบูชา'}</span><b>${escHtml(o.cost)}</b></div><div><span>Cooldown</span><b>${divineOfferingCooldown(o.id)} ${gameLang()==='en'?'seconds':'วินาที'}</b></div><div><span>${gameLang()==='en'?'Price':'ราคา'}</span><b>${owned?(gameLang()==='en'?'Owned':'มีแล้ว'):'1,500 Soul Coins'}</b></div></div><small>${escHtml(o.short)}</small><button class="divinedetailaction" data-detail-action="${o.id}">${owned?(selected?(gameLang()==='en'?'Equipped':'เลือกใช้อยู่'):(gameLang()==='en'?'Equip this spirit':'เลือกใช้วิญญาณนี้')):(gameLang()==='en'?'Buy for 1,500 Soul Coins':'ซื้อ 1,500 Soul Coins')}</button></div>`;
+  modal.innerHTML=`<div class="divinedetailpanel"><button class="divinedetailclose" type="button">×</button><div class="divinedetailhero"><img src="assets/sprites/deity_${o.id}.png" alt=""><div><span>${escHtml(divineMarketRole(o.id))}</span><h3>${escHtml(o.name)}</h3><em>${escHtml(o.title)}</em></div></div><section><b>${gameLang()==='en'?'Skill effect':'ผลสกิล'}</b><p>${escHtml(o.effect)}</p></section><div class="divinedetailstats"><div><span>${gameLang()==='en'?'Offering cost':'เครื่องบูชา'}</span><b>${escHtml(o.cost)}</b></div><div><span>Cooldown</span><b>${divineOfferingCooldown(o.id)} ${gameLang()==='en'?'seconds':'วินาที'}</b></div><div><span>${gameLang()==='en'?'Price':'ราคา'}</span><b>${owned?(gameLang()==='en'?'Owned':'มีแล้ว'):'1,500 Soul Coins'}</b></div></div><small>${escHtml(o.short+(divineOfferingScalingText(o.id)?' · '+divineOfferingScalingText(o.id):''))}</small><button class="divinedetailaction" data-detail-action="${o.id}">${owned?(selected?(gameLang()==='en'?'Equipped':'เลือกใช้อยู่'):(gameLang()==='en'?'Equip this spirit':'เลือกใช้วิญญาณนี้')):(gameLang()==='en'?'Buy for 1,500 Soul Coins':'ซื้อ 1,500 Soul Coins')}</button></div>`;
   modal.style.display='flex';
   modal.querySelector('.divinedetailclose').onclick=closeDivineMarketDetail;
   modal.onclick=e=>{ if(e.target===modal) closeDivineMarketDetail(); };

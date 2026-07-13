@@ -2134,7 +2134,7 @@ function renderLocalizedGuide(kind, guide, body, opts){
     const note=gameLang()==='en'
       ? `${owned}/${DIVINE_OFFERINGS.length} owned · Buy for ${DIVINE_OFFERING_PRICE.toLocaleString()} Soul Coins each · Equip one per run · Press Q to invoke`
       : `มีแล้ว ${owned}/${DIVINE_OFFERINGS.length} · ราคาองค์ละ ${DIVINE_OFFERING_PRICE.toLocaleString()} Soul Coins · เลือกได้ 1 องค์ต่อรัน · กด Q เพื่อใช้`;
-    const cards=DIVINE_OFFERINGS.map(o=>guideCard(`assets/sprites/deity_${o.id}.png`,`${o.name} · ${o.title}`,`${gameLang()==='en'?'Offering cost':'เครื่องบูชา'}: ${o.cost} · ${o.effect}`,`${o.short} · Cooldown ${divineOfferingCooldown(o.id)}s · ${isDivineOfferingOwned(o.id)?(gameLang()==='en'?'Owned':'มีแล้ว'):(gameLang()==='en'?'Not owned':'ยังไม่มี')}`,'legendary')).join('');
+    const cards=DIVINE_OFFERINGS.map(o=>guideCard(`assets/sprites/deity_${o.id}.png`,`${o.name} · ${o.title}`,`${gameLang()==='en'?'Offering cost':'เครื่องบูชา'}: ${o.cost} · ${o.effect}`,`${o.short}${divineOfferingScalingText(o.id)?' · '+divineOfferingScalingText(o.id):''} · Cooldown ${divineOfferingCooldown(o.id)}s · ${isDivineOfferingOwned(o.id)?(gameLang()==='en'?'Owned':'มีแล้ว'):(gameLang()==='en'?'Not owned':'ยังไม่มี')}`,'legendary')).join('');
     body.innerHTML=guideHeader(tr('guide.divine'),tr('guide.divine.desc')+' · '+note,kind)+'<button class="guide-market-link" data-open-soul-market="divine">'+(gameLang()==='en'?'Open Divine Market':'เปิดตลาดวิญญาณเทพ')+'</button><div class="guidegrid divine">'+cards+'</div>';
     bindGuideChrome(body);
     body.querySelector('[data-open-soul-market]').onclick=()=>{ closeGuide(); openSoulMarket('divine',false); };

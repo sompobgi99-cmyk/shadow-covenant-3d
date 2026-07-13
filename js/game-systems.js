@@ -1862,11 +1862,28 @@ function runSkills(e, dt, nx, nz, d){
   }
 }
 function ensurePickupIconTexture(key,type){
-  if(tex[key]) return;
-  const size=type==='haste'||type==='might'||type==='magnet'?32:16;
+  if(tex[key] && (type!=='xp' && type!=='gold' || tex[key]._pickupIconV2)) return;
+  const size=type==='haste'||type==='might'||type==='magnet'?32:(type==='xp'||type==='gold'?24:16);
   const cv=document.createElement('canvas'); cv.width=size; cv.height=size;
   const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
-  if(type==='hp'){
+  if(type==='xp'){
+    // Narrow crystal silhouette stays readable when XP and coins overlap.
+    ctx.fillStyle='#071b36'; ctx.fillRect(10,1,4,2); ctx.fillRect(7,3,10,3); ctx.fillRect(5,6,14,8);
+    ctx.fillRect(7,14,10,4); ctx.fillRect(9,18,6,3); ctx.fillRect(11,21,2,2);
+    ctx.fillStyle='#147aa8'; ctx.fillRect(9,3,6,3); ctx.fillRect(7,6,10,8); ctx.fillRect(9,14,6,5); ctx.fillRect(11,19,2,2);
+    ctx.fillStyle='#27cfe5'; ctx.fillRect(10,4,4,2); ctx.fillRect(8,6,6,8); ctx.fillRect(10,14,4,4);
+    ctx.fillStyle='#baffff'; ctx.fillRect(10,5,2,8); ctx.fillRect(8,7,2,4);
+    ctx.fillStyle='#2877d8'; ctx.fillRect(14,7,3,7); ctx.fillRect(13,14,2,3);
+  } else if(type==='gold'){
+    // Broad hexagonal coin with a dark square cut makes gold distinct by shape, not color alone.
+    ctx.fillStyle='#3b1905'; ctx.fillRect(7,2,10,2); ctx.fillRect(4,4,16,3); ctx.fillRect(2,7,20,10);
+    ctx.fillRect(4,17,16,3); ctx.fillRect(7,20,10,2);
+    ctx.fillStyle='#b85b0c'; ctx.fillRect(7,4,10,2); ctx.fillRect(5,6,14,12); ctx.fillRect(7,18,10,2);
+    ctx.fillStyle='#f0a51c'; ctx.fillRect(8,5,8,2); ctx.fillRect(6,7,12,10); ctx.fillRect(8,17,8,2);
+    ctx.fillStyle='#ffd95a'; ctx.fillRect(8,6,8,2); ctx.fillRect(7,8,3,7); ctx.fillRect(10,8,7,3);
+    ctx.fillStyle='#6f3108'; ctx.fillRect(10,10,6,6);
+    ctx.fillStyle='#fff3a0'; ctx.fillRect(8,7,2,5); ctx.fillRect(10,7,5,2);
+  } else if(type==='hp'){
     ctx.fillStyle='#c03030'; ctx.fillRect(5,0,6,16); ctx.fillRect(0,5,16,6);
     ctx.fillStyle='#ff6060'; ctx.fillRect(6,1,4,14); ctx.fillRect(1,6,14,4);
     ctx.fillStyle='#fff'; ctx.fillRect(7,2,2,12); ctx.fillRect(2,7,12,2);
@@ -1891,6 +1908,7 @@ function ensurePickupIconTexture(key,type){
   }
   const t=new THREE.CanvasTexture(cv);
   t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
+  if(type==='xp'||type==='gold') t._pickupIconV2=true;
   tex[key]=t;
 }
 function makePickupGlow(type){
@@ -1915,8 +1933,9 @@ function dropPickup(x,z,type,value,eventTag){
   else if (type==='might') key='icon_might';
   else if (type==='magnet') key='icon_magnet_buff';
   else key='icon_xp';
-  if (type==='hp' || type==='haste' || type==='might' || type==='magnet') ensurePickupIconTexture(key,type);
-  const spr=billboard(key, type==='haste'||type==='might'||type==='magnet'?0.78:0.55);
+  ensurePickupIconTexture(key,type);
+  const pickupHeight=type==='xp'?0.47:type==='gold'?0.60:type==='haste'||type==='might'||type==='magnet'?0.78:0.55;
+  const spr=billboard(key,pickupHeight);
   scene.add(spr);
   pickups.push({
     x:x+Math.cos(a)*0.3, z:z+Math.sin(a)*0.3,
@@ -2127,8 +2146,16 @@ function syncMeshes() {
   for (const p of projectiles) p.mesh.position.set(p.x, groundHeight(p.x,p.z)+0.9, p.z);
   for (const sh of enemyShots) sh.mesh.position.set(sh.x, groundHeight(sh.x,sh.z)+0.9, sh.z);
   for (const pk of pickups){ const y=groundHeight(pk.x,pk.z); const isBuff=pk.type==='haste'||pk.type==='might'||pk.type==='magnet';
-    const bob=Math.sin(now*(isBuff?0.0075:0.005)+pk.x)*(isBuff?0.18:0.12);
-    pk.spr.position.set(pk.x, y+(isBuff?0.72:0.5)+bob, pk.z);
+    const isXp=pk.type==='xp', isGold=pk.type==='gold';
+    const bobSpeed=isBuff?0.0075:isXp?0.0072:isGold?0.0038:0.005;
+    const bobAmount=isBuff?0.18:isXp?0.10:isGold?0.065:0.12;
+    const bob=Math.sin(now*bobSpeed+pk.x)*(bobAmount);
+    const baseY=isBuff?0.72:isXp?0.43:isGold?0.57:0.5;
+    pk.spr.position.set(pk.x,y+baseY+bob,pk.z);
+    if(isXp||isGold){
+      const pulse=0.5+Math.sin(gameTime*(isXp?6.2:3.4)+pk.z)*0.5;
+      pk.spr.material.opacity=(isXp?0.88:0.94)+pulse*(isXp?0.12:0.06);
+    }
     if(isBuff){
       const pulse=0.5+Math.sin(gameTime*5.2+pk.x)*0.5;
       pk.spr.material.rotation += (pk.type==='might'?0.9:-0.7)*0.016;

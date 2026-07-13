@@ -383,7 +383,7 @@ function spawnRaijinWraith(target, seedDamage, meta){
   const now=typeof gameTime==='number'?gameTime:0;
   const evolved=w.key==='chidori_fangX';
   if(now < (player._raijinWraithReadyAt||0)) return false;
-  player._raijinWraithReadyAt = now + (evolved ? 2.65 : 3.20);
+  player._raijinWraithReadyAt = now + (evolved ? 1.60 : 2.20);
   let dx=target.x-player.x, dz=target.z-player.z;
   const len=Math.hypot(dx,dz)||1; dx/=len; dz/=len;
   const s=wstats(w.key,w.lvl);

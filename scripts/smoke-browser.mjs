@@ -87,6 +87,42 @@ try {
   if (runCoinRewards.fullClear !== 99 || runCoinRewards.fastClear !== 50) {
     throw new Error(`Soul Coin reward calculation changed: ${JSON.stringify(runCoinRewards)}`);
   }
+  const divineScalingRegression = await page.evaluate(() => {
+    const previous = { mapStage, gameTime, stageStartTime, finalBossKilledAt };
+    gameTime=0; stageStartTime=0; finalBossKilledAt=null;
+    mapStage=1; const map1=divineOfferingDamageScale('astra',{isBoss:false});
+    mapStage=2; const map2=divineOfferingDamageScale('nhal',{isBoss:false});
+    mapStage=3; const map3VeyraBoss=divineOfferingDamageScale('veyra',{isBoss:true});
+    const defensive=divineOfferingDamageScale('tharos',{isBoss:true});
+    mapStage=1; gameTime=600; const overtime=divineOfferingDamageScale('astra',{isBoss:false});
+    mapStage=previous.mapStage; gameTime=previous.gameTime; stageStartTime=previous.stageStartTime; finalBossKilledAt=previous.finalBossKilledAt;
+    return { map1, map2, map3VeyraBoss, defensive, overtime };
+  });
+  if (
+    divineScalingRegression.map1 !== 1 ||
+    divineScalingRegression.map2 !== 1.4 ||
+    divineScalingRegression.map3VeyraBoss !== 3 ||
+    divineScalingRegression.defensive !== 1 ||
+    Math.abs(divineScalingRegression.overtime-Math.sqrt(2)) > 0.000001
+  ) {
+    throw new Error(`Divine scaling regression: ${JSON.stringify(divineScalingRegression)}`);
+  }
+  const pickupVisualRegression = await page.evaluate(() => {
+    ensurePickupIconTexture("icon_xp", "xp");
+    ensurePickupIconTexture("icon_gold", "gold");
+    const xp = tex.icon_xp;
+    const gold = tex.icon_gold;
+    const xpPixels = xp.image.getContext("2d").getImageData(0, 0, xp.image.width, xp.image.height).data;
+    const goldPixels = gold.image.getContext("2d").getImageData(0, 0, gold.image.width, gold.image.height).data;
+    let differentPixels = 0;
+    for (let i = 0; i < xpPixels.length; i += 4) {
+      if (xpPixels[i] !== goldPixels[i] || xpPixels[i + 1] !== goldPixels[i + 1] || xpPixels[i + 2] !== goldPixels[i + 2] || xpPixels[i + 3] !== goldPixels[i + 3]) differentPixels++;
+    }
+    return { xpWidth:xp.image.width, goldWidth:gold.image.width, xpV2:!!xp._pickupIconV2, goldV2:!!gold._pickupIconV2, differentPixels };
+  });
+  if (pickupVisualRegression.xpWidth !== 24 || pickupVisualRegression.goldWidth !== 24 || !pickupVisualRegression.xpV2 || !pickupVisualRegression.goldV2 || pickupVisualRegression.differentPixels < 80) {
+    throw new Error(`Pickup visual regression: ${JSON.stringify(pickupVisualRegression)}`);
+  }
   const mailboxRegression = await page.evaluate(() => {
     const keys = [SOUL_COINS_STORAGE_KEY, SOUL_COIN_COMPENSATION_STORAGE_KEY, MAILBOX_STORAGE_KEY];
     const original = Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)]));

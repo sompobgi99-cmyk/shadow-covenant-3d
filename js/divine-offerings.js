@@ -16,6 +16,7 @@ const DIVINE_OFFERING_COOLDOWNS = Object.freeze({
 const DIVINE_OFFERING_LAST_KEY = 'sc3_divine_offering_v1';
 const DIVINE_OFFERING_STATE_KEY = 'sc3_divine_offerings_owned_v1';
 const DIVINE_OFFERING_PRICE = 1500;
+const DIVINE_SCALING_DAMAGE_IDS = new Set(['astra','veyra','morvane','solarius','nhal']);
 
 const DIVINE_OFFERINGS = [
   { id:'astra', name:'Astra', title:'Blade Saint', rune:'⚔', color:0xf2cf72, icon:0,
@@ -120,6 +121,21 @@ function updateDivineVisualFx(dt){
 function divineOfferingById(id){ return DIVINE_OFFERINGS.find(o=>o.id===id) || null; }
 function activeDivineOffering(){ return divineOfferingById(activeDivineOfferingId); }
 function divineOfferingCooldown(id){ return DIVINE_OFFERING_COOLDOWNS[id] || DIVINE_OFFERING_COOLDOWN; }
+function divineOfferingDamageScale(id,target){
+  if(!DIVINE_SCALING_DAMAGE_IDS.has(id)) return 1;
+  const stageMul=mapStage>=3?2.0:mapStage>=2?1.4:1;
+  const overtimeMul=Math.sqrt(Math.max(1,typeof overtimeTier==='function'?overtimeTier():1));
+  const bossMul=target&&target.isBoss?(id==='veyra'?1.5:id==='astra'?1.25:1):1;
+  return stageMul*overtimeMul*bossMul;
+}
+function divineOfferingScalingText(id){
+  if(!DIVINE_SCALING_DAMAGE_IDS.has(id)) return '';
+  const en=typeof gameLang==='function'&&gameLang()==='en';
+  const boss=id==='veyra'?' · Boss x1.5':id==='astra'?' · Boss x1.25':'';
+  return en
+    ? `Damage scaling: Map 1 x1.0 · Map 2 x1.4 · Map 3 x2.0 · Overtime √tier${boss}`
+    : `ดาเมจตามด่าน: Map 1 x1.0 · Map 2 x1.4 · Map 3 x2.0 · Overtime √ระดับ${boss}`;
+}
 function loadDivineOfferingState(){
   try{ const parsed=JSON.parse(localStorage.getItem(DIVINE_OFFERING_STATE_KEY)||'{}'); return {owned:parsed&&parsed.owned&&typeof parsed.owned==='object'?parsed.owned:{}}; }
   catch(_){ return {owned:{}}; }
@@ -227,7 +243,9 @@ function divineTargets(range,count){
 function divineDamage(e,amount,color){
   if(!e || !e.alive) return;
   const before=e.hp;
-  dealEnemyDamage(e,amount,color,e.x-player.x,e.z-player.z,0,true,{item:'divine_'+activeDivineOfferingId});
+  const id=(player&&player.divineOfferingId)||activeDivineOfferingId;
+  const scaledAmount=amount*divineOfferingDamageScale(id,e);
+  dealEnemyDamage(e,scaledAmount,color,e.x-player.x,e.z-player.z,0,true,{item:'divine_'+id});
   if(player) player.divineDamage=(player.divineDamage||0)+Math.max(0,before-e.hp);
 }
 
