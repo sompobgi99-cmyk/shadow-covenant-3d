@@ -657,8 +657,11 @@ function update(dt) {
       const t=1-f.life/f.max, s=1+f.grow*t;
       f.mesh.scale.set(f.baseScale.x*s, f.baseScale.y*s, f.baseScale.z*s);
     }
-    if (f.mesh.material) f.mesh.material.opacity=(f.sweep?0.85:(f.fade||0.72))*(f.life/f.max);
-    else if (f.mesh.children) for (const ch of f.mesh.children) if(ch.material) ch.material.opacity=(f.fade||0.72)*(f.life/f.max); }
+    const fadeRatio=f.hold
+      ? (f.life>f.max-f.hold ? 1 : f.life/Math.max(0.001,f.max-f.hold))
+      : f.life/f.max;
+    if (f.mesh.material) f.mesh.material.opacity=(f.sweep?0.85:(f.fade||0.72))*fadeRatio;
+    else if (f.mesh.children) for (const ch of f.mesh.children) if(ch.material) ch.material.opacity=(ch.userData.fxOpacity||f.fade||0.72)*fadeRatio; }
   cull(enemies); cull(projectiles); cull(pickups); cull(enemyShots); cull(breakables);
   for (let i=afterimages.length-1;i>=0;i--){ const a=afterimages[i]; a.life-=dt;
     if (a.life<=0){ scene.remove(a.spr); freeObj(a.spr); afterimages.splice(i,1); }

@@ -391,12 +391,21 @@ function spawnRaijinWraith(target, seedDamage, meta){
   const dmg=Math.max(1,Math.round(s.dmg*(evolved?1.35:1.60)));
   const color=evolved?0xe2b8ff:0xb45cff;
   const group=new THREE.Group();
+  const glow=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:getRaijinWraithTexture(), color:color, transparent:true, opacity:0.22,
+    alphaTest:0.04, depthWrite:false, blending:THREE.AdditiveBlending
+  }));
+  glow.scale.set(evolved?3.15:2.78,evolved?4.05:3.62,1);
+  glow.position.set(player.x-dx*0.86,groundHeight(player.x,player.z)+1.72,player.z-dz*0.86);
+  glow.userData.fxOpacity=0.22;
+  group.add(glow);
   const avatar=new THREE.Sprite(new THREE.SpriteMaterial({
-    map:getRaijinWraithTexture(), color:0xffffff, transparent:true, opacity:0.78,
-    alphaTest:0.08, depthWrite:false, blending:THREE.AdditiveBlending
+    map:getRaijinWraithTexture(), color:0xffffff, transparent:true, opacity:0.82,
+    alphaTest:0.08, depthWrite:false, blending:THREE.NormalBlending
   }));
   avatar.scale.set(evolved?2.8:2.45,evolved?3.65:3.25,1);
   avatar.position.set(player.x-dx*0.82,groundHeight(player.x,player.z)+1.72,player.z-dz*0.82);
+  avatar.userData.fxOpacity=0.82;
   group.add(avatar);
   const slash=new THREE.Sprite(new THREE.SpriteMaterial({
     map:getPixelProjectileTexture('chidori',color), color:0xffffff, transparent:true, opacity:0.96,
@@ -405,10 +414,11 @@ function spawnRaijinWraith(target, seedDamage, meta){
   slash.material.rotation=-Math.atan2(dz,dx);
   slash.scale.set(range*0.92,width*0.74,1);
   slash.position.set(player.x+dx*range*0.46,groundHeight(player.x,player.z)+1.05,player.z+dz*range*0.46);
+  slash.userData.fxOpacity=0.98;
   group.add(slash);
   scene.add(group);
   capEffectList(slashFx, MAX_SLASH_FX);
-  slashFx.push({ mesh:group, life:0.48, max:0.48, grow:0.18, fade:0.86, baseScale:group.scale.clone() });
+  slashFx.push({ mesh:group, life:1.0, max:1.0, hold:0.65, grow:0.14, fade:0.95, baseScale:group.scale.clone() });
   spawnRing(player.x,player.z,color,2.2,0.22);
   spawnObjectPulse(player.x,player.z,0xa54cff,evolved?5.4:4.6,0.42);
   spawnBurst(player.x,player.z,color,evolved?18:12,evolved?1.05:0.82);
