@@ -75,6 +75,31 @@ try {
   if (coinSyncRegression.staleMarkerBalance !== 100 || coinSyncRegression.activeDeductionBalance !== 50) {
     throw new Error(`Soul Coin sync regression: ${JSON.stringify(coinSyncRegression)}`);
   }
+  const characterUnlockSyncRegression = await page.evaluate(() => {
+    const original = localStorage.getItem(ACHIEVEMENT_STORAGE_KEY);
+    achievementStateCache = { done:{} };
+    localStorage.setItem(ACHIEVEMENT_STORAGE_KEY, JSON.stringify(achievementStateCache));
+    const imported = importAchievementProgress({
+      bamboo_craving:"2026-07-14T00:00:00.000Z",
+      cursed_eye_trial:"2026-07-14T00:00:00.000Z",
+    }, { silent:true });
+    const result = {
+      imported:imported.map(achievement=>achievement.id).sort(),
+      bamboo:isCharacterUnlocked("bamboo_man"),
+      kuro:isCharacterUnlocked("kuro_raijin"),
+    };
+    if(original == null) localStorage.removeItem(ACHIEVEMENT_STORAGE_KEY);
+    else localStorage.setItem(ACHIEVEMENT_STORAGE_KEY, original);
+    achievementStateCache = null;
+    return result;
+  });
+  if (
+    characterUnlockSyncRegression.imported.join(",") !== "bamboo_craving,cursed_eye_trial" ||
+    !characterUnlockSyncRegression.bamboo ||
+    !characterUnlockSyncRegression.kuro
+  ) {
+    throw new Error(`Character unlock sync regression: ${JSON.stringify(characterUnlockSyncRegression)}`);
+  }
   const runCoinRewards = await page.evaluate(() => {
     const previous = { gameTime, mapStage, won, runBossKills, runMinibossKills, pactMultiplier };
     gameTime=600; mapStage=3; won=true; runBossKills=3; runMinibossKills=2; pactMultiplier=1;

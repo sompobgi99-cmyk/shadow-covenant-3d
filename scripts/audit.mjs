@@ -135,6 +135,21 @@ const mailAdminSource = read("mail-admin.html");
 const leaderboardMigration = read("supabase/migrations/20260710_leaderboard_runs.sql");
 const versionJson = JSON.parse(read("version.json"));
 
+const achievementBlock = runtimeSource.slice(
+  runtimeSource.indexOf("const ACHIEVEMENTS = ["),
+  runtimeSource.indexOf("const ACHIEVEMENT_LOCKED_WEAPONS")
+);
+const progressAchievementBlock = progressSource.slice(
+  progressSource.indexOf("const ACHIEVEMENT_IDS"),
+  progressSource.indexOf("const PET_IDS")
+);
+const clientAchievementIds = [...achievementBlock.matchAll(/\{\s*id:'([^']+)'/g)].map(match=>match[1]);
+const serverAchievementIds = [...progressAchievementBlock.matchAll(/"([^"]+)"/g)].map(match=>match[1]);
+const missingCloudAchievementIds = clientAchievementIds.filter(id=>!serverAchievementIds.includes(id));
+const staleCloudAchievementIds = serverAchievementIds.filter(id=>!clientAchievementIds.includes(id));
+if(missingCloudAchievementIds.length) fail(`player-progress cloud allowlist is missing achievements: ${missingCloudAchievementIds.join(", ")}`);
+if(staleCloudAchievementIds.length) fail(`player-progress cloud allowlist has retired achievements: ${staleCloudAchievementIds.join(", ")}`);
+
 const manifest = evaluateLiteral(dataSource, "MANIFEST");
 const enemyTypes = evaluateLiteral(dataSource, "ENEMY_TYPES");
 const minibossTypes = evaluateLiteral(dataSource, "MINIBOSS_TYPES");
