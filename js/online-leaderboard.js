@@ -5,6 +5,53 @@ const ONLINE_LEADERBOARD = {
   table: 'leaderboard',
   limit: 8,
 };
+const ONLINE_SCORE_QUEUE_KEY = 'sc3_pending_online_scores_v1';
+const ONLINE_SCORE_QUEUE_MAX = 12;
+let onlineScoreFlushPromise = null;
+let onlineScoreRetryTimer = null;
+
+function loadPendingOnlineScores(){
+  try{
+    const rows=JSON.parse(localStorage.getItem(ONLINE_SCORE_QUEUE_KEY)||'[]');
+    return Array.isArray(rows) ? rows.filter(row=>row&&row._queueId).slice(-ONLINE_SCORE_QUEUE_MAX) : [];
+  }catch(_){ return []; }
+}
+function savePendingOnlineScores(rows){
+  try{ localStorage.setItem(ONLINE_SCORE_QUEUE_KEY,JSON.stringify((rows||[]).slice(-ONLINE_SCORE_QUEUE_MAX))); }catch(_){}
+}
+function onlineScoreQueueId(entry){
+  return entry.run_id || [entry.build,entry.name,entry.character,entry.score,entry.kills,entry.time,entry.date].join('|');
+}
+function queueOnlineScore(entry){
+  const queued={...entry,_queueId:onlineScoreQueueId(entry),_verifiedIntent:typeof currentAuthUser==='function'&&!!currentAuthUser()};
+  const rows=loadPendingOnlineScores().filter(row=>row._queueId!==queued._queueId);
+  rows.push(queued);
+  savePendingOnlineScores(rows);
+  return queued;
+}
+function removePendingOnlineScore(id){
+  savePendingOnlineScores(loadPendingOnlineScores().filter(row=>row._queueId!==id));
+}
+function permanentOnlineScoreError(error){
+  return [400,413,426].includes(Number(error&&error.status));
+}
+function scheduleOnlineScoreRetry(error){
+  if(onlineScoreRetryTimer) return;
+  const delay=Math.max(5000,Math.min(120000,Number(error&&error.retryAfter||15)*1000));
+  onlineScoreRetryTimer=setTimeout(()=>{
+    onlineScoreRetryTimer=null;
+    flushPendingOnlineScores();
+  },delay);
+}
+function reflectFlushedOnlineScore(queued,result){
+  if(typeof lastScoreEntry!=='undefined' && lastScoreEntry && onlineScoreQueueId(lastScoreEntry)===queued._queueId){
+    lastScoreEntry.onlineSaved=true;
+    lastScoreEntry.onlineVerified=!!(result&&result.verified);
+    lastScoreEntry.onlineStatus=lastScoreEntry.onlineVerified?'verified':'guest';
+    if(typeof renderRunRanking==='function') renderRunRanking();
+  }
+  if(typeof showLeaderboard==='function') showLeaderboard();
+}
 
 function onlineLeaderboardReady(){
   return !!ONLINE_LEADERBOARD.apiEndpoint || !!(ONLINE_LEADERBOARD.supabaseUrl && ONLINE_LEADERBOARD.supabaseAnonKey);
@@ -63,12 +110,18 @@ function onlineScorePayload(entry, includeBuild){
   return payload;
 }
 
-async function saveOnlineScore(entry){
+async function submitOnlineScore(entry){
   if(!onlineLeaderboardReady()) return { skipped:true };
   if(ONLINE_LEADERBOARD.apiEndpoint){
+    const headers=await onlineApiHeaders();
+    if(entry._verifiedIntent && !headers.Authorization){
+      const error=new Error('Login session is not ready - score queued for retry');
+      error.status=401;
+      throw error;
+    }
     const apiRes = await fetch(ONLINE_LEADERBOARD.apiEndpoint, {
       method:'POST',
-      headers: await onlineApiHeaders(),
+      headers,
       body: JSON.stringify(onlineScorePayload(entry, true)),
     });
     if(apiRes.ok) {
@@ -76,9 +129,16 @@ async function saveOnlineScore(entry){
       try { data = await apiRes.json(); } catch (_) {}
       return { ok:true, verified:!!data.verified, duplicate:!!data.duplicate };
     }
+    let detail={};
+    try{ detail=await apiRes.json(); }catch(_){}
     if(apiRes.status===426 && typeof showToast==='function') showToast('New version available - reload to rank', 3);
-    if(apiRes.status===401 && typeof showToast==='function') showToast('Login expired - score saved as local only', 3);
-    if(!ONLINE_LEADERBOARD.supabaseUrl || !ONLINE_LEADERBOARD.supabaseAnonKey) throw new Error('Online leaderboard save failed: '+apiRes.status);
+    if(apiRes.status===401 && typeof showToast==='function') showToast('Login expired - score queued for retry', 3);
+    if(!ONLINE_LEADERBOARD.supabaseUrl || !ONLINE_LEADERBOARD.supabaseAnonKey){
+      const error=new Error(detail.error||('Online leaderboard save failed: '+apiRes.status));
+      error.status=apiRes.status;
+      error.retryAfter=Number(detail.retry_after||0);
+      throw error;
+    }
   }
   const res = await fetch(onlineEndpoint(), {
     method:'POST',
@@ -87,6 +147,54 @@ async function saveOnlineScore(entry){
   });
   if(!res.ok) throw new Error('Online leaderboard save failed: '+res.status);
   return { ok:true };
+}
+
+async function saveOnlineScore(entry){
+  const queued=queueOnlineScore(entry);
+  try{
+    const result=await submitOnlineScore(queued);
+    removePendingOnlineScore(queued._queueId);
+    return result;
+  }catch(error){
+    if(permanentOnlineScoreError(error)) removePendingOnlineScore(queued._queueId);
+    else{
+      error.queued=true;
+      scheduleOnlineScoreRetry(error);
+    }
+    throw error;
+  }
+}
+
+async function flushPendingOnlineScores(){
+  if(onlineScoreFlushPromise) return onlineScoreFlushPromise;
+  onlineScoreFlushPromise=(async()=>{
+    const build=window.SHADOW_BUILD_VERSION||'';
+    for(const queued of loadPendingOnlineScores()){
+      if(queued.build!==build){ removePendingOnlineScore(queued._queueId); continue; }
+      if(queued._verifiedIntent && (typeof currentAuthUser!=='function'||!currentAuthUser())) continue;
+      try{
+        const result=await submitOnlineScore(queued);
+        removePendingOnlineScore(queued._queueId);
+        reflectFlushedOnlineScore(queued,result);
+      }catch(error){
+        if(permanentOnlineScoreError(error)) removePendingOnlineScore(queued._queueId);
+        else scheduleOnlineScoreRetry(error);
+      }
+    }
+    const remaining=loadPendingOnlineScores().length;
+    if(!remaining && onlineScoreRetryTimer){
+      clearTimeout(onlineScoreRetryTimer);
+      onlineScoreRetryTimer=null;
+    }
+    return remaining;
+  })().finally(()=>{ onlineScoreFlushPromise=null; });
+  return onlineScoreFlushPromise;
+}
+
+if(typeof window!=='undefined'){
+  window.addEventListener('load',()=>setTimeout(flushPendingOnlineScores,2500));
+  window.addEventListener('online',flushPendingOnlineScores);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) flushPendingOnlineScores(); });
 }
 
 async function loadOnlineLeaderboard(){

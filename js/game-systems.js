@@ -2359,9 +2359,10 @@ function saveScore(){
       showLeaderboard();
     })
     .catch(err=>{
-      entry.onlineStatus='failed';
+      entry.onlineStatus=err&&err.queued?'retrying':'failed';
       entry.onlineError=(err&&err.message)||'Online leaderboard failed';
       renderRunRanking();
+      if(err&&err.queued) showToast('คะแนนออนไลน์รอส่งใหม่อัตโนมัติ',2.8);
       console.warn(entry.onlineError);
     });
   return entry;
@@ -2433,7 +2434,7 @@ function renderRunRanking(){
   }
   if(!el || !lastScoreEntry){ if(el) el.innerHTML=''; return; }
   const e=lastScoreEntry;
-  const onlineLabel=e.onlineStatus==='verified'?'Online verified':e.onlineStatus==='guest'?'Online guest':e.onlineStatus==='failed'?'Online failed':e.onlineStatus==='unranked'?'Unranked run':'Saving online...';
+  const onlineLabel=e.onlineStatus==='verified'?'Online verified':e.onlineStatus==='guest'?'Online guest':e.onlineStatus==='retrying'?'Queued for retry':e.onlineStatus==='failed'?'Online failed':e.onlineStatus==='unranked'?'Unranked run':'Saving online...';
   const onlineCls=e.onlineStatus||'pending';
   const pactText=e.pactMultiplier&&e.pactMultiplier>1 ? 'x'+Number(e.pactMultiplier).toFixed(2) : 'x1.00';
   const diffText=(e.difficultyName||'Normal')+' x'+Number(e.difficultyMultiplier||1).toFixed(2);

@@ -44,4 +44,18 @@ assert.deepEqual(publicRow.pact_ids, []);
 const casual = leaderboardContract.cleanScore({ ...validInput, difficulty_id: "casual", difficulty_multiplier: 0.6 }, null);
 assert.match(leaderboardContract.validateScore(casual), /Normal and Hard/);
 
+const sharedNetworkRequest = new Request("https://example.test/api/leaderboard", {
+  headers: {
+    "x-nf-client-connection-ip": "203.0.113.10",
+    "user-agent": "Leaderboard Test",
+  },
+});
+const guestFingerprint = leaderboardContract.clientFingerprint(sharedNetworkRequest);
+assert.equal(guestFingerprint, leaderboardContract.clientFingerprint(sharedNetworkRequest), "guest fingerprint must be stable");
+assert.notEqual(
+  leaderboardContract.clientFingerprint(sharedNetworkRequest, "user-a"),
+  leaderboardContract.clientFingerprint(sharedNetworkRequest, "user-b"),
+  "signed-in users on the same network must have separate rate limits",
+);
+
 console.log("Leaderboard Postgres contract passed.");

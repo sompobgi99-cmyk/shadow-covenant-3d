@@ -11,7 +11,7 @@ const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260714-unlock-sync-fix";
+const REQUIRED_BUILD = "20260714-ranking-retry-fix";
 const RANKED_DIFFICULTY_MULTIPLIERS = {
   normal: 1,
   hard: 1.4,
@@ -143,7 +143,8 @@ function cleanScore(input, authUser) {
   };
 }
 
-function clientFingerprint(req) {
+function clientFingerprint(req, userId = "") {
+  if (userId) return createHash("sha256").update(`user:${userId}`).digest("hex").slice(0, 24);
   const forwarded = req.headers.get("x-nf-client-connection-ip") || req.headers.get("x-forwarded-for") || "";
   const ip = forwarded.split(",")[0].trim() || "unknown";
   const agent = req.headers.get("user-agent") || "";
@@ -385,8 +386,8 @@ async function markBlobMigrationPending(store) {
   await store.setJSON(POSTGRES_MIGRATION_KEY, { complete: false, pending_at: new Date().toISOString() });
 }
 
-async function checkRateLimit(store, req) {
-  const fingerprint = clientFingerprint(req);
+async function checkRateLimit(store, req, userId = "") {
+  const fingerprint = clientFingerprint(req, userId);
   const now = Date.now();
   const data = (await store.get(RATE_KEY, { type: "json" })) || {};
   const entries = Object.entries(data)
@@ -422,6 +423,7 @@ export default async (req) => {
       }
     }
     const rows = (await readScores(store))
+      .filter((row) => row.build === REQUIRED_BUILD)
       .sort((a, b) => (b.score || 0) - (a.score || 0) || String(a.created_at || "").localeCompare(String(b.created_at || "")))
       .slice(0, limit)
       .map(publicScore);
@@ -432,13 +434,6 @@ export default async (req) => {
   if (req.method === "POST") {
     const contentLength = cleanInt(req.headers.get("content-length"), 0, MAX_BODY_BYTES + 1);
     if (contentLength > MAX_BODY_BYTES) return json({ error: "Payload too large" }, 413);
-    const rate = await checkRateLimit(store, req);
-    if (!rate.ok) {
-      return new Response(JSON.stringify({ error: "Too many score submissions", retry_after: rate.retryAfter }), {
-        status: 429,
-        headers: { ...jsonHeaders, "Retry-After": String(rate.retryAfter) },
-      });
-    }
     let body = {};
     try {
       body = await req.json();
@@ -450,6 +445,13 @@ export default async (req) => {
     const entry = cleanScore(body, auth.user);
     const problem = validateScore(entry);
     if (problem) return json({ error: problem, required_build: REQUIRED_BUILD }, problem.startsWith("Outdated") ? 426 : 400);
+    const rate = await checkRateLimit(store, req, auth.user && auth.user.id);
+    if (!rate.ok) {
+      return new Response(JSON.stringify({ error: "Too many score submissions", retry_after: rate.retryAfter }), {
+        status: 429,
+        headers: { ...jsonHeaders, "Retry-After": String(rate.retryAfter) },
+      });
+    }
     if (postgresReady()) {
       try {
         await ensureBlobScoresMigrated(store);
@@ -482,6 +484,7 @@ export const config = {
 
 export const leaderboardContract = {
   requiredBuild: REQUIRED_BUILD,
+  clientFingerprint,
   cleanScore,
   validateScore,
   scoreDedupeKey,

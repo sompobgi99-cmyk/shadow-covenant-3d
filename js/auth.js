@@ -154,6 +154,7 @@
       if (state.user && typeof finishPendingAuthChoice === 'function') finishPendingAuthChoice();
       if (state.user && typeof applyRememberedLogin === 'function') applyRememberedLogin();
       if (state.user && typeof syncOnlineAchievements === 'function') setTimeout(() => syncOnlineAchievements('auth'), 0);
+      if (state.user && typeof flushPendingOnlineScores === 'function') setTimeout(() => flushPendingOnlineScores(), 250);
       if (typeof showLeaderboard === 'function') showLeaderboard();
     });
     try {
@@ -167,6 +168,7 @@
     if (state.user && typeof finishPendingAuthChoice === 'function') finishPendingAuthChoice();
     if (state.user && typeof applyRememberedLogin === 'function') applyRememberedLogin();
     if (state.user && typeof syncOnlineAchievements === 'function') setTimeout(() => syncOnlineAchievements('init'), 0);
+    if (state.user && typeof flushPendingOnlineScores === 'function') setTimeout(() => flushPendingOnlineScores(), 250);
     return state;
   }
 

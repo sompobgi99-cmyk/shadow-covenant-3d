@@ -61,6 +61,68 @@ try {
   await page.goto(`${baseUrl}/?smoke=1`, { waitUntil: "networkidle" });
   await page.waitForSelector("#title", { state: "visible", timeout: 15000 });
 
+  const rankingRetryRegression = await page.evaluate(async () => {
+    const queueKey = "sc3_pending_online_scores_v1";
+    const originalQueue = localStorage.getItem(queueKey);
+    const originalFetch = window.fetch;
+    localStorage.removeItem(queueKey);
+    let attempts = 0;
+    window.fetch = async (_input, init = {}) => {
+      if (String(init.method || "GET").toUpperCase() !== "POST") {
+        return new Response(JSON.stringify({ rows:[] }), {
+          status:200,
+          headers:{ "Content-Type":"application/json" },
+        });
+      }
+      attempts++;
+      if (attempts === 1) throw new TypeError("Failed to fetch");
+      return new Response(JSON.stringify({ ok:true, verified:false }), {
+        status:200,
+        headers:{ "Content-Type":"application/json" },
+      });
+    };
+    const entry = {
+      run_id:"smoke-ranking-retry",
+      name:"Smoke",
+      country_code:"TH",
+      character:"Paladin",
+      score:250000,
+      scoreBeforePenalty:250000,
+      kills:120,
+      time:600,
+      won:false,
+      level:20,
+      stage:2,
+      damage:50,
+      items:5,
+      difficultyId:"normal",
+      difficultyName:"Normal",
+      difficultyMultiplier:1,
+      pactIds:[],
+      pactMultiplier:1,
+      build:window.SHADOW_BUILD_VERSION,
+    };
+    let queuedError = false;
+    try { await saveOnlineScore(entry); }
+    catch (error) { queuedError = !!error.queued; }
+    const pendingAfterFailure = JSON.parse(localStorage.getItem(queueKey) || "[]").length;
+    const remainingAfterRetry = await flushPendingOnlineScores();
+    const pendingAfterRetry = JSON.parse(localStorage.getItem(queueKey) || "[]").length;
+    window.fetch = originalFetch;
+    if (originalQueue == null) localStorage.removeItem(queueKey);
+    else localStorage.setItem(queueKey, originalQueue);
+    return { attempts, queuedError, pendingAfterFailure, remainingAfterRetry, pendingAfterRetry };
+  });
+  if (
+    rankingRetryRegression.attempts !== 2 ||
+    !rankingRetryRegression.queuedError ||
+    rankingRetryRegression.pendingAfterFailure !== 1 ||
+    rankingRetryRegression.remainingAfterRetry !== 0 ||
+    rankingRetryRegression.pendingAfterRetry !== 0
+  ) {
+    throw new Error(`Ranking retry regression: ${JSON.stringify(rankingRetryRegression)}`);
+  }
+
   const coinSyncRegression = await page.evaluate(() => {
     const key = "sc3_soul_coins_v1";
     const original = localStorage.getItem(key);
