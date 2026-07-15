@@ -10,7 +10,7 @@ const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260715-progress-ranking-fix";
+const REQUIRED_BUILD = "20260715-ban-increase-compensation";
 const RANKED_DIFFICULTY_MULTIPLIERS = {
   normal: 1,
   hard: 1.4,
@@ -197,7 +197,7 @@ function validateMultipliers(entry) {
 }
 
 function validateScore(entry) {
-  if (entry.build !== REQUIRED_BUILD) return "Outdated game version. Please reload before ranking.";
+  if (!entry.build || entry.build !== REQUIRED_BUILD) return "Outdated game version. Please reload before ranking.";
   if (!entry.player_name) return "Missing player name";
   if (entry.score < 0 || entry.kills < 0 || entry.time < 0) return "Negative values are not allowed";
   if (entry.score > 0 && entry.time < 8) return "Run is too short for a scored entry";

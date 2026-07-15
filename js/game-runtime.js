@@ -1359,6 +1359,13 @@ function scheduleWhatsNew(){
 }
 let MAILBOX_MESSAGES=[
   {
+    id:'compensation_20260715_ban', type:'reward', date:'2026-07-15',
+    title:{th:'1,000 Soul Coins ชดเชยรอบเพิ่มจำนวนแบน',en:'1,000 Soul Coins - Ban Update Gift'},
+    sender:{th:'Covenant Keeper',en:'Covenant Keeper'},
+    body:{th:'ขอบคุณที่ร่วมทดสอบระบบแบนเวอร์ชันใหม่ รับ Soul Coins ชดเชยได้หนึ่งครั้งจากจดหมายฉบับนี้',en:'Thank you for testing the expanded ban system. Claim this one-time 1,000 Soul Coin gift.'},
+    reward:{type:'coins',amount:SOUL_COIN_COMPENSATION_AMOUNT}
+  },
+  {
     id:'compensation_20260712', type:'reward', date:'2026-07-12',
     title:{th:'ของขวัญตลาดวิญญาณ 1,000 Soul Coins',en:'1,000 Soul Coin Market Gift'},
     sender:{th:'ผู้ดูแลพันธสัญญา',en:'Covenant Keeper'},
@@ -2884,9 +2891,9 @@ function grantRandomRelic(reason){
   return r;
 }
 const MAX_TOMES = 4;   // เลือก tome ได้สูงสุด 4 ชนิด (เก็บซ้อนได้ไม่จำกัด)
-const CHOICE_BANS_PER_RUN = 5;
+const CHOICE_BANS_PER_RUN = 8;
 function choiceBansPerRun(){
-  return activeDifficultyId==='casual' ? 10 : CHOICE_BANS_PER_RUN;
+  return activeDifficultyId==='casual' ? 12 : CHOICE_BANS_PER_RUN;
 }
 function isBannedChoice(u){
   return !!(u && player.bannedChoices && player.bannedChoices[u.id]);

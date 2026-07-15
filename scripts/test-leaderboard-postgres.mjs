@@ -27,6 +27,10 @@ const validInput = {
 
 const entry = leaderboardContract.cleanScore(validInput, null);
 assert.equal(leaderboardContract.validateScore(entry), "");
+const outdated = leaderboardContract.cleanScore({ ...validInput, build: "old-build" }, null);
+assert.match(leaderboardContract.validateScore(outdated), /Outdated game version/);
+const missingBuild = leaderboardContract.cleanScore({ ...validInput, build: "" }, null);
+assert.match(leaderboardContract.validateScore(missingBuild), /Outdated game version/);
 
 const createdAt = "2026-07-10T03:00:00.000Z";
 const firstKey = leaderboardContract.scoreDedupeKey(entry, "guest:abc", createdAt);

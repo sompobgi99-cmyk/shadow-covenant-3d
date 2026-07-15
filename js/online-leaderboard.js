@@ -138,7 +138,9 @@ function onlineScorePayload(entry, includeBuild){
     run_id: entry.run_id || '',
     client_id: rankingClientId(),
   };
-  if(includeBuild) payload.build = entry.build || window.SHADOW_BUILD_VERSION || '';
+  // The API is the only ranked write path. Always include the build so a
+  // failed API request can never fall through to an unvalidated Supabase row.
+  payload.build = entry.build || window.SHADOW_BUILD_VERSION || '';
   return payload;
 }
 
@@ -165,12 +167,10 @@ async function submitOnlineScore(entry){
     try{ detail=await apiRes.json(); }catch(_){}
     if(apiRes.status===426 && typeof showToast==='function') showToast('New version available - reload to rank', 3);
     if(apiRes.status===401 && typeof showToast==='function') showToast('Login expired - score queued for retry', 3);
-    if(!ONLINE_LEADERBOARD.supabaseUrl || !ONLINE_LEADERBOARD.supabaseAnonKey){
-      const error=new Error(detail.error||('Online leaderboard save failed: '+apiRes.status));
-      error.status=apiRes.status;
-      error.retryAfter=Number(detail.retry_after||0);
-      throw error;
-    }
+    const error=new Error(detail.error||('Online leaderboard save failed: '+apiRes.status));
+    error.status=apiRes.status;
+    error.retryAfter=Number(detail.retry_after||0);
+    throw error;
   }
   const res = await fetch(onlineEndpoint(), {
     method:'POST',

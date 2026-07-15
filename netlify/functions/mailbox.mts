@@ -21,6 +21,19 @@ type MailMessage = {
 
 const SEED_MESSAGES: MailMessage[] = [
   {
+    id: "compensation_20260715_ban",
+    type: "reward",
+    date: "2026-07-15",
+    title: { th: "1,000 Soul Coins ชดเชยรอบเพิ่มจำนวนแบน", en: "1,000 Soul Coins - Ban Update Gift" },
+    sender: { th: "Covenant Keeper", en: "Covenant Keeper" },
+    body: {
+      th: "ขอบคุณที่ร่วมทดสอบระบบแบนเวอร์ชันใหม่ รับ Soul Coins ชดเชยได้หนึ่งครั้งจากจดหมายฉบับนี้",
+      en: "Thank you for testing the expanded ban system. Claim this one-time 1,000 Soul Coin gift.",
+    },
+    reward: { type: "coins", amount: 1000 },
+    active: true,
+  },
+  {
     id: "compensation_20260715",
     type: "reward",
     date: "2026-07-15",
