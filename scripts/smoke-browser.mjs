@@ -234,6 +234,68 @@ try {
     throw new Error(`Ranking retry regression: ${JSON.stringify(rankingRetryRegression)}`);
   }
 
+  const rankingBlockedRetryRegression = await page.evaluate(async () => {
+    const queueKey = "sc3_pending_online_scores_v1";
+    const originalQueue = localStorage.getItem(queueKey);
+    const originalFetch = window.fetch;
+    localStorage.removeItem(queueKey);
+    const entry = {
+      run_id:"smoke-ranking-blocked-retry",
+      name:"Smoke",
+      country_code:"TH",
+      character:"Paladin",
+      score:260000,
+      scoreBeforePenalty:260000,
+      kills:125,
+      time:610,
+      won:false,
+      level:21,
+      stage:2,
+      damage:45,
+      items:5,
+      difficultyId:"normal",
+      difficultyName:"Normal",
+      difficultyMultiplier:1,
+      pactIds:[],
+      pactMultiplier:1,
+      build:window.SHADOW_BUILD_VERSION,
+    };
+    window.fetch = async () => new Response(JSON.stringify({ error:"Rejected test score" }), {
+      status:400,
+      headers:{ "Content-Type":"application/json" },
+    });
+    let failed = false;
+    try { await saveOnlineScore(entry); } catch (_) { failed = true; }
+    const blockedRows = JSON.parse(localStorage.getItem(queueKey) || "[]");
+    window.fetch = async () => new Response(JSON.stringify({ ok:true, verified:false, listed:false, display_limit:8 }), {
+      status:200,
+      headers:{ "Content-Type":"application/json" },
+    });
+    const retried = await saveOnlineScore(entry);
+    const remaining = JSON.parse(localStorage.getItem(queueKey) || "[]").length;
+    window.fetch = originalFetch;
+    if (originalQueue == null) localStorage.removeItem(queueKey);
+    else localStorage.setItem(queueKey, originalQueue);
+    return {
+      failed,
+      blockedCount:blockedRows.length,
+      blocked:!!(blockedRows[0]&&blockedRows[0]._blocked),
+      error:blockedRows[0]&&blockedRows[0]._lastError,
+      listed:retried.listed,
+      remaining,
+    };
+  });
+  if (
+    !rankingBlockedRetryRegression.failed ||
+    rankingBlockedRetryRegression.blockedCount !== 1 ||
+    !rankingBlockedRetryRegression.blocked ||
+    !rankingBlockedRetryRegression.error ||
+    rankingBlockedRetryRegression.listed !== false ||
+    rankingBlockedRetryRegression.remaining !== 0
+  ) {
+    throw new Error(`Ranking blocked retry regression: ${JSON.stringify(rankingBlockedRetryRegression)}`);
+  }
+
   const coinSyncRegression = await page.evaluate(() => {
     const key = "sc3_soul_coins_v1";
     const original = localStorage.getItem(key);

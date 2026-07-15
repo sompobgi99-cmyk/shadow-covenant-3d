@@ -6,9 +6,21 @@ const ONLINE_LEADERBOARD = {
   limit: 8,
 };
 const ONLINE_SCORE_QUEUE_KEY = 'sc3_pending_online_scores_v1';
-const ONLINE_SCORE_QUEUE_MAX = 12;
+const ONLINE_SCORE_CLIENT_KEY = 'sc3_ranking_client_id_v1';
+const ONLINE_SCORE_QUEUE_MAX = 30;
 let onlineScoreFlushPromise = null;
 let onlineScoreRetryTimer = null;
+let onlineScoreClientId = '';
+
+function rankingClientId(){
+  if(onlineScoreClientId) return onlineScoreClientId;
+  try{ onlineScoreClientId=localStorage.getItem(ONLINE_SCORE_CLIENT_KEY)||''; }catch(_){}
+  if(!onlineScoreClientId){
+    try{ onlineScoreClientId=crypto.randomUUID(); }catch(_){ onlineScoreClientId='client_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10); }
+    try{ localStorage.setItem(ONLINE_SCORE_CLIENT_KEY,onlineScoreClientId); }catch(_){}
+  }
+  return onlineScoreClientId;
+}
 
 function loadPendingOnlineScores(){
   try{
@@ -23,11 +35,24 @@ function onlineScoreQueueId(entry){
   return entry.run_id || [entry.build,entry.name,entry.character,entry.score,entry.kills,entry.time,entry.date].join('|');
 }
 function queueOnlineScore(entry){
-  const queued={...entry,_queueId:onlineScoreQueueId(entry),_verifiedIntent:typeof currentAuthUser==='function'&&!!currentAuthUser()};
+  const queued={...entry,_queueId:onlineScoreQueueId(entry),_verifiedIntent:typeof currentAuthUser==='function'&&!!currentAuthUser(),_blocked:false,_lastError:'',_lastStatus:0};
   const rows=loadPendingOnlineScores().filter(row=>row._queueId!==queued._queueId);
   rows.push(queued);
   savePendingOnlineScores(rows);
   return queued;
+}
+function markPendingOnlineScoreError(queued,error){
+  const rows=loadPendingOnlineScores();
+  const index=rows.findIndex(row=>row._queueId===queued._queueId);
+  if(index<0) rows.push(queued);
+  const target=index<0?rows[rows.length-1]:rows[index];
+  Object.assign(target,{
+    _blocked:permanentOnlineScoreError(error),
+    _lastError:String(error&&error.message||'Online leaderboard failed').slice(0,240),
+    _lastStatus:Number(error&&error.status||0),
+    _attempts:Math.max(0,Number(target._attempts||0))+1,
+  });
+  savePendingOnlineScores(rows);
 }
 function removePendingOnlineScore(id){
   savePendingOnlineScores(loadPendingOnlineScores().filter(row=>row._queueId!==id));
@@ -47,6 +72,8 @@ function reflectFlushedOnlineScore(queued,result){
   if(typeof lastScoreEntry!=='undefined' && lastScoreEntry && onlineScoreQueueId(lastScoreEntry)===queued._queueId){
     lastScoreEntry.onlineSaved=true;
     lastScoreEntry.onlineVerified=!!(result&&result.verified);
+    lastScoreEntry.onlineListed=result&&result.listed!==false;
+    lastScoreEntry.onlineRank=Number(result&&result.rank||0);
     lastScoreEntry.onlineStatus=lastScoreEntry.onlineVerified?'verified':'guest';
     if(typeof renderRunRanking==='function') renderRunRanking();
   }
@@ -108,6 +135,8 @@ function onlineScorePayload(entry, includeBuild){
     run_mode: ['endless','weekly'].includes(entry.runMode) ? entry.runMode : 'standard',
     challenge_key: entry.challengeKey || '',
     endless_time: entry.endlessTime|0,
+    run_id: entry.run_id || '',
+    client_id: rankingClientId(),
   };
   if(includeBuild) payload.build = entry.build || window.SHADOW_BUILD_VERSION || '';
   return payload;
@@ -130,7 +159,7 @@ async function submitOnlineScore(entry){
     if(apiRes.ok) {
       let data = {};
       try { data = await apiRes.json(); } catch (_) {}
-      return { ok:true, verified:!!data.verified, duplicate:!!data.duplicate };
+      return { ok:true, verified:!!data.verified, duplicate:!!data.duplicate, listed:data.listed!==false, rank:Number(data.rank||0), displayLimit:Number(data.display_limit||ONLINE_LEADERBOARD.limit) };
     }
     let detail={};
     try{ detail=await apiRes.json(); }catch(_){}
@@ -159,8 +188,8 @@ async function saveOnlineScore(entry){
     removePendingOnlineScore(queued._queueId);
     return result;
   }catch(error){
-    if(permanentOnlineScoreError(error)) removePendingOnlineScore(queued._queueId);
-    else{
+    markPendingOnlineScoreError(queued,error);
+    if(!permanentOnlineScoreError(error)){
       error.queued=true;
       scheduleOnlineScoreRetry(error);
     }
@@ -173,19 +202,27 @@ async function flushPendingOnlineScores(){
   onlineScoreFlushPromise=(async()=>{
     const build=window.SHADOW_BUILD_VERSION||'';
     for(const queued of loadPendingOnlineScores()){
-      if(queued.build!==build){ removePendingOnlineScore(queued._queueId); continue; }
+      if(queued._blocked) continue;
+      if(queued.build!==build){
+        const error=new Error('Score belongs to an older game version');
+        error.status=426;
+        markPendingOnlineScoreError(queued,error);
+        continue;
+      }
       if(queued._verifiedIntent && (typeof currentAuthUser!=='function'||!currentAuthUser())) continue;
       try{
         const result=await submitOnlineScore(queued);
         removePendingOnlineScore(queued._queueId);
         reflectFlushedOnlineScore(queued,result);
       }catch(error){
-        if(permanentOnlineScoreError(error)) removePendingOnlineScore(queued._queueId);
-        else scheduleOnlineScoreRetry(error);
+        markPendingOnlineScoreError(queued,error);
+        if(!permanentOnlineScoreError(error)) scheduleOnlineScoreRetry(error);
       }
     }
-    const remaining=loadPendingOnlineScores().length;
-    if(!remaining && onlineScoreRetryTimer){
+    const pending=loadPendingOnlineScores();
+    const remaining=pending.length;
+    const retryable=pending.some(row=>!row._blocked);
+    if(!retryable && onlineScoreRetryTimer){
       clearTimeout(onlineScoreRetryTimer);
       onlineScoreRetryTimer=null;
     }
@@ -193,6 +230,28 @@ async function flushPendingOnlineScores(){
   })().finally(()=>{ onlineScoreFlushPromise=null; });
   return onlineScoreFlushPromise;
 }
+
+async function retryLastOnlineScore(){
+  if(typeof lastScoreEntry==='undefined'||!lastScoreEntry||lastScoreEntry.unranked) return;
+  lastScoreEntry.onlineStatus='pending';
+  lastScoreEntry.onlineError='';
+  if(typeof renderRunRanking==='function') renderRunRanking();
+  try{
+    const result=await saveOnlineScore(lastScoreEntry);
+    lastScoreEntry.onlineSaved=true;
+    lastScoreEntry.onlineVerified=!!result.verified;
+    lastScoreEntry.onlineListed=result.listed!==false;
+    lastScoreEntry.onlineRank=Number(result.rank||0);
+    lastScoreEntry.onlineStatus=lastScoreEntry.onlineVerified?'verified':'guest';
+  }catch(error){
+    lastScoreEntry.onlineStatus=error&&error.queued?'retrying':'failed';
+    lastScoreEntry.onlineError=String(error&&error.message||'Online leaderboard failed');
+  }
+  if(typeof renderRunRanking==='function') renderRunRanking();
+  if(typeof showLeaderboard==='function') showLeaderboard();
+}
+
+if(typeof window!=='undefined') window.retryLastOnlineScore=retryLastOnlineScore;
 
 if(typeof window!=='undefined'){
   window.addEventListener('load',()=>setTimeout(flushPendingOnlineScores,2500));

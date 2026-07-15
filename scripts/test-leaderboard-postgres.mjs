@@ -20,6 +20,8 @@ const validInput = {
   pact_ids: [],
   pact_multiplier: 1,
   pact_count: 0,
+  run_id: "run_test_stable_001",
+  client_id: "client_test_install_001",
   build: leaderboardContract.requiredBuild,
 };
 
@@ -29,8 +31,10 @@ assert.equal(leaderboardContract.validateScore(entry), "");
 const createdAt = "2026-07-10T03:00:00.000Z";
 const firstKey = leaderboardContract.scoreDedupeKey(entry, "guest:abc", createdAt);
 const retryKey = leaderboardContract.scoreDedupeKey(entry, "guest:abc", createdAt);
+const delayedRetryKey = leaderboardContract.scoreDedupeKey(entry, "guest:abc", "2026-07-10T04:30:00.000Z");
 const otherPlayerKey = leaderboardContract.scoreDedupeKey(entry, "guest:def", createdAt);
 assert.equal(firstKey, retryKey, "same run retry must be idempotent");
+assert.equal(firstKey, delayedRetryKey, "same run retry must stay idempotent outside the old five-minute window");
 assert.notEqual(firstKey, otherPlayerKey, "different clients must not collide");
 
 const databaseRow = leaderboardContract.databaseScore({ ...entry, created_at: createdAt }, firstKey);
@@ -45,9 +49,17 @@ const daily = leaderboardContract.cleanScore({ ...validInput, run_mode:"daily", 
 assert.equal(leaderboardContract.validateScore(daily), "");
 const dailyDatabase = leaderboardContract.databaseScore({ ...daily, created_at:createdAt }, leaderboardContract.scoreDedupeKey(daily,"guest:daily",createdAt));
 assert.equal(dailyDatabase.source, "daily:2026-07-14");
+assert.equal(leaderboardContract.scoreSource(daily), "daily:2026-07-14");
 const dailyPublic = leaderboardContract.databaseToPublicScore(dailyDatabase);
 assert.equal(dailyPublic.run_mode, "daily");
 assert.equal(dailyPublic.challenge_key, "2026-07-14");
+
+const migratedStandard = leaderboardContract.cleanScore({ ...validInput, run_id:"run_migrated_standard", run_mode:"standard" }, null);
+const migratedDatabase = leaderboardContract.databaseScore(migratedStandard, leaderboardContract.scoreDedupeKey(migratedStandard,"legacy:tester"));
+assert.equal(migratedDatabase.source, "game", "migrated fallback scores must remain visible on Standard ranking");
+const blobRows = [{ ...validInput, created_at:createdAt }];
+assert.equal(leaderboardContract.blobScoreDigest(blobRows), leaderboardContract.blobScoreDigest(blobRows));
+assert.notEqual(leaderboardContract.blobScoreDigest(blobRows), leaderboardContract.blobScoreDigest([{ ...blobRows[0], score:validInput.score+1 }]));
 
 const invalidChallenge = leaderboardContract.cleanScore({ ...validInput, run_mode:"weekly", challenge_key:"" }, null);
 assert.match(leaderboardContract.validateScore(invalidChallenge), /period key/);

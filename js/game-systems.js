@@ -2710,6 +2710,8 @@ function saveScore(){
     .then(res=>{
       entry.onlineSaved=true;
       entry.onlineVerified=!!(res&&res.verified);
+      entry.onlineListed=res&&res.listed!==false;
+      entry.onlineRank=Number(res&&res.rank||0);
       entry.onlineStatus=entry.onlineVerified?'verified':'guest';
       renderRunRanking();
       showLeaderboard();
@@ -2794,11 +2796,24 @@ function renderRunRanking(){
   }
   if(!el || !lastScoreEntry){ if(el) el.innerHTML=''; return; }
   const e=lastScoreEntry;
-  const onlineLabel=e.onlineStatus==='verified'?'Online verified':e.onlineStatus==='guest'?'Online guest':e.onlineStatus==='retrying'?'Queued for retry':e.onlineStatus==='failed'?'Online failed':e.onlineStatus==='unranked'?'Unranked run':'Saving online...';
+  const thai=typeof gameLang==='function'&&gameLang()==='th';
+  const savedOutside=e.onlineSaved&&e.onlineListed===false;
+  const savedRank=e.onlineRank>0?(thai?'อันดับออนไลน์ #':'Online rank #')+e.onlineRank:'';
+  const onlineLabel=savedOutside
+    ?(thai?'บันทึกแล้ว · ไม่ติด Top 8':'Saved online · outside Top 8')
+    :savedRank||(
+      e.onlineStatus==='verified'?(thai?'บันทึกออนไลน์แบบยืนยันแล้ว':'Online verified'):
+      e.onlineStatus==='guest'?(thai?'บันทึกออนไลน์แล้ว':'Online saved'):
+      e.onlineStatus==='retrying'?(thai?'เก็บคะแนนไว้แล้ว · รอส่งใหม่':'Saved locally · queued for retry'):
+      e.onlineStatus==='failed'?(thai?'ส่งออนไลน์ไม่ผ่าน':'Online save failed'):
+      e.onlineStatus==='unranked'?(thai?'รันนี้ไม่นับ Ranking':'Unranked run'):
+      (thai?'กำลังบันทึกออนไลน์...':'Saving online...')
+    );
   const onlineCls=e.onlineStatus||'pending';
+  const retryButton=e.onlineStatus==='failed'?'<button class="runrankretry" type="button" onclick="retryLastOnlineScore()">'+(thai?'ลองส่งใหม่':'Retry')+'</button>':'';
   const pactText=e.pactMultiplier&&e.pactMultiplier>1 ? 'x'+Number(e.pactMultiplier).toFixed(2) : 'x1.00';
   const diffText=(e.difficultyName||'Normal')+' x'+Number(e.difficultyMultiplier||1).toFixed(2);
-  el.innerHTML=`<div class="runrank"><div><span>${countryFlag(e.country_code)} ${escHtml(e.name)}</span><b>${e.unranked?'Unranked':'#'+e.rank}</b><em class="runonline ${onlineCls}">${escHtml(onlineLabel)}</em></div><div><span>Score</span><b>${e.score.toLocaleString()}</b></div><div><span>Difficulty</span><b>${escHtml(diffText)}</b></div><div><span>Pact</span><b>${pactText}</b></div><div><span>Kills</span><b>${e.kills}</b></div><div><span>Time</span><b>${fmt(e.time)}</b></div><div><span>Damage</span><b>${e.damage}</b></div></div>`;
+  el.innerHTML=`<div class="runrank"><div><span>${countryFlag(e.country_code)} ${escHtml(e.name)}</span><b>${e.unranked?'Unranked':'#'+e.rank}</b><em class="runonline ${onlineCls}">${escHtml(onlineLabel)}</em>${retryButton}</div><div><span>Score</span><b>${e.score.toLocaleString()}</b></div><div><span>Difficulty</span><b>${escHtml(diffText)}</b></div><div><span>Pact</span><b>${pactText}</b></div><div><span>Kills</span><b>${e.kills}</b></div><div><span>Time</span><b>${fmt(e.time)}</b></div><div><span>Damage</span><b>${e.damage}</b></div></div>`;
 }
 function fmtStatNumber(v){
   return Math.round(v||0).toLocaleString();

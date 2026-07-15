@@ -6,12 +6,11 @@ const SCORE_KEY = "scores-v6";
 const RATE_KEY = "post-rate-v1";
 const POSTGRES_MIGRATION_KEY = "postgres-migration-v1";
 const POSTGRES_TABLE = "leaderboard_runs";
-const MAX_STORED = 100;
 const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260715-weekly-world-enemies";
+const REQUIRED_BUILD = "20260715-ranking-reliability";
 const RANKED_DIFFICULTY_MULTIPLIERS = {
   normal: 1,
   hard: 1.4,
@@ -138,6 +137,8 @@ function cleanScore(input, authUser) {
     run_mode: ["endless","daily","weekly"].includes(cleanText(input.run_mode || input.runMode, "standard", 16)) ? cleanText(input.run_mode || input.runMode, "standard", 16) : "standard",
     challenge_key: cleanText(input.challenge_key || input.challengeKey, "", 24),
     endless_time: cleanInt(input.endless_time || input.endlessTime, 0, 999999),
+    run_id: cleanId(input.run_id || input.runId),
+    client_id: cleanId(input.client_id || input.clientId),
     build: cleanBuild(input.build),
     user_id: authUser ? authUser.id : "",
     auth_name: authUser ? authUser.name : "",
@@ -215,21 +216,6 @@ function validateScore(entry) {
   return "";
 }
 
-function isDuplicateScore(rows, entry) {
-  const now = Date.now();
-  return rows.some((row) => {
-    const created = Date.parse(row.created_at || "") || 0;
-    return now - created < 5 * 60 * 1000
-      && row.player_name === entry.player_name
-      && row.country_code === entry.country_code
-      && row.character === entry.character
-      && row.build === entry.build
-      && row.score === entry.score
-      && row.kills === entry.kills
-      && row.time === entry.time;
-  });
-}
-
 async function readScores(store) {
   const rows = await store.get(SCORE_KEY, { type: "json" });
   return Array.isArray(rows) ? rows : [];
@@ -269,6 +255,9 @@ function publicScore(row) {
 }
 
 function scoreDedupeKey(entry, identity, createdAt = "") {
+  if (entry.run_id) {
+    return createHash("sha256").update(JSON.stringify([identity, entry.build, entry.run_id])).digest("hex");
+  }
   const parsed = Date.parse(createdAt || entry.created_at || "");
   const bucket = Math.floor((Number.isFinite(parsed) ? parsed : Date.now()) / (5 * 60 * 1000));
   const stable = [
@@ -286,6 +275,14 @@ function scoreDedupeKey(entry, identity, createdAt = "") {
     entry.build,
   ];
   return createHash("sha256").update(JSON.stringify(stable)).digest("hex");
+}
+
+function scoreSource(entry) {
+  if (entry.run_mode === "standard") return "game";
+  if ((entry.run_mode === "daily" || entry.run_mode === "weekly") && entry.challenge_key) {
+    return `${entry.run_mode}:${entry.challenge_key}`;
+  }
+  return entry.run_mode;
 }
 
 function databaseScore(entry, dedupeKey, source = "") {
@@ -317,7 +314,7 @@ function databaseScore(entry, dedupeKey, source = "") {
     user_id: entry.user_id || null,
     auth_name: entry.auth_name || "",
     verified: !!entry.verified,
-    source: source || (entry.run_mode === "standard" ? "game" : (entry.run_mode === "daily" || entry.run_mode === "weekly") && entry.challenge_key ? `${entry.run_mode}:${entry.challenge_key}` : entry.run_mode),
+    source: source || scoreSource(entry),
     created_at: entry.created_at || new Date().toISOString(),
   };
 }
@@ -380,18 +377,48 @@ async function insertPostgresRows(rows) {
   return Array.isArray(inserted) ? inserted : [];
 }
 
+async function postgresTopStatus(dedupeKey, source, limit = 8) {
+  const params = new URLSearchParams({
+    select: "dedupe_key",
+    build: `eq.${REQUIRED_BUILD}`,
+    source: `eq.${source}`,
+    order: "score.desc,created_at.asc",
+    limit: String(limit),
+  });
+  const res = await postgresRequest(`${POSTGRES_TABLE}?${params.toString()}`, { method: "GET" });
+  if (!res.ok) throw await postgresError(res, "leaderboard placement read");
+  const rows = await res.json();
+  const index = (Array.isArray(rows) ? rows : []).findIndex((row) => row.dedupe_key === dedupeKey);
+  return { listed: index >= 0, rank: index >= 0 ? index + 1 : null, display_limit: limit };
+}
+
+function blobScoreDigest(rows) {
+  const stable = rows.map((row) => [
+    row.run_id || "",
+    row.player_name || "",
+    row.country_code || "",
+    row.score || 0,
+    row.kills || 0,
+    row.time || 0,
+    row.build || "",
+    row.created_at || "",
+  ]);
+  return createHash("sha256").update(JSON.stringify(stable)).digest("hex");
+}
+
 async function ensureBlobScoresMigrated(store) {
   const marker = await store.get(POSTGRES_MIGRATION_KEY, { type: "json" });
-  if (marker && marker.complete) return marker;
   const rows = await readScores(store);
+  const digest = blobScoreDigest(rows);
+  if (marker && marker.complete && marker.digest === digest) return marker;
   const payload = rows.map((row) => {
     const entry = cleanScore(row, row.user_id ? { id: row.user_id, name: row.auth_name || "" } : null);
     entry.created_at = row.created_at || entry.created_at;
     const identity = row.user_id ? `user:${row.user_id}` : `legacy:${row.player_name || "Player"}:${row.country_code || "TH"}`;
-    return databaseScore(entry, scoreDedupeKey(entry, identity, entry.created_at), "netlify-blobs-migration");
+    return databaseScore(entry, scoreDedupeKey(entry, identity, entry.created_at));
   });
   const inserted = await insertPostgresRows(payload);
-  const result = { complete: true, scanned: rows.length, inserted: inserted.length, migrated_at: new Date().toISOString() };
+  const result = { complete: true, scanned: rows.length, inserted: inserted.length, digest, migrated_at: new Date().toISOString() };
   await store.setJSON(POSTGRES_MIGRATION_KEY, result);
   return result;
 }
@@ -462,6 +489,9 @@ export default async (req) => {
     const entry = cleanScore(body, auth.user);
     const problem = validateScore(entry);
     if (problem) return json({ error: problem, required_build: REQUIRED_BUILD }, problem.startsWith("Outdated") ? 426 : 400);
+    if (!postgresReady()) {
+      return json({ error: "Ranking database is temporarily unavailable. The score will retry automatically." }, 503);
+    }
     const rate = await checkRateLimit(store, req, auth.user && auth.user.id);
     if (!rate.ok) {
       return new Response(JSON.stringify({ error: "Too many score submissions", retry_after: rate.retryAfter }), {
@@ -469,26 +499,21 @@ export default async (req) => {
         headers: { ...jsonHeaders, "Retry-After": String(rate.retryAfter) },
       });
     }
-    if (postgresReady()) {
-      try {
-        await ensureBlobScoresMigrated(store);
-        const identity = auth.user ? `user:${auth.user.id}` : `guest:${clientFingerprint(req)}`;
-        const payload = databaseScore(entry, scoreDedupeKey(entry, identity));
-        const inserted = await insertPostgresRows([payload]);
-        return json({ ok: true, duplicate: inserted.length === 0, verified: entry.verified, storage: "postgres" });
-      } catch (error) {
-        console.warn("leaderboard postgres write fallback", error && error.message ? error.message : error);
-        try { await markBlobMigrationPending(store); } catch (markerError) {
-          console.warn("leaderboard migration marker fallback", markerError && markerError.message ? markerError.message : markerError);
-        }
+    try {
+      await ensureBlobScoresMigrated(store);
+      const identity = auth.user ? `user:${auth.user.id}` : `guest:${entry.client_id || clientFingerprint(req)}`;
+      const dedupeKey = scoreDedupeKey(entry, identity);
+      const payload = databaseScore(entry, dedupeKey);
+      const inserted = await insertPostgresRows([payload]);
+      const placement = await postgresTopStatus(dedupeKey, payload.source);
+      return json({ ok: true, duplicate: inserted.length === 0, verified: entry.verified, storage: "postgres", ...placement });
+    } catch (error) {
+      console.warn("leaderboard postgres write unavailable", error && error.message ? error.message : error);
+      try { await markBlobMigrationPending(store); } catch (markerError) {
+        console.warn("leaderboard migration marker fallback", markerError && markerError.message ? markerError.message : markerError);
       }
+      return json({ error: "Ranking database is temporarily unavailable. The score will retry automatically." }, 503);
     }
-    const rows = await readScores(store);
-    if (isDuplicateScore(rows, entry)) return json({ ok: true, duplicate: true, verified: entry.verified, storage: "netlify-blobs-fallback" });
-    rows.push(entry);
-    rows.sort((a, b) => (b.score || 0) - (a.score || 0) || String(a.created_at || "").localeCompare(String(b.created_at || "")));
-    await store.setJSON(SCORE_KEY, rows.slice(0, MAX_STORED));
-    return json({ ok: true, verified: entry.verified, storage: "netlify-blobs-fallback" });
   }
 
   return json({ error: "Method not allowed" }, 405);
@@ -507,4 +532,6 @@ export const leaderboardContract = {
   scoreDedupeKey,
   databaseScore,
   databaseToPublicScore,
+  scoreSource,
+  blobScoreDigest,
 };

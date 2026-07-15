@@ -902,6 +902,8 @@ body.playing #offeringhud{ display:grid; }
   .runonline.guest{ color:#ffe08a; }
   .runonline.retrying{ color:#ffc96b; }
   .runonline.failed{ color:#ff8aa0; }
+  .runrankretry{ margin-top:6px; min-height:24px; padding:3px 8px; border:1px solid rgba(255,138,160,.65); background:#351522; color:#ffd5dc; font:700 9px var(--font-ui); cursor:pointer; }
+  .runrankretry:hover{ background:#542033; color:#fff; }
   #title,#authchoice,#guide,#whatsnew,#mailbox,#firsthelp,#playersetup,#select,#difficultyselect,#pactselect,#offeringselect,#shop,#levelup,#relicup,#pause,#over{
     font-family:var(--font-ui);
   }
