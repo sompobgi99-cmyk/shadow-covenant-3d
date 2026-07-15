@@ -21,6 +21,19 @@ type MailMessage = {
 
 const SEED_MESSAGES: MailMessage[] = [
   {
+    id: "compensation_20260715",
+    type: "reward",
+    date: "2026-07-15",
+    title: { th: "ของขวัญชดเชย 1,000 Soul Coins", en: "1,000 Soul Coin Compensation" },
+    sender: { th: "ผู้ดูแลพันธสัญญา", en: "Covenant Keeper" },
+    body: {
+      th: "ขอบคุณที่ร่วมเล่นและช่วยทดสอบ Shadow Covenant รับ Soul Coins ชดเชยรอบวันที่ 15 กรกฎาคมได้หนึ่งครั้งจากจดหมายฉบับนี้",
+      en: "Thank you for playing and helping test Shadow Covenant. Claim the July 15 compensation once from this message.",
+    },
+    reward: { type: "coins", amount: 1000 },
+    active: true,
+  },
+  {
     id: "compensation_20260712",
     type: "reward",
     date: "2026-07-12",
