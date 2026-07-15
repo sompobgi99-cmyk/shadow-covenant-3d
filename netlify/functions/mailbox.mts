@@ -137,18 +137,25 @@ function cleanMessage(input: unknown): MailMessage | null {
   };
 }
 
-async function readCustomMessages(store: ReturnType<typeof getStore>) {
+async function readMailboxData(store: ReturnType<typeof getStore>) {
   const data = await store.get(STORE_KEY, { type: "json" });
   const list = data && typeof data === "object" && Array.isArray((data as { messages?: unknown }).messages)
     ? (data as { messages: unknown[] }).messages
     : [];
-  return list.map(cleanMessage).filter((mail): mail is MailMessage => !!mail).slice(0, 200);
+  const deleted = data && typeof data === "object" && Array.isArray((data as { deletedIds?: unknown }).deletedIds)
+    ? (data as { deletedIds: unknown[] }).deletedIds.map(cleanId).filter(Boolean).slice(0, 200)
+    : [];
+  return {
+    messages: list.map(cleanMessage).filter((mail): mail is MailMessage => !!mail).slice(0, 200),
+    deletedIds: [...new Set(deleted)],
+  };
 }
 
-function mergeMessages(custom: MailMessage[]) {
+function mergeMessages(custom: MailMessage[], deletedIds: string[] = []) {
+  const deleted = new Set(deletedIds);
   const byId = new Map<string, MailMessage>();
-  for (const mail of SEED_MESSAGES) byId.set(mail.id, mail);
-  for (const mail of custom) byId.set(mail.id, mail);
+  for (const mail of SEED_MESSAGES) if (!deleted.has(mail.id)) byId.set(mail.id, mail);
+  for (const mail of custom) if (!deleted.has(mail.id)) byId.set(mail.id, mail);
   return [...byId.values()].sort((a, b) => {
     const dateDiff = Date.parse(b.publishedAt || b.date) - Date.parse(a.publishedAt || a.date);
     return dateDiff || b.id.localeCompare(a.id);
@@ -169,7 +176,8 @@ export default async (req: Request) => {
   const store = getStore({ name: STORE_NAME, consistency: "strong" });
 
   if (req.method === "GET") {
-    const messages = publicMessages(mergeMessages(await readCustomMessages(store)));
+    const stored = await readMailboxData(store);
+    const messages = publicMessages(mergeMessages(stored.messages, stored.deletedIds));
     return json({ ok: true, messages, updated_at: new Date().toISOString() });
   }
 
@@ -186,27 +194,41 @@ export default async (req: Request) => {
     return json({ error: "Invalid JSON" }, 400);
   }
 
-  const custom = await readCustomMessages(store);
+  const stored = await readMailboxData(store);
+  const custom = stored.messages;
+  let deletedIds = stored.deletedIds;
   const action = String(body.action || "upsert");
-  if (action === "list") return json({ ok: true, messages: mergeMessages(custom), admin: true });
+  if (action === "list") return json({ ok: true, messages: mergeMessages(custom, deletedIds), admin: true });
 
-  if (action === "delete") {
+  if (action === "disable") {
     const id = cleanId(body.id);
     if (!id) return json({ error: "Invalid message id" }, 400);
-    const existing = mergeMessages(custom).find(mail => mail.id === id);
+    const existing = mergeMessages(custom, deletedIds).find(mail => mail.id === id);
     if (!existing) return json({ error: "Message not found" }, 404);
     const disabled = { ...existing, active: false };
     const next = custom.filter(mail => mail.id !== id);
     next.push(disabled);
-    await store.setJSON(STORE_KEY, { messages: next, updated_at: new Date().toISOString() });
+    await store.setJSON(STORE_KEY, { messages: next, deletedIds, updated_at: new Date().toISOString() });
     return json({ ok: true, message: disabled });
+  }
+
+  if (action === "delete") {
+    const id = cleanId(body.id);
+    if (!id) return json({ error: "Invalid message id" }, 400);
+    const existing = mergeMessages(custom, deletedIds).find(mail => mail.id === id);
+    if (!existing) return json({ error: "Message not found" }, 404);
+    const next = custom.filter(mail => mail.id !== id);
+    deletedIds = [...new Set([...deletedIds, id])].slice(0, 200);
+    await store.setJSON(STORE_KEY, { messages: next, deletedIds, updated_at: new Date().toISOString() });
+    return json({ ok: true, deleted: id });
   }
 
   const mail = cleanMessage(body.message);
   if (!mail) return json({ error: "Invalid message" }, 400);
   const next = custom.filter(item => item.id !== mail.id);
   next.push(mail);
-  await store.setJSON(STORE_KEY, { messages: next, updated_at: new Date().toISOString() });
+  deletedIds = deletedIds.filter(id => id !== mail.id);
+  await store.setJSON(STORE_KEY, { messages: next, deletedIds, updated_at: new Date().toISOString() });
   return json({ ok: true, message: mail });
 };
 

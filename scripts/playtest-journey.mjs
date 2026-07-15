@@ -115,11 +115,12 @@ try {
   await page.evaluate(() => completeChallengeRoom(true));
   await page.waitForTimeout(1000);
 
-  const map3 = await page.evaluate(async () => {
+  const map3Start = await page.evaluate(async () => {
     await transitionToStage(3);
-    return { mapStage, ground: !!tex.map3_ground, border: !!tex.map3_border_wall, boss: boss && boss.name, enemies: enemies.length };
+    return { mapStage, ground: !!tex.map3_ground, border: !!tex.map3_border_wall, boss: boss && boss.name, altarState:altar&&altar.state, enemies: enemies.length };
   });
   await page.waitForTimeout(2200);
+  const map3 = await page.evaluate(() => ({ mapStage, ground: !!tex.map3_ground, border: !!tex.map3_border_wall, boss: boss && boss.name, altarState:altar&&altar.state, enemies: enemies.length }));
   await page.screenshot({ path: "outputs/playtest/04-map3-boss.png" });
   await pressPattern(page, stabilitySeconds);
 
@@ -142,9 +143,10 @@ try {
   if (errors.length) throw new Error(errors.join("\n"));
   if (!map2.ground || !map2.border) throw new Error(`Map 2 textures were not ready: ${JSON.stringify(map2)}`);
   if (!challenge.floor || challenge.props < 3) throw new Error(`Challenge visuals did not load: ${JSON.stringify(challenge)}`);
+  if (map3Start.boss || map3Start.altarState!=='summoning') throw new Error(`Map 3 boss telegraph did not start: ${JSON.stringify(map3Start)}`);
   if (!map3.ground || !map3.border || !map3.boss) throw new Error(`Map 3/boss did not initialize: ${JSON.stringify(map3)}`);
   if (result.gameOver) throw new Error(`Player died during journey: ${JSON.stringify(result)}`);
-  console.log(JSON.stringify({ baseUrl, version, map2, challenge, map3, result }, null, 2));
+  console.log(JSON.stringify({ baseUrl, version, map2, challenge, map3Start, map3, result }, null, 2));
 } finally {
   if (browser) await browser.close();
   server.kill();

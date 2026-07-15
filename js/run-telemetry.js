@@ -84,6 +84,10 @@
       summary: stats ? {
         weapon_damage: stats.weaponDamage || {},
         item_stats: stats.itemStats || {},
+        damage_taken_by_type: stats.damageTakenByType || {},
+        final_hits: (stats.playerHits || []).slice(-12),
+        elite_modifiers: stats.eliteModifiers || {},
+        stats_at_death: stats.deathStats || null,
         death_cause: stats.deathCause || stats.lastHit || null,
       } : null,
     };

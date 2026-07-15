@@ -105,6 +105,9 @@ function onlineScorePayload(entry, includeBuild){
     pact_multiplier: Number(entry.pactMultiplier || 1),
     pact_label: entry.pactLabel || '',
     pact_count: entry.pactCount || (Array.isArray(entry.pactIds) ? entry.pactIds.length : 0),
+    run_mode: ['endless','weekly'].includes(entry.runMode) ? entry.runMode : 'standard',
+    challenge_key: entry.challengeKey || '',
+    endless_time: entry.endlessTime|0,
   };
   if(includeBuild) payload.build = entry.build || window.SHADOW_BUILD_VERSION || '';
   return payload;
@@ -197,10 +200,12 @@ if(typeof window!=='undefined'){
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) flushPendingOnlineScores(); });
 }
 
-async function loadOnlineLeaderboard(){
+async function loadOnlineLeaderboard(mode){
   if(!onlineLeaderboardReady()) return [];
+  const runMode=['endless','weekly'].includes(mode)?mode:'standard';
   if(ONLINE_LEADERBOARD.apiEndpoint){
-    const apiRes = await fetch(ONLINE_LEADERBOARD.apiEndpoint+'?limit='+encodeURIComponent(ONLINE_LEADERBOARD.limit));
+    const period=runMode==='weekly'&&typeof challengeKey==='function'?challengeKey(runMode):'';
+    const apiRes = await fetch(ONLINE_LEADERBOARD.apiEndpoint+'?limit='+encodeURIComponent(ONLINE_LEADERBOARD.limit)+'&mode='+encodeURIComponent(runMode)+(period?'&key='+encodeURIComponent(period):''));
     if(apiRes.ok){
       const data = await apiRes.json();
       return (data.rows || []).map(r=>({
@@ -226,6 +231,9 @@ async function loadOnlineLeaderboard(){
         pactMultiplier: r.pact_multiplier || 1,
         pactLabel: r.pact_label || '',
         pactCount: r.pact_count || ((r.pact_ids || []).length),
+        runMode: r.run_mode || runMode,
+        challengeKey: r.challenge_key || '',
+        endlessTime: r.endless_time || 0,
         date: r.created_at,
         verified: !!r.verified,
         online: true,

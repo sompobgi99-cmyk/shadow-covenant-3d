@@ -244,7 +244,7 @@ function divineDamage(e,amount,color){
   if(!e || !e.alive) return;
   const before=e.hp;
   const id=(player&&player.divineOfferingId)||activeDivineOfferingId;
-  const scaledAmount=amount*divineOfferingDamageScale(id,e);
+  const scaledAmount=amount*divineOfferingDamageScale(id,e)*(player&&player.divineInterventionPower||1);
   dealEnemyDamage(e,scaledAmount,color,e.x-player.x,e.z-player.z,0,true,{item:'divine_'+id});
   if(player) player.divineDamage=(player.divineDamage||0)+Math.max(0,before-e.hp);
 }
@@ -347,6 +347,10 @@ function updateDivineOffering(dt){
   if(!player) return;
   updateDivineVisualFx(dt);
   if(player.offeringCd>0) player.offeringCd=Math.max(0,player.offeringCd-dt);
+  if(player.divineInterventionT>0){
+    player.divineInterventionT=Math.max(0,player.divineInterventionT-dt);
+    if(player.divineInterventionT<=0) player.divineInterventionPower=1;
+  }
   for(let i=divineDelayed.length-1;i>=0;i--){ const d=divineDelayed[i]; d.t-=dt; if(d.t<=0){ divineDelayed.splice(i,1); d.fn(); } }
 
   if(player.divineGraveT>0){

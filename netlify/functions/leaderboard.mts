@@ -11,7 +11,7 @@ const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260714-ranking-retry-fix";
+const REQUIRED_BUILD = "20260715-weekly-world-enemies";
 const RANKED_DIFFICULTY_MULTIPLIERS = {
   normal: 1,
   hard: 1.4,
@@ -135,6 +135,9 @@ function cleanScore(input, authUser) {
     pact_multiplier: Math.max(1, Math.min(2.5, Number(input.pact_multiplier || input.pactMultiplier || 1) || 1)),
     pact_label: cleanText(input.pact_label || input.pactLabel, "", 160),
     pact_count: cleanInt(input.pact_count || input.pactCount || pactIds.length, 0, 12),
+    run_mode: ["endless","daily","weekly"].includes(cleanText(input.run_mode || input.runMode, "standard", 16)) ? cleanText(input.run_mode || input.runMode, "standard", 16) : "standard",
+    challenge_key: cleanText(input.challenge_key || input.challengeKey, "", 24),
+    endless_time: cleanInt(input.endless_time || input.endlessTime, 0, 999999),
     build: cleanBuild(input.build),
     user_id: authUser ? authUser.id : "",
     auth_name: authUser ? authUser.name : "",
@@ -199,8 +202,11 @@ function validateScore(entry) {
   if (entry.stage < 1 || entry.stage > MAX_RANKED_STAGE) return "Stage is outside the accepted range";
   if (entry.level < 1 || entry.level > MAX_RANKED_LEVEL) return "Level is outside the accepted range";
   if (entry.items < 0 || entry.items > 120) return "Item count is outside the accepted range";
-  if (entry.time > 3600) return "Run time is outside the accepted range";
+  if (entry.time > (entry.run_mode === "endless" ? 86400 : 3600)) return "Run time is outside the accepted range";
   if (entry.won && entry.stage !== MAX_RANKED_STAGE) return "Winning runs must finish on Map 3";
+  if (entry.run_mode === "endless" && entry.stage !== MAX_RANKED_STAGE) return "Endless runs must reach Map 3";
+  if (entry.run_mode === "daily" && !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(entry.challenge_key)) return "Daily challenge period key is invalid";
+  if (entry.run_mode === "weekly" && !/^[0-9]{4}-W[0-9]{2}$/.test(entry.challenge_key)) return "Weekly challenge period key is invalid";
   if (entry.kills > plausibleKillsCap(entry)) return "Kill count is outside the accepted range";
   const multiplierProblem = validateMultipliers(entry);
   if (multiplierProblem) return multiplierProblem;
@@ -253,6 +259,9 @@ function publicScore(row) {
     pact_multiplier: row.pact_multiplier || 1,
     pact_label: row.pact_label || "",
     pact_count: row.pact_count || ((row.pact_ids || []).length),
+    run_mode: row.run_mode || (["endless","daily","weekly"].includes(row.source) ? row.source : "standard"),
+    challenge_key: row.challenge_key || "",
+    endless_time: row.endless_time || 0,
     build: row.build || "",
     created_at: row.created_at || "",
     verified: !!row.verified,
@@ -273,12 +282,13 @@ function scoreDedupeKey(entry, identity, createdAt = "") {
     entry.time,
     entry.level,
     entry.stage,
+    entry.run_mode,
     entry.build,
   ];
   return createHash("sha256").update(JSON.stringify(stable)).digest("hex");
 }
 
-function databaseScore(entry, dedupeKey, source = "game") {
+function databaseScore(entry, dedupeKey, source = "") {
   return {
     dedupe_key: dedupeKey,
     player_name: entry.player_name,
@@ -307,7 +317,7 @@ function databaseScore(entry, dedupeKey, source = "game") {
     user_id: entry.user_id || null,
     auth_name: entry.auth_name || "",
     verified: !!entry.verified,
-    source,
+    source: source || (entry.run_mode === "standard" ? "game" : (entry.run_mode === "daily" || entry.run_mode === "weekly") && entry.challenge_key ? `${entry.run_mode}:${entry.challenge_key}` : entry.run_mode),
     created_at: entry.created_at || new Date().toISOString(),
   };
 }
@@ -320,6 +330,9 @@ function databaseToPublicScore(row) {
     stage: row.map_stage,
     damage: row.damage_taken,
     items: row.item_count,
+    run_mode: row.source === "endless" ? "endless" : String(row.source||"").startsWith("daily:") ? "daily" : String(row.source||"").startsWith("weekly:") ? "weekly" : "standard",
+    challenge_key: String(row.source||"").includes(":") ? String(row.source).split(":").slice(1).join(":") : "",
+    endless_time: row.source === "endless" ? row.time_seconds : 0,
   });
 }
 
@@ -340,10 +353,11 @@ async function postgresError(res, action) {
   return new Error(`Supabase ${action} failed (${res.status})${detail ? `: ${detail}` : ""}`);
 }
 
-async function readPostgresScores(limit) {
+async function readPostgresScores(limit, mode = "standard", challengeKey = "") {
   const params = new URLSearchParams({
-    select: "player_name,country_code,character,score,score_before_penalty,death_penalty_percent,death_penalty_amount,death_penalty_reason,kills,time_seconds,won,player_level,map_stage,damage_taken,item_count,difficulty_id,difficulty_name,difficulty_multiplier,pact_ids,pact_multiplier,pact_label,pact_count,build,created_at,verified",
+    select: "player_name,country_code,character,score,score_before_penalty,death_penalty_percent,death_penalty_amount,death_penalty_reason,kills,time_seconds,won,player_level,map_stage,damage_taken,item_count,difficulty_id,difficulty_name,difficulty_multiplier,pact_ids,pact_multiplier,pact_label,pact_count,build,created_at,verified,source",
     build: `eq.${REQUIRED_BUILD}`,
+    source: `eq.${mode === "standard" ? "game" : (mode === "daily" || mode === "weekly") && challengeKey ? `${mode}:${challengeKey}` : mode}`,
     order: "score.desc,created_at.asc",
     limit: String(limit),
   });
@@ -412,10 +426,13 @@ export default async (req) => {
   if (req.method === "GET") {
     const url = new URL(req.url);
     const limit = cleanInt(url.searchParams.get("limit"), 8, 50);
+    const requestedMode = url.searchParams.get("mode") || "standard";
+    const mode = ["endless","daily","weekly"].includes(requestedMode) ? requestedMode : "standard";
+    const periodKey = cleanText(url.searchParams.get("key"), "", 24);
     if (postgresReady()) {
       try {
         const migration = await ensureBlobScoresMigrated(store);
-        const rows = await readPostgresScores(limit);
+        const rows = await readPostgresScores(limit, mode, periodKey);
         const env = supabaseEnv();
         return json({ rows, required_build: REQUIRED_BUILD, auth_enabled: !!(env.url && env.anonKey), postgres_enabled: true, storage: "postgres", migration });
       } catch (error) {
@@ -423,7 +440,7 @@ export default async (req) => {
       }
     }
     const rows = (await readScores(store))
-      .filter((row) => row.build === REQUIRED_BUILD)
+      .filter((row) => row.build === REQUIRED_BUILD && (["endless","daily","weekly"].includes(row.run_mode) ? row.run_mode : "standard") === mode && (!(mode==="daily"||mode==="weekly") || !periodKey || row.challenge_key===periodKey))
       .sort((a, b) => (b.score || 0) - (a.score || 0) || String(a.created_at || "").localeCompare(String(b.created_at || "")))
       .slice(0, limit)
       .map(publicScore);

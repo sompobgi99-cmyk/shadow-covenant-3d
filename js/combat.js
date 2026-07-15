@@ -11,7 +11,7 @@ const WEAPON_TYPES = {
   spread: { name:'Hex Spread',     icon:'wpn_spread', desc:'ยิงเศษเวทกระจายเป็นพัดไปด้านหน้า',    mode:'spread',
             dmg:8, rate:1.10, range:9, count:2, pierce:0, speed:15, life:0.9, color:0x66ccff, arc:0.38, shape:'shard', evolveTo:'spreadX', evolveTome:'multishot' },
   nova:   { name:'Nova Burst',     icon:'wpn_nova',  desc:'ระเบิดวงแหวนรอบตัว',    mode:'nova',
-            dmg:17, rate:0.78, range:0, count:1, pierce:99, speed:12, life:0.6, color:0xffaa44, radius:2.8, evolveTo:'novaX', evolveTome:'celerity' },
+            dmg:17, rate:0.78, range:0, count:1, pierce:99, speed:12, life:0.6, color:0xffaa44, radius:2.8, evolveTo:'novaX', evolveTome:'growth' },
   orbit:  { name:'Orbiting Skull', icon:'wpn_orbit', desc:'กะโหลกวนรอบตัว โจมตีและช่วยกันดาเมจ',     mode:'orbit',
             dmg:9, count:2, color:0xff6688, orbitR:2.0, orbitSpd:3.45, tick:0.36, guardBlock:0.50, guardRecover:4.5, evolveTo:'orbitX', evolveTome:'precision' },
   arrow:  { name:"Hunter's Arrow",  icon:'wpn_arrow', desc:'ลูกธนูระยะไกลที่ยิงทะลุศัตรู',       mode:'aim',
@@ -78,6 +78,68 @@ const WEAPON_TYPES = {
 };
 const BONUS_COUNT_DMG_MUL = 0.65;
 const GLOBAL_WEAPON_DMG_MUL = 1.0602;
+const WEAPON_SYNERGIES=[
+  {id:'divine_storm',name:'Divine Storm',pair:['smite','lightning'],desc:'Holy Smite has a 25% chance to call an extra Lightning Strike.'},
+  {id:'aegis_covenant',name:'Aegis Covenant',pair:['orbit','shieldtoss'],desc:'Orbit guard blocks 15% more damage.'},
+  {id:'grave_waltz',name:'Grave Waltz',pair:['soulspiral','boneboomerang'],desc:'Both weapons attack 25% faster.'},
+  {id:'explosive_derby',name:'Explosive Derby',pair:['football','bouncebomb'],desc:'Impact radius increases by 40%.'},
+  {id:'rangers_focus',name:"Ranger's Focus",pair:['bolt','arrow'],desc:'Projectile speed +30% and pierce +2.'},
+  {id:'verdant_wrath',name:'Verdant Wrath',pair:['nova','bamboo_spikes'],desc:'Area radius increases by 20%.'},
+  {id:'shadow_strike',name:'Shadow Strike',pair:['dagger','chidori_fang'],desc:'Critical damage +25%.'},
+  {id:'hex_blade',name:'Hex Blade',pair:['bladewhirl','spread'],desc:'Both weapon arcs are 50% wider.'},
+  {id:'close_quarters',name:'Close Quarters',pair:['toolstab','bladewhirl'],desc:'Melee range +25% and damage +15%.'}
+];
+function weaponMatchesFamily(key,base){
+  const root=WEAPON_TYPES[base];
+  return key===base || !!(root&&root.evolveTo===key);
+}
+function ownsWeaponFamily(base,p){
+  const list=(p||player).weapons||[];
+  for(let i=0;i<list.length;i++) if(weaponMatchesFamily(list[i].key,base)) return true;
+  return false;
+}
+function hasWeaponSynergy(id,p){
+  const syn=WEAPON_SYNERGIES.find(s=>s.id===id);
+  return !!(syn&&ownsWeaponFamily(syn.pair[0],p)&&ownsWeaponFamily(syn.pair[1],p));
+}
+function activeWeaponSynergies(p){ return WEAPON_SYNERGIES.filter(s=>hasWeaponSynergy(s.id,p)); }
+const BUILD_ARCHETYPES=[
+  {id:'berserker',name:'Berserker',desc:'Below 50% HP with 200%+ damage: Damage +15%'},
+  {id:'crimson_priest',name:'Crimson Priest',desc:'20% Lifesteal and 200+ Max HP: overheal becomes a temporary shield'},
+  {id:'storm_caller',name:'Storm Caller',desc:'50% Crit with Lightning: critical hits gain a 10% lightning proc'},
+  {id:'juggernaut',name:'Juggernaut',desc:'20+ Armor with Orbit: Guard blocks 10% more damage'},
+  {id:'shadow_dancer',name:'Shadow Dancer',desc:'30% Evade and Dash below 1.5s: dash damages enemies passed through'},
+  {id:'void_mage',name:'Void Mage',desc:'3 evolved weapons: evolved weapon damage +10%'}
+];
+function hasBuildArchetype(id,p){
+  p=p||player;
+  if(!p) return false;
+  const armor=(p.def||0)*(p.armorMul||1);
+  const evolved=(p.weapons||[]).filter(w=>w.evolved||((WEAPON_TYPES[w.key]||{}).hidden)).length;
+  switch(id){
+    case 'berserker': return p.hp<Math.max(1,p.maxHp)*0.5 && (p.dmgMul||1)>=2;
+    case 'crimson_priest': return (p.lifestealPct||0)>=0.20 && p.maxHp>=200;
+    case 'storm_caller': return (p.critChance||0)>=0.50 && ownsWeaponFamily('lightning',p);
+    case 'juggernaut': return armor>=20 && ownsWeaponFamily('orbit',p);
+    case 'shadow_dancer': return (p.evade||0)>=0.30 && (typeof DASH_CD==='number'?DASH_CD:2.2)*(p.dashCdMul||1)<1.5;
+    case 'void_mage': return evolved>=3;
+  }
+  return false;
+}
+function activeBuildArchetypes(p){ return BUILD_ARCHETYPES.filter(a=>hasBuildArchetype(a.id,p)); }
+function updateBuildArchetypes(){
+  if(!player) return [];
+  const active=activeBuildArchetypes(player);
+  player._activeArchetypes=active.map(a=>a.id);
+  player._seenArchetypes=player._seenArchetypes||{};
+  for(const a of active){
+    if(player._seenArchetypes[a.id]) continue;
+    player._seenArchetypes[a.id]=1;
+    showToast('BUILD COMPLETE: '+a.name,2.4);
+    spawnObjectPulse(player.x,player.z,0xc994ff,5.5,0.55);
+  }
+  return active;
+}
 // ---- Items (pickup from enemy drops, stack unlimited) ----
 const DROP_RATES = { common: 0.12, uncommon: 0.06, rare: 0.025, legendary: 0.005 };
 const ITEMS = [
@@ -196,18 +258,21 @@ const ITEMS = [
 ];
 const RARITY_COLORS = { common:0x7ecf5a, uncommon:0x5a9ecf, rare:0xcf5acf, legendary:0xcfc05a };
 const RARITY_GLOW = { common:0x44ff44, uncommon:0x44aaff, rare:0xff44ff, legendary:0xffdd44 };
-function skillSizeReachMul(mode){
-  const sc=Math.max(1, player.projScale||1);
-  const gain=sc-1;
-  const factor=mode==='stab'?0.55:mode==='slash'?0.50:mode==='nova'?0.60:mode==='bamboo'?0.40:mode==='orbit'?0.45:0.35;
-  return Math.min(mode==='bamboo'?1.45:1.75, 1 + gain*factor);
+function scaledSkillStat(raw, gain, cap){
+  return Math.min(cap, 1 + (Math.max(1,raw||1)-1)*gain);
 }
-function radiusRangeMul(mode){
-  const rm=Math.max(1, player.rangeMul||1);
-  if(mode==='nova') return Math.min(1.45, 1 + (rm-1)*0.45);
-  if(mode==='smite') return Math.min(1.85, 1 + (rm-1)*0.70);
-  if(mode==='bamboo') return Math.min(1.35, 1 + (rm-1)*0.40);
-  return rm;
+function skillSizeMul(mode){
+  if(mode==='aoe') return scaledSkillStat(player.projScale,0.65,1.75);
+  if(mode==='bamboo') return scaledSkillStat(player.projScale,0.50,1.35);
+  if(mode==='melee') return scaledSkillStat(player.projScale,0.65,1.60);
+  return scaledSkillStat(player.projScale,0.65,1.40);
+}
+function skillRangeMul(mode){
+  if(mode==='melee') return scaledSkillStat(player.rangeMul,0.75,1.60);
+  if(mode==='placement') return scaledSkillStat(player.rangeMul,0.75,1.65);
+  if(mode==='orbit') return scaledSkillStat(player.rangeMul,0.75,1.60);
+  if(mode==='bounce') return scaledSkillStat(player.rangeMul,0.65,1.50);
+  return scaledSkillStat(player.rangeMul,0.75,1.75);
 }
 function wstats(key, lvl){
   const b = WEAPON_TYPES[key], s = Object.assign({}, b), k = lvl-1;
@@ -217,30 +282,44 @@ function wstats(key, lvl){
   const bonus=player.countBonus||0;
   if (b.mode === 'orbit'){
     s.count = b.count + Math.floor(k/2) + bonus;
-    s.orbitR = b.orbitR * (1 + 0.055*k) * (player.rangeMul||1) * skillSizeReachMul('orbit');
+    s.orbitR = b.orbitR * (1 + 0.055*k) * skillRangeMul('orbit');
+    s.skillSizeMul = skillSizeMul('projectile');
     s.tick = b.tick * Math.pow(0.90, k) / (player.rateMul||1);   // orbs hit faster per level + attack speed
+    if(player.environmentConduitActive) s.tick/=(player.environmentConduitMul||1.40);
   } else {
     const step=b.mode==='nova'||b.mode==='slash'||b.mode==='bamboo' ? 4 : 3;
     s.count = b.count + Math.floor(k/step) + bonus;
     s.rate  = b.rate * (1 + 0.06*k) * (player.rateMul||1);
-    s.range = b.range * (player.rangeMul||1) * (b.mode==='stab'||b.mode==='slash'||b.mode==='bamboo' ? skillSizeReachMul(b.mode) : 1);
+    if(player.environmentConduitActive) s.rate*=(player.environmentConduitMul||1.40);
+    const rangeMode=b.mode==='stab'||b.mode==='slash'?'melee':b.mode==='smite'||b.mode==='bamboo'?'placement':'projectile';
+    const rangeScale=b.mode==='nova'?1:skillRangeMul(rangeMode);
+    s.range = b.range * rangeScale;
     if (b.mode==='bamboo') s.range = Math.min(s.range, key==='bamboo_spikesX'?17.0:14.5);
-    s.life  = b.life * (player.lifeMul||1);
+    s.life  = b.life * (player.lifeMul||1) * ((b.mode==='aim'||b.mode==='spread'||b.mode==='spiral'||b.mode==='slash')?rangeScale:1);
     s.areaLife = player.areaLifeMul||1;
     s.speed = b.speed * (player.projSpeedMul||1);
+    s.skillSizeMul = skillSizeMul(b.mode==='nova'||b.mode==='smite'?'aoe':b.mode==='bamboo'?'bamboo':b.mode==='stab'||b.mode==='slash'?'melee':'projectile');
     if (b.radius) {
-      s.radius = b.radius * (1 + 0.055*k) * radiusRangeMul(b.mode) * (b.mode==='nova'||b.mode==='smite'||b.mode==='bamboo' ? skillSizeReachMul(b.mode) : 1);
+      s.radius = b.radius * (1 + 0.055*k) * s.skillSizeMul;
       if (b.mode==='nova') s.radius = Math.min(s.radius, key==='novaX'?8.6:6.2);
       if (b.mode==='bamboo') s.radius = Math.min(s.radius, key==='bamboo_spikesX'?2.45:1.65);
     }
     if (b.bounces != null) {
       s.bounces = Math.max(0, (b.bounces||0) + (player.ricochetBonus||0));
-      s.bounceRadius = (b.bounceRadius||8) * (player.rangeMul||1);
+      s.bounceRadius = (b.bounceRadius||8) * skillRangeMul('bounce');
       s.bounceDmgMul = b.bounceDmgMul || 0.88;
     }
-    if (b.impactRadius) s.impactRadius = b.impactRadius * (1 + 0.04*k) * (player.rangeMul||1);
+    if (b.impactRadius) s.impactRadius = b.impactRadius * (1 + 0.04*k) * skillSizeMul('aoe');
     if (b.impactDmgMul) s.impactDmgMul = b.impactDmgMul;
   }
+  if(hasWeaponSynergy('grave_waltz')&&(weaponMatchesFamily(key,'soulspiral')||weaponMatchesFamily(key,'boneboomerang'))) s.rate*=1.25;
+  if(hasWeaponSynergy('rangers_focus')&&(weaponMatchesFamily(key,'bolt')||weaponMatchesFamily(key,'arrow'))){ s.speed*=1.30; s.pierce=(s.pierce||0)+2; }
+  if(hasWeaponSynergy('verdant_wrath')&&(weaponMatchesFamily(key,'nova')||weaponMatchesFamily(key,'bamboo_spikes'))) s.radius=(s.radius||1)*1.20;
+  if(hasWeaponSynergy('explosive_derby')&&(weaponMatchesFamily(key,'football')||weaponMatchesFamily(key,'bouncebomb'))){ s.impactRadius=(s.impactRadius||0.72)*1.40; s.impactDmgMul=s.impactDmgMul||0.30; }
+  if(hasWeaponSynergy('hex_blade')&&(weaponMatchesFamily(key,'bladewhirl')||weaponMatchesFamily(key,'spread'))) s.arc=(s.arc||0.45)*1.50;
+  if(hasWeaponSynergy('close_quarters')&&(weaponMatchesFamily(key,'toolstab')||weaponMatchesFamily(key,'bladewhirl'))){ s.range=Math.min(b.range*1.60,s.range*1.25); s.dmg=Math.round(s.dmg*1.15); }
+  if(hasBuildArchetype('berserker')) s.dmg=Math.round(s.dmg*1.15);
+  if(hasBuildArchetype('void_mage')&&(b.hidden||key.endsWith('X'))) s.dmg=Math.round(s.dmg*1.10);
   return s;
 }
 function damageForCountSlot(s,i){
@@ -275,7 +354,7 @@ function trySkullGuard(amt, src){
   }
   if(!best) return { blocked:false, amount:amt };
   const b=WEAPON_TYPES[best.key]||{};
-  const block=Math.max(0, Math.min(0.9, b.guardBlock||0.5));
+  const block=Math.max(0, Math.min(0.9, (b.guardBlock||0.5)+(hasWeaponSynergy('aegis_covenant')?0.15:0)+(hasBuildArchetype('juggernaut')?0.10:0)));
   recordRunItem(best.key==='orbitX'?'orbitX':'orbit',{ procs:1, blocked:Math.round(amt*block) });
   best.guardActive=Math.max(0,(best.guardActive||0)-1);
   best.guardCd=b.guardRecover||5;
@@ -297,12 +376,6 @@ function hitMul(e){
   let m = 1;
   if ((e.isBoss||e.elite) && player._bossBuster) m *= 1 + 0.15*player._bossBuster;
   if ((e.isBoss||e.elite) && player._executionSeal) m *= 1.25;
-  if ((e.butcher||e.mimic) && player._butcherToken) m *= 1 + 0.25*player._butcherToken;
-  if (player._beefy)   m *= 1 + 0.20*player._beefy*Math.floor(player.maxHp/100);
-  if (player._goggles) {
-    const missingHp = Math.max(0, Math.min(1, 1 - player.hp / Math.max(1, player.maxHp)));
-    m *= 1 + 0.60 * player._goggles * missingHp;
-  }
   if (player._brass){ const dx=e.x-player.x, dz=e.z-player.z; if (dx*dx+dz*dz < 9) m *= 1 + 0.20*player._brass; }
   if (player._eagle && e.airborne) m *= 1 + 0.66*player._eagle;
   if (player._creditCard) m *= 1 + 0.025*player._creditCard*chestsOpened;
@@ -325,7 +398,7 @@ function rollCrit(){
   player._critPity=0;
   player._critChain=chain;
   player._critChainUntil=now+1.1;
-  return { crit:true, mul:Math.max(1, (player.critDmg||1.5)+overflow)*(1+0.04*(chain-1)), chain };
+  return { crit:true, mul:Math.max(1, (player.critDmg||1.5)+overflow+(hasWeaponSynergy('shadow_strike')?0.25:0))*(1+0.04*(chain-1)), chain };
 }
 let raijinWraithTexture=null;
 function getRaijinWraithTexture(){
@@ -445,6 +518,14 @@ function onCritProcs(e,d,color,meta,chain){
     ensureCursedEyeMark(e);
   }
   if(wasCursed) spawnRaijinWraith(e,d,meta);
+  if(hasBuildArchetype('storm_caller')&&!(meta&&meta.archetypeStorm)&&Math.random()<0.10){
+    const targets=nearestEnemies(e.x,e.z,7,2);
+    for(const hit of targets){
+      const target=hit&&hit.e?hit.e:hit;
+      if(target&&target.alive) dealEnemyDamage(target,Math.max(1,d*0.45),0x8deaff,target.x-e.x,target.z-e.z,0,true,{weapon:'lightning',archetypeStorm:true});
+    }
+    spawnRing(e.x,e.z,0x8deaff,3.2,0.25);
+  }
   e.bleedDps=Math.max(e.bleedDps||0, d*0.10*(1+0.12*Math.max(0,(chain||1)-1)));
   e.bleedT=Math.max(e.bleedT||0,1.6);
   e.bleedMeta=meta||null;
@@ -462,6 +543,13 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc, meta){
   const crit=rollCrit();
   if(crit.crit) d *= crit.mul;
   if (e.shieldT > 0) d *= 0.4;                                           // Warden shield
+  if(e.guardT>0){
+    let sx=-(kx||0),sz=-(kz||0),sd=Math.hypot(sx,sz);
+    if(sd<0.01){sx=player.x-e.x;sz=player.z-e.z;sd=Math.hypot(sx,sz);}
+    const facingD=Math.hypot(e.guardFacingX||0,e.guardFacingZ||0)||1;
+    const front=sd>0&&((sx/sd)*(e.guardFacingX||0)/facingD+(sz/sd)*(e.guardFacingZ||0)/facingD)>0.15;
+    if(front){d*=0.45;if(gameTime>(e.guardBlockFxAt||0)){e.guardBlockFxAt=gameTime+0.22;spawnDmg(e.x,e.z,'GUARD',0xffd86a,false,'guard');spawnRing(e.x,e.z,0xd8b45a,e.r*1.45,0.18);}}
+  }
   if (e.damageTakenMul != null) d *= Math.max(0.05, e.damageTakenMul);    // boss armor/resistance
   d = Math.round(d);
   if (!Number.isFinite(d) || d < 0) d = 0;
@@ -628,6 +716,15 @@ function fireSmite(s){
       spawnBurst(tx,tz,s.color,8,0.8);
     }
   }
+  if(weaponMatchesFamily(s.sourceKey,'smite')&&hasWeaponSynergy('divine_storm')&&Math.random()<0.25){
+    const lightning=(player.weapons||[]).find(w=>weaponMatchesFamily(w.key,'lightning'));
+    if(lightning){
+      const extra=wstats(lightning.key,lightning.lvl);
+      extra.count=1; extra.baseCount=1; extra.dmg=Math.max(1,Math.round(extra.dmg*0.65));
+      fireSmite(extra);
+      spawnDmg(player.x,player.z,'DIVINE STORM',0x9eefff,false,'critproc');
+    }
+  }
 }
 const bambooPatches=[];
 const MAX_BAMBOO_PATCHES=48;
@@ -700,7 +797,7 @@ function updateOrbit(w, s, dt){
     const m = new THREE.Sprite(new THREE.SpriteMaterial({
       map:tex.wpn_orbit, color:b.color, transparent:true, alphaTest:0.2, depthWrite:false
     }));
-    m.scale.set(0.82,0.82,1);
+    m.scale.set(0.82*(s.skillSizeMul||1),0.82*(s.skillSizeMul||1),1);
     scene.add(m); w.orbs.push({ mesh:m, hit:new Map() });
   }
   const n = w.orbs.length;
@@ -709,6 +806,7 @@ function updateOrbit(w, s, dt){
     const active=i<(w.guardActive||0);
     o.mesh.visible=active;
     if(!active) continue;
+    o.mesh.scale.set(0.82*(s.skillSizeMul||1),0.82*(s.skillSizeMul||1),1);
     const evolved=w.key==='orbitX';
     const ring=evolved && (i%2===0) ? 0.62 : 1;
     const dir=evolved && (i%2===0) ? -1 : 1;
@@ -718,11 +816,11 @@ function updateOrbit(w, s, dt){
     const ox = player.x + Math.cos(ang)*s.orbitR*ring, oz = player.z + Math.sin(ang)*s.orbitR*ring;
     o.mesh.position.set(ox, groundHeight(ox,oz)+0.9, oz);
     forEachNearbyEnemy(ox,oz,1.6,e=>{ if(!e.alive) return;
-      if (Math.hypot(ox-e.x, oz-e.z) < e.r+0.5 && (o.hit.get(e)||0) <= gameTime){
+      if (Math.hypot(ox-e.x, oz-e.z) < e.r+0.5*(s.skillSizeMul||1) && (o.hit.get(e)||0) <= gameTime){
         o.hit.set(e, gameTime + (s.tick||b.tick));
         dealEnemyDamage(e, damageForCountSlot(s,i), b.color, e.x-ox, e.z-oz, 3, false, { weapon:w.key });
       } });
-    hitBreakablesAt(ox,oz,0.55,damageForCountSlot(s,i),b.color,1);
+    hitBreakablesAt(ox,oz,0.55*(s.skillSizeMul||1),damageForCountSlot(s,i),b.color,1);
   }
 }
 function updateWeapon(w, dt){

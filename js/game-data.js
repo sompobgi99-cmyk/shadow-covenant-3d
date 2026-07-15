@@ -77,6 +77,10 @@ const MANIFEST = {
   map3_rune_shard:'map3_rune_shard_gen.png', map3_void_torch:'map3_void_torch_gen.png',
   map3_chain_pylon:'map3_chain_pylon_gen.png', map3_star_rift:'map3_star_rift_gen.png',
   map3_rift_arch:'map3_rift_arch_gen.png', map3_void_lantern:'map3_void_lantern_gen.png',
+  weekly_ground:'weekly_ground.png', weekly_border_wall:'weekly_border_wall.png',
+  obj_weekly_obelisk:'obj_weekly_obelisk.png', obj_weekly_gate:'obj_weekly_gate.png', weekly_brazier:'weekly_brazier.png',
+  weekly_void_rift:'weekly_void_rift.png', weekly_power_conduit:'weekly_power_conduit.png',
+  weekly_explosive_barrel:'weekly_explosive_barrel.png', weekly_healing_spring:'weekly_healing_spring.png',
   wpn_bolt:'wpn_bolt.png', wpn_spread:'wpn_spread.png', wpn_nova:'wpn_nova.png', wpn_orbit:'wpn_orbit.png',
   wpn_arrow:'wpn_arrow.png', wpn_smite:'wpn_smite.png', wpn_bladewhirl:'wpn_bladewhirl.png', wpn_soulspiral:'wpn_soulspiral.png',
   wpn_lightning:'wpn_lightning.png', wpn_dagger:'wpn_dagger.png', wpn_screwdriver:'wpn_screwdriver.png',
@@ -134,6 +138,7 @@ const MANIFEST = {
   fx_raijin_wraith:'fx_raijin_wraith.png',
   fx_poison_hazard:'fx_poison_hazard.png', fx_mud_hazard:'fx_mud_hazard.png', fx_root_hazard:'fx_root_hazard.png',
   fx_void_pull:'fx_void_pull.png', fx_gold_steal:'fx_gold_steal.png', fx_enemy_buff_aura:'fx_enemy_buff_aura.png',
+  fx_web_hazard:'fx_web_hazard.png', fx_cursed_guard:'fx_cursed_guard.png', fx_cursed_charge:'fx_cursed_charge.png',
   fx_divine_astra:'fx_divine_astra.png', fx_divine_morvane:'fx_divine_morvane.png', fx_divine_solarius:'fx_divine_solarius.png',
   fx_divine_nhal:'fx_divine_nhal.png', fx_divine_serapha:'fx_divine_serapha.png', fx_divine_tharos:'fx_divine_tharos.png', fx_divine_eirene:'fx_divine_eirene.png',
   enemy_wraith_8dir:'enemy_wraith_8dir.png',
@@ -289,6 +294,10 @@ const ENEMY_TYPES = [
   { name:'Dire Bat',hp:14,atk:8,spd:140,xp:6,h:1.3,sprite:'enemy_dire_bat',tier:0 },
   { name:'Rot Hound',hp:22,atk:12,spd:95,xp:9,h:1.5,sprite:'enemy_rot_hound',tier:0 },
   { name:'Plague Rat',hp:10,atk:6,spd:120,xp:5,h:1.1,sprite:'enemy_plague_rat',tier:0 },
+  { name:'Grave Arbalist',hp:24,atk:13,spd:64,xp:12,h:1.7,sprite:'enemy_grave_arbalist',tier:0 },
+  { name:'Crypt Spider',hp:16,atk:10,spd:100,xp:7,h:1.4,sprite:'enemy_crypt_spider',tier:0 },
+  { name:'Cursed Knight',hp:35,atk:15,spd:63,xp:14,h:1.9,sprite:'enemy_cursed_knight',tier:0 },
+  { name:'Grave Robber',hp:18,atk:9,spd:70,xp:10,h:1.5,sprite:'enemy_grave_robber',tier:0 },
   // tier 1 — Fenmire
   { name:'Bog Fiend',hp:32,atk:13,spd:70,xp:10,h:1.8,sprite:'enemy_bog_fiend',tier:1 },
   { name:'Marsh Lurker',hp:22,atk:11,spd:90,xp:8,h:1.5,sprite:'enemy_marsh_lurker',tier:1 },
@@ -338,7 +347,7 @@ const BIOME_NAMES = ['Bleakfield','Crimson Wastes','Void Citadel'];
 (function deriveSpriteManifest(){
   const set = (k,f)=>{ if(!(k in MANIFEST)) MANIFEST[k]=f; };
   const addUnit = (sp,withWalk)=>{ set(sp,sp+'.png'); set(sp+'_8dir',sp+'_8dir.png'); if(withWalk) set(sp+'_walk',sp+'_walk.png'); };
-  const staticOnly = new Set(['enemy_mire_hexer','enemy_rift_needler','enemy_doom_cantor','enemy_covenant_warder']);
+  const staticOnly = new Set(['enemy_grave_arbalist','enemy_mire_hexer','enemy_rift_needler','enemy_doom_cantor','enemy_covenant_warder']);
   ENEMY_TYPES.forEach(t=>addUnit(t.sprite,!staticOnly.has(t.sprite)));
   MINIBOSS_TYPES.forEach(t=>addUnit(t.sprite,true));
   BOSS_TYPES.forEach(t=>set(t.sprite+'_8dir',t.sprite+'_8dir.png'));

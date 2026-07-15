@@ -78,7 +78,7 @@ createServer(async (req, res) => {
 
     if (url.pathname === '/api/mailbox') {
       if (req.method !== 'GET') return sendJson(res, { error: 'Local mailbox admin writes require Netlify.' }, 501);
-      return sendJson(res, { ok: true, messages: [], storage: 'local-fallback' });
+      return sendJson(res, { ok: true, messages: [], storage: 'local-fallback', local_fallback: true });
     }
 
     const decoded = decodeURIComponent(url.pathname);

@@ -1,7 +1,7 @@
 import { getStore } from "@netlify/blobs";
 
 const STORE_NAME = "shadow-covenant-progress";
-const MAX_BODY_BYTES = 8192;
+const MAX_BODY_BYTES = 65536;
 const ACHIEVEMENT_IDS = new Set([
   "first_hunt",
   "level_10",
@@ -120,7 +120,13 @@ function supabaseEnv() {
   return {
     url: (Netlify.env.get("SUPABASE_URL") || "").trim().replace(/\/+$/, ""),
     anonKey: (Netlify.env.get("SUPABASE_ANON_KEY") || "").trim(),
+    serviceKey: (Netlify.env.get("SUPABASE_SECRET_KEY") || Netlify.env.get("SUPABASE_SERVICE_ROLE_KEY") || "").trim(),
   };
+}
+
+function postgresReady() {
+  const { url, serviceKey } = supabaseEnv();
+  return !!(url && serviceKey);
 }
 
 function bearerToken(req: Request) {
@@ -167,17 +173,18 @@ function cleanDone(input: unknown) {
   return done;
 }
 
-function mergeDone(a: Record<string, string>, b: Record<string, string>) {
-  const out = { ...a };
-  for (const [id, at] of Object.entries(b)) {
-    if (!out[id] || Date.parse(at) < Date.parse(out[id])) out[id] = at;
-  }
-  return out;
-}
-
 function cleanCoins(value: unknown) {
   const n = Math.floor(Number(value || 0));
   return Number.isFinite(n) && n > 0 ? Math.min(9999999, n) : 0;
+}
+
+function cleanCoinDelta(value: unknown) {
+  const n = Math.trunc(Number(value || 0));
+  return Number.isFinite(n) ? Math.max(-9999999, Math.min(9999999, n)) : 0;
+}
+
+function cleanMutationId(value: unknown) {
+  return String(value || "").replace(/[^\w.-]/g, "").slice(0, 80);
 }
 
 function cleanPetState(input: unknown) {
@@ -245,64 +252,37 @@ function cleanMailboxMap(input: unknown) {
 
 function cleanMailbox(input: unknown) {
   const src = input && typeof input === "object" ? input as Record<string, unknown> : {};
-  return { read: cleanMailboxMap(src.read), claimed: cleanMailboxMap(src.claimed) };
+  return { read: cleanMailboxMap(src.read), claimed: cleanMailboxMap(src.claimed), deleted: cleanMailboxMap(src.deleted) };
 }
 
-function mergeMailbox(a: ReturnType<typeof cleanMailbox>, b: ReturnType<typeof cleanMailbox>) {
-  const out = { read: { ...a.read }, claimed: { ...a.claimed } };
-  for (const kind of ["read", "claimed"] as const) {
-    for (const [id, at] of Object.entries(b[kind])) {
-      if (!out[kind][id] || Date.parse(at) < Date.parse(out[kind][id])) out[kind][id] = at;
-    }
+function cleanChallengeRewards(input: unknown) {
+  const src = input && typeof input === "object" ? input as Record<string, unknown> : {};
+  const out: Record<string, string> = {};
+  for (const [id, value] of Object.entries(src).slice(0, 200)) {
+    if (!/^(daily:\d{4}-\d{2}-\d{2}|weekly:\d{4}-W\d{2})$/.test(id)) continue;
+    const parsed = Date.parse(String(value || "").slice(0, 40));
+    if (Number.isFinite(parsed)) out[id] = new Date(parsed).toISOString();
   }
   return out;
 }
 
-function mergePacts(a: ReturnType<typeof cleanPactState>, b: ReturnType<typeof cleanPactState>) {
-  const out = { done: { normal: { ...a.done.normal }, hard: { ...a.done.hard } } };
-  for (const diff of ["normal", "hard"] as const) {
-    for (const [id, at] of Object.entries(b.done[diff])) {
-      if (!out.done[diff][id] || Date.parse(at) < Date.parse(out.done[diff][id])) out.done[diff][id] = at;
-    }
-  }
-  return out;
-}
-
-function mergeDivineOfferings(a: ReturnType<typeof cleanDivineOfferingState>, b: ReturnType<typeof cleanDivineOfferingState>) {
-  const owned = { ...a.owned };
-  for (const [id, at] of Object.entries(b.owned)) {
-    if (!owned[id] || Date.parse(at) < Date.parse(owned[id])) owned[id] = at;
-  }
-  return { owned };
-}
-
-function mergePets(a: ReturnType<typeof cleanPetState>, b: ReturnType<typeof cleanPetState>) {
-  const owned = { ...a.owned };
-  let added = false;
-  for (const [id, at] of Object.entries(b.owned)) {
-    if (!owned[id]) added = true;
-    if (!owned[id] || Date.parse(at) < Date.parse(owned[id])) owned[id] = at;
-  }
-  const selected = b.selected && owned[b.selected] ? b.selected : a.selected && owned[a.selected] ? a.selected : "";
-  return { pets: { owned, selected }, added };
-}
-
-async function readProgress(store: ReturnType<typeof getStore>, userId: string) {
+async function readLegacyProgress(store: ReturnType<typeof getStore>, userId: string) {
   const data = await store.get(progressKey(userId), { type: "json" });
-  const obj = data && typeof data === "object" ? data as { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown; divineOfferings?: unknown; mailbox?: unknown; migrations?: unknown; updated_at?: string } : {};
+  const obj = data && typeof data === "object" ? data as { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown; divineOfferings?: unknown; challengeRewards?: unknown; mailbox?: unknown; migrations?: unknown; updated_at?: string } : {};
   return {
     done: cleanDone(obj.done),
     pacts: cleanPactState(obj.pacts),
     soulCoins: cleanCoins(obj.soulCoins),
     pets: cleanPetState(obj.pets),
     divineOfferings: cleanDivineOfferingState(obj.divineOfferings),
+    challengeRewards: cleanChallengeRewards(obj.challengeRewards),
     mailbox: cleanMailbox(obj.mailbox),
     migrations: cleanMigrations(obj.migrations),
     updated_at: obj.updated_at || "",
   };
 }
 
-function applyPetRetroDeduction(progress: Awaited<ReturnType<typeof readProgress>>) {
+function applyPetRetroDeduction(progress: Awaited<ReturnType<typeof readLegacyProgress>>) {
   if (progress.migrations[PET_RETRO_DEDUCT_ID]) return { progress, changed: false, deducted: 0 };
   let deducted = 0;
   for (const [id, at] of Object.entries(progress.pets.owned)) {
@@ -318,7 +298,7 @@ function applyPetRetroDeduction(progress: Awaited<ReturnType<typeof readProgress
   return { progress: next, changed: true, deducted };
 }
 
-function applyProgressMigrations(progress: Awaited<ReturnType<typeof readProgress>>) {
+function applyProgressMigrations(progress: Awaited<ReturnType<typeof readLegacyProgress>>) {
   const retro = applyPetRetroDeduction(progress);
   return {
     progress: retro.progress,
@@ -328,48 +308,140 @@ function applyProgressMigrations(progress: Awaited<ReturnType<typeof readProgres
   };
 }
 
+function cleanProgressPayload(body: Record<string, unknown>) {
+  return {
+    done: cleanDone(body.done),
+    pacts: cleanPactState(body.pacts),
+    pets: cleanPetState(body.pets),
+    divineOfferings: cleanDivineOfferingState(body.divineOfferings),
+    challengeRewards: cleanChallengeRewards(body.challengeRewards),
+    mailbox: cleanMailbox(body.mailbox),
+    migrations: cleanMigrations(body.migrations),
+  };
+}
+
+function postgresProgress(row: Record<string, unknown>) {
+  return {
+    ok: true,
+    done: cleanDone(row.done),
+    pacts: cleanPactState(row.pacts),
+    soulCoins: cleanCoins(row.soul_coins ?? row.soulCoins),
+    pets: cleanPetState(row.pets),
+    divineOfferings: cleanDivineOfferingState(row.divine_offerings ?? row.divineOfferings),
+    challengeRewards: cleanChallengeRewards(row.challenge_rewards ?? row.challengeRewards),
+    mailbox: cleanMailbox(row.mailbox),
+    migrations: cleanMigrations(row.migrations),
+    revision: Math.max(0, Math.trunc(Number(row.revision || 0))),
+    updated_at: String(row.updated_at || ""),
+    mutationApplied: Object.prototype.hasOwnProperty.call(row, "mutationApplied") ? row.mutationApplied !== false : undefined,
+    storage: "postgres",
+  };
+}
+
+async function postgresRequest(path: string, init: RequestInit = {}) {
+  const { url, serviceKey } = supabaseEnv();
+  if (!url || !serviceKey) throw new Error("Supabase Postgres is not configured");
+  const headers = {
+    apikey: serviceKey,
+    "Content-Type": "application/json",
+    ...(init.headers || {}),
+  };
+  return fetch(`${url}/rest/v1/${path}`, { ...init, headers });
+}
+
+async function postgresError(res: Response, action: string) {
+  let detail = "";
+  try { detail = String(await res.text()).replace(/\s+/g, " ").slice(0, 320); } catch {}
+  return new Error(`Supabase ${action} failed (${res.status})${detail ? `: ${detail}` : ""}`);
+}
+
+async function readPostgresProgress(userId: string) {
+  const params = new URLSearchParams({
+    user_id: `eq.${userId}`,
+    select: "user_id,soul_coins,done,pacts,pets,divine_offerings,challenge_rewards,mailbox,migrations,revision,updated_at",
+    limit: "1",
+  });
+  const res = await postgresRequest(`player_progress?${params.toString()}`, { method: "GET" });
+  if (!res.ok) throw await postgresError(res, "player progress read");
+  const rows = await res.json();
+  return Array.isArray(rows) && rows[0] ? postgresProgress(rows[0]) : null;
+}
+
+async function mergePostgresProgress(userId: string, mutationId: string, coinDelta: number, progress: ReturnType<typeof cleanProgressPayload>) {
+  const res = await postgresRequest("rpc/merge_player_progress", {
+    method: "POST",
+    body: JSON.stringify({
+      p_user_id: userId,
+      p_mutation_id: mutationId,
+      p_soul_coin_delta: coinDelta,
+      p_progress: progress,
+    }),
+  });
+  if (!res.ok) throw await postgresError(res, "player progress merge");
+  const result = await res.json();
+  return postgresProgress(result && typeof result === "object" ? result as Record<string, unknown> : {});
+}
+
+async function ensureBlobProgressMigrated(store: ReturnType<typeof getStore>, userId: string) {
+  const existing = await readPostgresProgress(userId);
+  if (existing) return { progress: existing, migrated: false, deducted: 0 };
+  const legacyResult = applyProgressMigrations(await readLegacyProgress(store, userId));
+  const legacy = legacyResult.progress;
+  const payload = cleanProgressPayload({
+    done: legacy.done,
+    pacts: legacy.pacts,
+    pets: legacy.pets,
+    divineOfferings: legacy.divineOfferings,
+    challengeRewards: legacy.challengeRewards,
+    mailbox: legacy.mailbox,
+    migrations: legacy.migrations,
+  });
+  const progress = await mergePostgresProgress(userId, "legacy-netlify-blobs-v1", legacy.soulCoins, payload);
+  return { progress, migrated: true, deducted: legacyResult.deducted };
+}
+
 export default async (req: Request) => {
   const auth = await verifySupabaseUser(req);
   if (auth.error) return json({ error: auth.error }, 401);
+  if (!postgresReady()) return json({ error: "Player progress Postgres is not configured" }, 503);
   const store = getStore({ name: STORE_NAME, consistency: "strong" });
 
   if (req.method === "GET") {
-    const result = applyProgressMigrations(await readProgress(store, auth.userId));
-    const progress = result.progress;
-    if (result.changed) {
-      await store.setJSON(progressKey(auth.userId), { done: progress.done, pacts: progress.pacts, soulCoins: progress.soulCoins, pets: progress.pets, divineOfferings: progress.divineOfferings, mailbox: progress.mailbox, migrations: progress.migrations, updated_at: new Date().toISOString() });
+    try {
+      const result = await ensureBlobProgressMigrated(store, auth.userId);
+      return json({ ...result.progress, migrated_from_blobs: result.migrated, retroPetDeducted: result.deducted });
+    } catch (error) {
+      console.error("player progress postgres read failed", error && (error as Error).message ? (error as Error).message : error);
+      return json({ error: "Unable to load player progress" }, 503);
     }
-    return json({ ok: true, done: progress.done, pacts: progress.pacts, soulCoins: progress.soulCoins, pets: progress.pets, divineOfferings: progress.divineOfferings, mailbox: progress.mailbox, migrations: progress.migrations, updated_at: progress.updated_at, retroPetDeducted: result.deducted, compensationSoulCoins: result.compensation });
   }
 
   if (req.method === "POST" || req.method === "PUT") {
     const contentLength = Number.parseInt(req.headers.get("content-length") || "0", 10);
     if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) return json({ error: "Payload too large" }, 413);
-    let body: { done?: unknown; pacts?: unknown; soulCoins?: unknown; pets?: unknown; divineOfferings?: unknown; mailbox?: unknown; migrations?: unknown; coinSpend?: unknown } = {};
+    let body: Record<string, unknown> = {};
     try {
-      body = await req.json();
+      const raw = await req.text();
+      if (new TextEncoder().encode(raw).byteLength > MAX_BODY_BYTES) return json({ error: "Payload too large" }, 413);
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return json({ error: "Invalid JSON object" }, 400);
+      body = parsed as Record<string, unknown>;
     } catch {
       return json({ error: "Invalid JSON" }, 400);
     }
-    const incomingMigrations = cleanMigrations(body.migrations);
-    const rawExisting = await readProgress(store, auth.userId);
-    const migrationAwareExisting = incomingMigrations[SOUL_COIN_COMPENSATION_ID]
-      ? { ...rawExisting, migrations: { ...rawExisting.migrations, [SOUL_COIN_COMPENSATION_ID]: incomingMigrations[SOUL_COIN_COMPENSATION_ID] } }
-      : rawExisting;
-    const existingResult = applyProgressMigrations(migrationAwareExisting);
-    const existing = existingResult.progress;
-    const merged = mergeDone(existing.done, cleanDone(body.done));
-    const pacts = mergePacts(existing.pacts, cleanPactState(body.pacts));
-    const incomingPets = cleanPetState(body.pets);
-    const petMerge = mergePets(existing.pets, incomingPets);
-    const divineOfferings = mergeDivineOfferings(existing.divineOfferings, cleanDivineOfferingState(body.divineOfferings));
-    const mailbox = mergeMailbox(existing.mailbox, cleanMailbox(body.mailbox));
-    const incomingCoins = Object.prototype.hasOwnProperty.call(body, "soulCoins") ? cleanCoins(body.soulCoins) : existing.soulCoins;
-    const coinSpend = body.coinSpend === true;
-    const soulCoins = coinSpend || (petMerge.added && incomingCoins < existing.soulCoins) ? incomingCoins : Math.max(existing.soulCoins, incomingCoins);
-    const payload = { done: merged, pacts, soulCoins, pets: petMerge.pets, divineOfferings, mailbox, migrations: existing.migrations, updated_at: new Date().toISOString() };
-    await store.setJSON(progressKey(auth.userId), payload);
-    return json({ ok: true, done: payload.done, pacts: payload.pacts, soulCoins: payload.soulCoins, pets: payload.pets, divineOfferings: payload.divineOfferings, mailbox: payload.mailbox, migrations: payload.migrations, updated_at: payload.updated_at, retroPetDeducted: existingResult.deducted, compensationSoulCoins: existingResult.compensation });
+    const mutation = body.mutation && typeof body.mutation === "object" ? body.mutation as Record<string, unknown> : {};
+    const mutationId = cleanMutationId(mutation.id);
+    if (!mutationId) return json({ error: "A progress mutation id is required. Reload the game and retry." }, 409);
+    const coinDelta = cleanCoinDelta(mutation.soulCoinDelta);
+    try {
+      const migration = await ensureBlobProgressMigrated(store, auth.userId);
+      const payload = cleanProgressPayload(body);
+      const progress = await mergePostgresProgress(auth.userId, mutationId, coinDelta, payload);
+      return json({ ...progress, migrated_from_blobs: migration.migrated, retroPetDeducted: migration.deducted });
+    } catch (error) {
+      console.error("player progress postgres write failed", error && (error as Error).message ? (error as Error).message : error);
+      return json({ error: "Unable to save player progress" }, 503);
+    }
   }
 
   return json({ error: "Method not allowed" }, 405);
@@ -378,4 +450,14 @@ export default async (req: Request) => {
 export const config = {
   path: "/api/player-progress",
   method: ["GET", "POST", "PUT"],
+};
+
+export const playerProgressContract = {
+  cleanDone,
+  cleanPetState,
+  cleanPactState,
+  cleanProgressPayload,
+  cleanCoinDelta,
+  cleanMutationId,
+  postgresProgress,
 };

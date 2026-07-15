@@ -149,6 +149,7 @@ function update(dt) {
   if (player.speedBoostTimer > 0) { player.speedBoostTimer -= dt; if (player.speedBoostTimer <= 0) player.speedBoost = 0; }
   if (player.pickupSpeedTimer > 0) { player.pickupSpeedTimer -= dt; if (player.pickupSpeedTimer <= 0) player.pickupSpeedBoost = 0; }
   if (player.pickupDmgTimer > 0) { player.pickupDmgTimer -= dt; if (player.pickupDmgTimer <= 0) player.pickupDmgBoost = 0; }
+  if (player.enemySlowT > 0) player.enemySlowT=Math.max(0,player.enemySlowT-dt);
 
   // input -> screen-aligned movement (W = away/-Z), equal speed all dirs
   let mx=0, mz=0;
@@ -157,6 +158,7 @@ function update(dt) {
   if (keys['KeyA']||keys['ArrowLeft']) mx-=1;
   if (keys['KeyD']||keys['ArrowRight']) mx+=1;
   if (window.touchMove && window.touchMove.active){ mx=window.touchMove.x; mz=window.touchMove.z; }   // mobile joystick
+  if(player.coopDown){mx=0;mz=0;}
   player.moving = !!(mx||mz);
   if (player.moving){
     const l = Math.hypot(mx, mz); mx/=l; mz/=l;  // normalize (diagonals not faster)
@@ -168,12 +170,19 @@ function update(dt) {
   let moveX, moveZ;
   if (player.dashTime > 0){ player.dashTime -= dt; moveX = player.dashX*DASH_SPEED; moveZ = player.dashZ*DASH_SPEED;
     player.trailT -= dt; if (player.trailT <= 0){ spawnAfterimage(); player.trailT = 0.02; } }
-  else if (player.moving){ const spd=player.spd*(1+(player.speedBoost||0)+(player.pickupSpeedBoost||0)+(player.divineSpeedBoost||0)); moveX = mx*spd; moveZ = mz*spd; }
+  else if (player.moving){ const spd=player.spd*(1+(player.speedBoost||0)+(player.pickupSpeedBoost||0)+(player.divineSpeedBoost||0))*(player.environmentSpeedMul||1)*(player.enemySlowT>0?(player.enemySlowMul||0.65):1); moveX = mx*spd; moveZ = mz*spd; }
   if (moveX !== undefined){
     const nx = clamp(player.x + moveX*dt, -MAP_BOUND, MAP_BOUND);
     const nz = clamp(player.z + moveZ*dt, -MAP_BOUND, MAP_BOUND);
     if (!blocked(nx, player.z)) player.x = nx;
     if (!blocked(player.x, nz)) player.z = nz;
+  }
+  if(player.dashTime>0 && typeof hasBuildArchetype==='function' && hasBuildArchetype('shadow_dancer')){
+    forEachNearbyEnemy(player.x,player.z,1.4,e=>{
+      if(!e.alive||e._shadowDashSerial===player._dashSerial) return;
+      e._shadowDashSerial=player._dashSerial;
+      dealEnemyDamage(e,10+player.level*1.2,0xa875ff,player.dashX,player.dashZ,2.2,true,{item:'shadow_dancer'});
+    });
   }
   if (player.knockX || player.knockZ){
     const nx=clamp(player.x+player.knockX*dt,-MAP_BOUND,MAP_BOUND);
@@ -187,6 +196,9 @@ function update(dt) {
   }
   if (player.invuln>0) player.invuln-=dt;
   if (player.flash>0) player.flash-=dt;
+  if(typeof updateEnvironmentalInteractions==='function') updateEnvironmentalInteractions(dt);
+  player._archetypeTick=(player._archetypeTick||0)-dt;
+  if(player._archetypeTick<=0){ player._archetypeTick=0.5; if(typeof updateBuildArchetypes==='function') updateBuildArchetypes(); }
   if (player.regen) player.hp = Math.min(healCap(player), player.hp + scaledHeal(player.regen*dt));
   if (typeof updatePetFollower === 'function') updatePetFollower(dt);
 
@@ -209,8 +221,15 @@ function update(dt) {
   rebuildEnemyGrid();
 
   // weapons — each on its own cooldown / orbit
-  if(!(player.divineWeaponLockT>0)) for (const w of player.weapons) updateWeapon(w, dt);
-  for (const b of breakables) if(b.flash>0) b.flash=Math.max(0,b.flash-dt);
+  if(!player.coopDown&&!(player.divineWeaponLockT>0)) for (const w of player.weapons) updateWeapon(w, dt);
+  if(typeof updateLocalCoop==='function') updateLocalCoop(dt);
+  for (const b of breakables){
+    if(b.flash>0) b.flash=Math.max(0,b.flash-dt);
+    if(b.chainFuse>0){
+      b.chainFuse-=dt; b.flash=Math.max(b.flash,0.08);
+      if(b.chainFuse<=0&&b.alive) breakBreakable(b,0xff6b32);
+    }
+  }
 
   // enemies chase
   const speedMul=enemySpeedMul();
@@ -275,7 +294,8 @@ function update(dt) {
         }
       }
     }
-    const dx=player.x-e.x, dz=player.z-e.z, d=Math.hypot(dx,dz)||1;
+    const target=typeof coopEnemyTarget==='function'?coopEnemyTarget(e):player;
+    const dx=target.x-e.x, dz=target.z-e.z, d=Math.hypot(dx,dz)||1;
     const nx=dx/d, nz=dz/d;
     if(e.burrowT>0){
       e.burrowT-=dt;
@@ -332,8 +352,17 @@ function update(dt) {
     } else if (e.behavior==='warder'){
       if (d < 7) spd = -e.spd*0.35;
       else if (d < 13) spd = e.spd*0.18;
+    } else if (e.behavior==='guardian'){
+      e.guardCd=(e.guardCd==null?1.8+Math.random()*1.2:e.guardCd)-dt;
+      if(e.guardWindup>0){
+        e.guardWindup-=dt;spd=e.spd*0.08;
+        if(e.guardWindup<=0){e.charging=0.46;e.cdx=e.guardFacingX;e.cdz=e.guardFacingZ;e.guardT=0;e.guardCd=4.2+Math.random()*1.1;spawnBossImpactFx(e.x,e.z,e.r*1.9,0xd8b45a,'cursed_charge',{rotation:-Math.atan2(e.cdz,e.cdx)});spawnBurst(e.x,e.z,0xd8b45a,10,0.72);}
+      } else if(e.charging<=0&&e.guardCd<=0&&d>3&&d<11){
+        e.guardWindup=0.62;e.guardT=0.72;e.guardFacingX=nx;e.guardFacingZ=nz;spd=0;
+        spawnCursedGuardFx(e);spawnRing(e.x,e.z,0xd8b45a,e.r*2.35,0.62);spawnObjectPulse(e.x,e.z,0xd8b45a,e.r*2.0,0.48);
+      }
     } else if (e.behavior==='thief'){
-      if ((e.stolenGold||0)>0) spd = -e.spd*1.2;
+      if ((e.stolenGold||0)>0) spd = -e.spd*(e.name==='Grave Robber'?1.55:1.2);
       else if (d < 7) spd = e.spd*1.15;
     } else if (e.behavior==='puller'){
       if (d < 5.5) spd = -e.spd*0.2;
@@ -344,6 +373,7 @@ function update(dt) {
     }
     if (e.behavior!=='charger' && e.charging>0){ e.charging-=dt; spd=e.spd*2.4; }
     if (e.shieldT>0) e.shieldT-=dt;
+    if (e.guardT>0) e.guardT=Math.max(0,e.guardT-dt);
     if (e.final) updateFinalBossPhase(e, dt);
     if (e.skills && e.hp<e.maxHp*0.5) spd*=1.25;
     const sp = spd*speedMul*dt*(player.divineTimeStopT>0?0:(e.slowT>0?0.5:1))*(e.buffT>0?(e.buffSpeedMul||1):1);
@@ -364,7 +394,7 @@ function update(dt) {
       const dec=Math.pow(0.0001,dt); e.kx*=dec; e.kz*=dec;
       if(Math.abs(e.kx)<0.05)e.kx=0; if(Math.abs(e.kz)<0.05)e.kz=0; }
     e.x=clamp(e.x,-MAP_BOUND,MAP_BOUND); e.z=clamp(e.z,-MAP_BOUND,MAP_BOUND);
-    { const pdx=e.x-player.x, pdz=e.z-player.z, pd=Math.hypot(pdx,pdz)||1, minD=e.r+0.55;
+    { const pdx=e.x-target.x, pdz=e.z-target.z, pd=Math.hypot(pdx,pdz)||1, minD=e.r+0.55;
       if (pd<minD){ e.x+=pdx/pd*(minD-pd); e.z+=pdz/pd*(minD-pd); } }   // don't sit on top of player
     e.face = dx < 0 ? -1 : 1; e.dir = dirIndex(-nx, nz);
     if (e.cd>0) e.cd-=dt;
@@ -373,7 +403,8 @@ function update(dt) {
     if (e.skills) runSkills(e, dt, nx, nz, d);
     if (d < e.r+0.75 && e.cd<=0){
       const hitAtk=Math.round(e.atk*(e.buffT>0?(e.buffAtkMul||1):1));
-      hurtPlayer(hitAtk,nx,nz,monsterContactKnockback(e),e,e.isBoss?'boss contact':e.elite?'miniboss contact':'monster contact');
+      if(target===player) hurtPlayer(hitAtk,nx,nz,monsterContactKnockback(e),e,e.isBoss?'boss contact':e.elite?'miniboss contact':'monster contact');
+      else hurtCoopPlayer(hitAtk,nx,nz,monsterContactKnockback(e),e,e.isBoss?'boss contact':e.elite?'miniboss contact':'monster contact');
       e.cd=e.butcher?0.48:e.isBoss?1.15:1.35;
       e.kx-=nx*1.2; e.kz-=nz*1.2;
     }
@@ -546,7 +577,8 @@ function update(dt) {
     if (frameN%6===0) spawnTrail(sh.x, sh.z, sh.color||0xff5066, sh.trailScale||0.48);
     if (sh.life<=0 || blocked(sh.x,sh.z)){ sh.alive=false; continue; }
     const hitR=sh.hitRadius||0.46;
-    if ((sh.x-player.x)*(sh.x-player.x)+(sh.z-player.z)*(sh.z-player.z) < hitR*hitR){ hurtPlayer(sh.dmg,sh.dx,sh.dz,6.5,sh.source,'projectile'); sh.alive=false; spawnBurst(sh.x,sh.z,sh.color||0xff5066,4,0.5); } }
+    if ((sh.x-player.x)*(sh.x-player.x)+(sh.z-player.z)*(sh.z-player.z) < hitR*hitR){ hurtPlayer(sh.dmg,sh.dx,sh.dz,6.5,sh.source,'projectile'); sh.alive=false; spawnBurst(sh.x,sh.z,sh.color||0xff5066,4,0.5); continue; }
+    if (typeof localCoopActive==='function'&&localCoopActive()&&coopPlayer.alive&&!coopPlayer.down&&(sh.x-coopPlayer.x)*(sh.x-coopPlayer.x)+(sh.z-coopPlayer.z)*(sh.z-coopPlayer.z)<hitR*hitR){ hurtCoopPlayer(sh.dmg,sh.dx,sh.dz,6.5,sh.source,'projectile'); sh.alive=false; spawnBurst(sh.x,sh.z,sh.color||0xff5066,4,0.5); } }
   for (let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.life-=dt;
     if (p.life<=0){ scene.remove(p.mesh); freeObj(p.mesh); particles.splice(i,1); continue; }
     p.vy-=12*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.z+=p.vz*dt; if(p.y<0.1){ p.y=0.1; p.vy*=-0.3; }
@@ -583,7 +615,19 @@ function update(dt) {
     }
     if(a.t<a.delay) continue;
     const dx=player.x-a.x, dz=player.z-a.z, dist=Math.hypot(dx,dz);
-    if(dist<a.radius+0.45) hurtPlayer(a.damage,dx/(dist||1),dz/(dist||1),a.knock||12,a.src,'AoE');
+    if(dist<a.radius+0.45){
+      const hpBefore=player.hp;
+      hurtPlayer(a.damage,dx/(dist||1),dz/(dist||1),a.knock||12,a.src,'AoE');
+      if(a.slowDuration>0){player.enemySlowT=Math.max(player.enemySlowT||0,a.slowDuration);player.enemySlowMul=a.slowMul||0.65;showToast('WEBBED - MOVE SPEED DOWN',1.2);}
+      if(a.healSourceMul&&a.src&&a.src.alive&&player.hp<hpBefore){
+        a.src.hp=Math.min(a.src.maxHp,a.src.hp+a.src.maxHp*a.healSourceMul);
+        spawnObjectPulse(a.src.x,a.src.z,0xc9287c,Math.max(1.8,a.src.r*1.8),0.38);
+      }
+    }
+    if(typeof localCoopActive==='function'&&localCoopActive()&&coopPlayer.alive&&!coopPlayer.down){
+      const cdx=coopPlayer.x-a.x,cdz=coopPlayer.z-a.z,cdist=Math.hypot(cdx,cdz);
+      if(cdist<a.radius+0.45)hurtCoopPlayer(a.damage,cdx/(cdist||1),cdz/(cdist||1),a.knock||12,a.src,'AoE');
+    }
     spawnBossImpactFx(a.x,a.z,a.radius,a.color,a.impact);
     spawnRing(a.x,a.z,a.color,a.radius*1.65,0.36);
     spawnObjectPulse(a.x,a.z,a.color,a.radius*1.45,0.42);
@@ -598,7 +642,8 @@ function update(dt) {
     if(f.map) f.map.offset.x=frame/f.frames;
     const grow=1+p*0.24;
     f.mesh.scale.set(f.radius*grow,f.radius*grow,f.radius*grow);
-    f.mesh.position.y=groundHeight(f.x,f.z)+0.2;
+    if(f.follow&&f.follow.alive){f.x=f.follow.x;f.z=f.follow.z;f.mesh.position.x=f.x;f.mesh.position.z=f.z;}
+    f.mesh.position.y=groundHeight(f.x,f.z)+(f.baseY||0.2);
     f.mesh.material.opacity=(1-p)*0.92;
     if(f.t<f.life) continue;
     scene.remove(f.mesh); freeObj(f.mesh);
@@ -682,6 +727,9 @@ function update(dt) {
       let rem=n; while(rem>0){ const c=Math.min(7, rem); spawnCluster(c); rem-=c; }
     }
 
+    if(typeof weeklyArenaActive==='function'&&weeklyArenaActive()){
+      updateWeeklyArena(dt);
+    } else {
     if(!hordeWarned && gameTime>=nextHordeAt-5 && gameTime<nextHordeAt){
       hordeWarned=true;
       showToast('HORDE INCOMING - 5',2.2);
@@ -719,9 +767,11 @@ function update(dt) {
       nextMinibossAt+=MINIBOSS_INTERVAL;
     }
     updateOvertimeButcherRoll();
+    updateEndlessMode();
     if(butcherRunEligible && !butcherAppeared && gameTime>=nextButcherAt && !butcherActive && enemies.length<maxEnemies+8){
       if(!(boss&&boss.alive)) spawnButcher();
       else scheduleNextButcher(25);
+    }
     }
   }
 
@@ -731,8 +781,11 @@ function update(dt) {
   }
   if(!challengeRoom && !paused && !userPaused && !gameOver && !won){
     for(const o of interactables){
-      if(o.used || o.type!=='challenge_door') continue;
-      if(Math.hypot(player.x-o.x,player.z-o.z)<2.35){ enterChallengeDoor(o); break; }
+      if(o.used || (o.type!=='challenge_door'&&o.type!=='endless_door')) continue;
+      if(Math.hypot(player.x-o.x,player.z-o.z)<2.35){
+        if(o.type==='challenge_door') enterChallengeDoor(o); else enterEndlessDoor(o);
+        break;
+      }
     }
   }
 
@@ -772,12 +825,15 @@ function finalizeScore(){
   if (player.items.length >= 10) score += 500;
   if (typeof difficultyScoreMul === 'function') score = Math.round(score * difficultyScoreMul());
   if (typeof pactMultiplier === 'number' && pactMultiplier > 1) score = Math.round(score * pactMultiplier);
+  if (typeof challengeScoreMul === 'function') score = Math.round(score * challengeScoreMul());
   deathPenalty = calcDeathPenalty(score);
   if (deathPenalty && deathPenalty.rate > 0) score = deathPenalty.finalScore;
   lastScoreEntry = saveScore();
   if (typeof awardRunSoulCoins === 'function') awardRunSoulCoins();
+  if (typeof awardChallengeReward === 'function') awardChallengeReward();
   if (typeof evaluatePactUnlocks === 'function') evaluatePactUnlocks();
   evaluateRunAchievements();
+  if (typeof stopChallengeRandom === 'function') stopChallengeRandom();
 }
 
 function calcDeathPenalty(baseScore){

@@ -126,6 +126,7 @@ const dataSource = read("js/game-data.js");
 const combatSource = read("js/combat.js");
 const runtimeSource = read("js/game-runtime.js");
 const systemsSource = read("js/game-systems.js");
+const challengeSource = read("js/challenge-modes.js");
 const indexSource = read("index.html");
 const cssSource = read("css/game.css");
 const leaderboardSource = read("netlify/functions/leaderboard.mts");
@@ -133,6 +134,7 @@ const progressSource = read("netlify/functions/player-progress.mts");
 const mailboxSource = read("netlify/functions/mailbox.mts");
 const mailAdminSource = read("mail-admin.html");
 const leaderboardMigration = read("supabase/migrations/20260710_leaderboard_runs.sql");
+const progressMigration = read("supabase/migrations/20260715_player_progress.sql");
 const versionJson = JSON.parse(read("version.json"));
 
 const achievementBlock = runtimeSource.slice(
@@ -164,7 +166,7 @@ const challengeRooms = evaluateLiteral(runtimeSource, "CHALLENGE_ROOMS");
 const bossSkills = evaluateLiteral(systemsSource, "BOSS_SKILLS");
 const minibossSkills = evaluateLiteral(systemsSource, "MB_SKILLS");
 const skillTable = evaluateLiteral(systemsSource, "SK");
-const retiredEnemies = ["Bone Stalker", "Crypt Spider", "Cursed Knight", "Grave Robber", "Grave Arbalist"];
+const retiredEnemies = ["Bone Stalker"];
 for (const name of retiredEnemies) {
   if (enemyTypes.some((enemy) => enemy.name === name)) fail(`retired enemy still exists in ENEMY_TYPES: ${name}`);
   if (runtimeSource.includes(`'${name}'`) || systemsSource.includes(`'${name}'`)) fail(`retired enemy still has a runtime spawn reference: ${name}`);
@@ -191,6 +193,16 @@ if (!indexSource.includes('data-content-count="characters"') || !indexSource.inc
 if (!cssSource.includes("assets/ui/title-covenant.webp")) fail("title screen must use the optimized WebP background");
 for (const key of ["map2_ground", "map2_border_wall", "map3_ground", "map3_border_wall", "floor_challenge_treasure"]) {
   if (!String(manifest[key] || "").endsWith(".webp")) fail(`MANIFEST.${key} must use its lossless WebP asset`);
+}
+for (const key of ["weekly_ground","weekly_border_wall","obj_weekly_obelisk","obj_weekly_gate","weekly_brazier","weekly_void_rift","weekly_power_conduit","weekly_explosive_barrel","weekly_healing_spring"]) {
+  if (!manifest[key]) fail(`Weekly arena manifest is missing ${key}`);
+  else if (!assetExists(manifest[key])) fail(`Weekly arena asset is missing: ${manifest[key]}`);
+}
+if(!challengeSource.includes("const WEEKLY_ARENA={stage:4,minibossAt:240,duoAt:480,overtimeAt:600,bossAt:720}") ||
+   !runtimeSource.includes("name:'Covenant Crucible'") ||
+   !systemsSource.includes("function updateWeeklyArena()") ||
+   !systemsSource.includes("altarToPortal('weeklyVictory',null)")) {
+  fail("Weekly must use the Covenant Crucible map, fixed encounter schedule, and dedicated final gate");
 }
 
 const htmlBuild = (indexSource.match(/SHADOW_BUILD_VERSION='([^']+)'/) || [])[1];
@@ -219,8 +231,23 @@ if (!indexSource.includes('id="mailbtn"') || !indexSource.includes('id="mailbox"
 if (!runtimeSource.includes("MAILBOX_MESSAGES") || !runtimeSource.includes("claimMailboxReward") || !runtimeSource.includes("mailbox:loadMailboxState()")) {
   fail("mailbox must be data-driven, claim rewards once, and export its sync state");
 }
-if (!progressSource.includes("cleanMailbox") || !progressSource.includes("mergeMailbox") || !progressSource.includes("mailbox: payload.mailbox")) {
-  fail("online player progress must sanitize, merge, and return mailbox state");
+if (!runtimeSource.includes("deleteMailboxMessage") || !runtimeSource.includes("deleted:{}") || !progressSource.includes("deleted: cleanMailboxMap(src.deleted)")) {
+  fail("players must be able to delete claimed/read mail and sync deletion markers");
+}
+if (!progressSource.includes("cleanMailbox") || !progressSource.includes("mergePostgresProgress") || !progressSource.includes('storage: "postgres"')) {
+  fail("online player progress must sanitize and merge mailbox state in Postgres");
+}
+if (!progressSource.includes("legacy-netlify-blobs-v1") || progressSource.includes("await store.setJSON(progressKey(auth.userId)")) {
+  fail("player progress must import legacy Blobs once and never write progress back to Blobs");
+}
+if (!progressMigration.includes("primary key (user_id, mutation_id)") || !progressMigration.includes("for update") || !progressMigration.includes("enable row level security") || !progressMigration.includes("merge_player_progress")) {
+  fail("player progress migration must use row locking, idempotent mutations, RPC merge, and RLS");
+}
+if (!progressSource.includes("p_soul_coin_delta") || !runtimeSource.includes("recordSoulCoinMutation(n-previous)")) {
+  fail("Soul Coins must sync as persistent deltas instead of last-write-wins snapshots");
+}
+if (!progressSource.includes("const MAX_BODY_BYTES = 65536") || !progressSource.includes("new TextEncoder().encode(raw).byteLength")) {
+  fail("online player progress must allow long-term progression payloads while enforcing the decoded body size");
 }
 if (progressSource.includes("function applySoulCoinCompensation")) {
   fail("legacy Soul Coin compensation must be claimed from mailbox instead of auto-awarded");
@@ -231,7 +258,10 @@ if (!runtimeSource.includes("loadOnlineMailbox") || !runtimeSource.includes("fet
 if (!mailboxSource.includes('MAILBOX_ADMIN_SECRET') || !mailboxSource.includes('getStore') || !mailboxSource.includes('path: "/api/mailbox"')) {
   fail("mailbox function must use protected Netlify Blobs storage");
 }
-if (!mailAdminSource.includes("x-mailbox-admin-key") || !mailAdminSource.includes("Shadow Post Admin")) {
+if (!mailboxSource.includes("deletedIds") || !mailboxSource.includes('action === "disable"') || !mailboxSource.includes('action === "delete"')) {
+  fail("mailbox admin must support separate disable and permanent-delete actions");
+}
+if (!mailAdminSource.includes("x-mailbox-admin-key") || !mailAdminSource.includes("Shadow Post Admin") || !mailAdminSource.includes("data-disable") || !mailAdminSource.includes("data-delete")) {
   fail("mailbox admin page contract is missing");
 }
 
@@ -245,6 +275,7 @@ const addUnit = (sprite, withWalk) => {
   if (withWalk) setManifest(`${sprite}_walk`, `${sprite}_walk.png`);
 };
 const staticOnly = new Set([
+  "enemy_grave_arbalist",
   "enemy_mire_hexer",
   "enemy_rift_needler",
   "enemy_doom_cantor",
@@ -322,6 +353,7 @@ const spriteFiles = fs.readdirSync(spriteDir).filter((file) => /\.(png|webp)$/i.
 const spriteBytes = spriteFiles.reduce((sum, file) => sum + fs.statSync(path.join(spriteDir, file)).size, 0);
 const deferredUnits = new Set(enemyTypes.filter((e) => (e.tier || 0) > 0).flatMap((e) => [e.sprite, `${e.sprite}_8dir`, `${e.sprite}_walk`]));
 const isBootLazy = (key) => key.startsWith("map2_") || key.startsWith("map3_")
+  || key.startsWith("weekly_") || key.startsWith("obj_weekly_")
   || key.startsWith("floor_challenge_") || key.startsWith("prop_challenge_")
   || key.startsWith("boss_") || key.startsWith("miniboss_") || key.startsWith("pet_")
   || /^char_.+_(walk|idle|portrait)$/.test(key)

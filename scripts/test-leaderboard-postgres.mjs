@@ -41,6 +41,17 @@ assert.equal(publicRow.level, entry.level);
 assert.equal(publicRow.stage, entry.stage);
 assert.deepEqual(publicRow.pact_ids, []);
 
+const daily = leaderboardContract.cleanScore({ ...validInput, run_mode:"daily", challenge_key:"2026-07-14" }, null);
+assert.equal(leaderboardContract.validateScore(daily), "");
+const dailyDatabase = leaderboardContract.databaseScore({ ...daily, created_at:createdAt }, leaderboardContract.scoreDedupeKey(daily,"guest:daily",createdAt));
+assert.equal(dailyDatabase.source, "daily:2026-07-14");
+const dailyPublic = leaderboardContract.databaseToPublicScore(dailyDatabase);
+assert.equal(dailyPublic.run_mode, "daily");
+assert.equal(dailyPublic.challenge_key, "2026-07-14");
+
+const invalidChallenge = leaderboardContract.cleanScore({ ...validInput, run_mode:"weekly", challenge_key:"" }, null);
+assert.match(leaderboardContract.validateScore(invalidChallenge), /period key/);
+
 const casual = leaderboardContract.cleanScore({ ...validInput, difficulty_id: "casual", difficulty_multiplier: 0.6 }, null);
 assert.match(leaderboardContract.validateScore(casual), /Normal and Hard/);
 

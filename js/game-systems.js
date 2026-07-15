@@ -179,7 +179,7 @@ function getPixelProjectileTexture(shape,color){
   pixelProjectileTextures.set(key,t); return t;
 }
 function spawnProjectile(dx,dz,s){
-  const sc=player.projScale||1;
+  const sc=s.skillSizeMul||1;
   const projectileShape=s.shape||'orb';
   let m, hitRadius=0.4, noTrail=true, spin=0, orient=false, trailScale=0.45, trailEvery=2;
   if (projectileShape==='crescent'){
@@ -239,7 +239,7 @@ function spawnProjectile(dx,dz,s){
   projectiles.push({ x:player.x, z:player.z, dx, dz, dmg:s.dmg, pierce:s.pierce, speed:s.speed, life:s.life, scale:sc, color:s.color, sourceKey:s.sourceKey, shape:projectileShape, hitRadius, noTrail, spin, orient, trailScale, trailEvery, bouncesLeft:s.bounces||0, bounceRadius:s.bounceRadius||0, bounceDmgMul:s.bounceDmgMul||0.88, impactRadius:s.impactRadius||0, impactDmgMul:s.impactDmgMul||0, charge:Math.max(0,s.charge||0), chargeMesh, activated:projectileShape!=='chidori', alive:true, hit:new Set(), mesh:m });
 }
 function spawnStabProjectile(dx,dz,s){
-  const sc=player.projScale||1;
+  const sc=s.skillSizeMul||1;
   const range=Math.max(1.4,s.range||2.8);
   const width=(s.width||0.35)*sc;
   const mat=new THREE.SpriteMaterial({
@@ -273,7 +273,7 @@ function spawnStabProjectile(dx,dz,s){
     x:player.x+dx*range*0.55, z:player.z+dz*range*0.55,
     dx, dz, dmg:s.dmg, pierce:s.pierce, speed:0, life:s.life||0.16, maxLife:s.life||0.16,
     sourceKey:s.sourceKey,
-    scale:sc, color:s.color, hitRadius:width, range, width, noTrail:true, spin:0,
+    scale:1, color:s.color, hitRadius:width, range, width, noTrail:true, spin:0,
     stab:true, chidori:s.shape==='chidori', chidoriBranch:!!s.chidoriBranch,
     charge:Math.max(0,s.charge||0), chargeMax:Math.max(0,s.charge||0), chargeMesh, activated:false,
     alive:true, hit:new Set(), mesh:m
@@ -324,6 +324,25 @@ function killEnemy(e){
     }
     spawnObjectPulse(e.x,e.z,e.name==='Blight Treant'?0x8fcf6a:0x55d66a,e.r*2.5,0.55);
   }
+  if(e.eliteMod==='splitting' && !e.eliteSplitChild && !e.isBoss){
+    const splitType=ENEMY_TYPES.find(t=>t.name===e.name);
+    if(splitType){
+      for(let i=0;i<2;i++){
+        const a=i*Math.PI+Math.random()*0.3;
+        const child=spawnEnemy(splitType,e.x+Math.cos(a)*0.72,e.z+Math.sin(a)*0.72,{noModifier:true});
+        if(!child) continue;
+        child.hp=child.maxHp=Math.max(2,Math.round(e.maxHp*0.40));
+        child.atk=Math.max(1,Math.round(e.atk*0.58));
+        child.xp=Math.max(1,Math.round(e.xp*0.22));
+        child.r*=0.72; child.bw*=0.72; child.bh*=0.72;
+        if(child.sh) child.sh.r*=0.72;
+        child.eliteSplitChild=true;
+        child.tint=0xd8a2ff;
+      }
+      spawnObjectPulse(e.x,e.z,0xd68cff,e.r*2.8,0.52);
+      spawnBurst(e.x,e.z,0xd68cff,14,0.8);
+    }
+  }
   if (e.stolenGold>0){
     for(let i=0;i<Math.min(8,e.stolenGold);i++) dropPickup(e.x+(Math.random()-0.5)*0.6,e.z+(Math.random()-0.5)*0.6,'gold',Math.max(1,Math.ceil(e.stolenGold/Math.min(8,e.stolenGold))),'thief');
     spawnObjectPulse(e.x,e.z,0xffd86a,3.0,0.45);
@@ -335,7 +354,15 @@ function killEnemy(e){
     spawnBurst(e.x, e.z, color, e.name==='Oblivion Orb'?24:16, 1.3);
     spawnRing(e.x,e.z,color,radius*1.6,0.38);
     const dx=player.x-e.x, dz=player.z-e.z, d=Math.hypot(dx,dz);
-    if (d < radius) hurtPlayer(Math.round(e.atk*(e.name==='Oblivion Orb'?1.9:1.45)),dx/(d||1),dz/(d||1),e.name==='Oblivion Orb'?16:12);
+    if (d < radius) hurtPlayer(Math.round(e.atk*(e.name==='Oblivion Orb'?1.9:1.45)),dx/(d||1),dz/(d||1),e.name==='Oblivion Orb'?16:12,e,'explosion');
+    if(typeof localCoopActive==='function'&&localCoopActive()&&!coopPlayer.down){const x=coopPlayer.x-e.x,z=coopPlayer.z-e.z,cd=Math.hypot(x,z);if(cd<radius)hurtCoopPlayer(Math.round(e.atk*(e.name==='Oblivion Orb'?1.9:1.45)),x/(cd||1),z/(cd||1),e.name==='Oblivion Orb'?16:12,e,'explosion');}
+  } else if(e.eliteMod==='explosive'){
+    const radius=3.0;
+    spawnBurst(e.x,e.z,0xff7045,20,1.05);
+    spawnRing(e.x,e.z,0xff7045,radius*1.8,0.42);
+    const dx=player.x-e.x,dz=player.z-e.z,d=Math.hypot(dx,dz);
+    if(d<radius) hurtPlayer(Math.max(1,Math.round(e.atk*0.5)),dx/(d||1),dz/(d||1),13,e,'explosion');
+    if(typeof localCoopActive==='function'&&localCoopActive()&&!coopPlayer.down){const x=coopPlayer.x-e.x,z=coopPlayer.z-e.z,cd=Math.hypot(x,z);if(cd<radius)hurtCoopPlayer(Math.max(1,Math.round(e.atk*0.5)),x/(cd||1),z/(cd||1),13,e,'explosion');}
   } else spawnBurst(e.x, e.z, e.isBoss?0xffd23f:0x9a6cff, e.isBoss?22:9, e.isBoss?1.4:0.8);
   // item drop — stage bosses only. Minibosses pay out XP/gold below, no items.
   if (e.butcher) {
@@ -359,18 +386,25 @@ function killEnemy(e){
     for (let i=0;i<14;i++) dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm));
     for (let i=0;i<24;i++) dropPickup(e.x, e.z, 'gold', Math.round(5*rm));
     const nextStage=mapStage+1;
+    const weeklyFinal=typeof weeklyArenaActive==='function'&&weeklyArenaActive();
     const finalStage=mapStage>=3;
     spawnObjectPulse(e.x,e.z,finalStage?0x7ce7ff:mapStage>=2?0x9a55ff:0x57e0ff,10,0.7); shake(0.5,0.4);
     boss=null;
-    if(finalStage){
+    if(weeklyFinal){
+      finalBossKilledAt=gameTime;
+      altarToPortal('weeklyVictory',null);
+      showToast('WEEKLY COVENANT CLEARED - ENTER THE FINAL GATE',4);
+    } else if(finalStage){
       finalBossKilledAt=gameTime;
       altarToPortal('victory', null);
-      showToast('Final portal opened! Overtime x2 begins!', 4);
+      spawnEndlessDoor();
+      showToast('Choose: Final Portal to finish, or Endless Gate to continue', 4);
     } else {
       openRelicChoice(nextStage);
       showToast('Choose a boss relic', 2.6);
     }
   } else if (e.isBoss){
+    if(e.endlessBoss){ boss=null; score+=750*endlessBossTier; }
     const soulMul = player._soulLantern && !e.isStageBoss && !e.elite && !e.final ? 1.5 : 1;
     for (let i=0;i<6;i++) dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm*soulMul));
     for (let i=0;i<10;i++) dropPickup(e.x, e.z, 'gold', Math.round(3*rm*soulMul));
@@ -433,8 +467,12 @@ function makeBorder(){
 }
 function makeAltar(){
   let x,z,tries=0;
-  do { x=(Math.random()*2-1)*MAP_BOUND*0.8; z=(Math.random()*2-1)*MAP_BOUND*0.8; tries++; }
-  while ((Math.hypot(x,z)<14 || blocked(x,z)) && tries<80);
+  const weekly=typeof weeklyArenaActive==='function'&&weeklyArenaActive();
+  if(weekly){x=0;z=-8;}
+  else {
+    do { x=(Math.random()*2-1)*MAP_BOUND*0.8; z=(Math.random()*2-1)*MAP_BOUND*0.8; tries++; }
+    while ((Math.hypot(x,z)<14 || blocked(x,z)) && tries<80);
+  }
   const g=new THREE.Group();
   const ped=new THREE.Mesh(new THREE.CylinderGeometry(1.0,1.35,1.3,8), new THREE.MeshBasicMaterial({color:0x39324a}));
   ped.position.y=0.65; g.add(ped);
@@ -443,7 +481,8 @@ function makeAltar(){
   const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,60,8), new THREE.MeshBasicMaterial({color:0xff4d66, transparent:true, opacity:0.28, depthWrite:false, fog:false}));
   beam.position.y=30; g.add(beam);
   let sprIcon=null;
-  if (tex['obj_altar']){ sprIcon=billboard('obj_altar', 2.8); sprIcon.position.y=0; g.add(sprIcon); crystal.visible=false; ped.visible=false; }
+  const altarKey=weekly&&tex.obj_weekly_obelisk?'obj_weekly_obelisk':'obj_altar';
+  if (tex[altarKey]){ sprIcon=billboard(altarKey, weekly?3.6:2.8); sprIcon.position.y=0; g.add(sprIcon); crystal.visible=false; ped.visible=false; }
   g.position.set(x, groundHeight(x,z), z); scene.add(g);
   altar={ x, z, state:'idle', group:g, crystal, beam, sprIcon };
 }
@@ -458,30 +497,58 @@ function updateAltar(dt){
 }
 function summonBoss(){
   if (!altar || altar.state!=='idle' || boss) return;
-  sfx('boss');
+  const weekly=typeof weeklyArenaActive==='function'&&weeklyArenaActive();
   const bosses=bossPool();
-  const b = bosses[(Math.random()*bosses.length)|0];
+  const b = weekly&&typeof weeklyBossType==='function' ? (weeklyBossType()||bosses[0]) : bosses[(Math.random()*bosses.length)|0];
+  const altarRef=altar, spawnX=altar.x, spawnZ=altar.z+3;
+  altar.state='summoning';
+  sfx('boss');
+  telegraphSpecialSpawn(spawnX,spawnZ,weekly?0x58e7ff:b.final?0xff3355:0xffc84a,'BOSS INCOMING: '+b.name,{
+    ring:4.0,pulse:6.2,burst:22,scale:1.05,shake:0.20,toast:2.2,
+    done:()=>spawnSummonedBoss(b,weekly,altarRef,spawnX,spawnZ)
+  });
+}
+function spawnSummonedBoss(b,weekly,altarRef,spawnX,spawnZ){
+  if(!altarRef || altar!==altarRef || altar.state!=='summoning' || boss || gameOver || won) return;
   let spriteKey = b.sprite;                               // use dedicated boss art if loaded...
   if (!(DIR_SHEETS[spriteKey] && tex[DIR_SHEETS[spriteKey].key]))
     spriteKey = MINIBOSS_TYPES[(Math.random()*MINIBOSS_TYPES.length)|0].sprite;   // ...else recycle miniboss art
-  const sc = atkTimeScale()*1.3*stageAtkMul()*otPowerMul();
+  const sc = atkTimeScale()*1.3*stageAtkMul()*(weekly?1:otPowerMul());
   const H = b.h, hp = Math.round(b.hp*bossHpScale());
   const { spr, anim } = entitySprite(spriteKey, H);
   const sh = makeShadow(H*0.34); scene.add(spr); scene.add(sh);
-  boss = { x:altar.x, z:altar.z+3, hp, maxHp:hp, atk:Math.round(b.atk*sc*(typeof difficultyBossAtkMul==='function'?difficultyBossAtkMul():1)), spd:48*SPD_SCALE*BOSS_SPEED_MUL,
+  boss = { x:spawnX, z:spawnZ, hp, maxHp:hp, atk:Math.round(b.atk*sc*(typeof difficultyBossAtkMul==='function'?difficultyBossAtkMul():1)), spd:48*SPD_SCALE*BOSS_SPEED_MUL,
            xp:400, r:H*0.34, name:b.name, alive:true, cd:0, flash:0, isBoss:true, isStageBoss:true,
            behavior:'boss', kx:0, kz:0, atkCd:0, chargeCd:0, charging:0, patternCd:2.5, patternFlip:0, summonCd:6, final:b.final,
            bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh };
   if (mapStage>=3 && b.final) setupFinalBoss(boss);
-  assignSkills(boss, BOSS_SKILLS[b.sprite] || ['ring','fan','summon']);
-  enemies.push(boss); boss.aura=makeBossAura(b.final?0xff3355:0xffc84a, boss.r*2.05, b.final); boss.tint=0xfff1cf; altar.state='boss';
+  const baseSkills=BOSS_SKILLS[b.sprite] || ['ring','fan','summon'];
+  const weeklyExtras=['voidChains','mirrorRift','overlordBlinkCharge'];
+  assignSkills(boss,weekly?[...baseSkills,weeklyExtras[activeChallengeSeed%weeklyExtras.length]]:baseSkills);
+  if(weekly){boss.weeklyBoss=true;boss.name='COVENANT '+b.name;boss.tint=0xe9d1ff;boss.damageTakenMul=1;}
+  enemies.push(boss); boss.aura=makeBossAura(weekly?0x58e7ff:b.final?0xff3355:0xffc84a, boss.r*2.05, b.final); boss.tint=weekly?0xe9d1ff:0xfff1cf; altar.state='boss';
   spawnObjectPulse(boss.x,boss.z,b.final?0xff3355:0xffc84a,H*2.15,0.9);
   spawnBurst(boss.x,boss.z,b.final?0xff3355:0xffc84a,24,1.3); shake(0.48,0.34);
   showToast('\u26a0 '+b.name+' RISES', 2.5);
 }
+function updateWeeklyArena(){
+  if(!(typeof weeklyArenaActive==='function'&&weeklyArenaActive())||gameOver||won) return;
+  const t=stageTime();
+  if(!weeklyArenaEvents.minibossWarn&&t>=WEEKLY_ARENA.minibossAt-10){weeklyArenaEvents.minibossWarn=true;showToast('WEEKLY TRIAL: MINIBOSS IN 10',2.6);}
+  if(!weeklyArenaEvents.miniboss&&t>=WEEKLY_ARENA.minibossAt){weeklyArenaEvents.miniboss=true;spawnMiniboss();showToast('WEEKLY TRIAL I - HUNT',2.8);}
+  if(!weeklyArenaEvents.duoWarn&&t>=WEEKLY_ARENA.duoAt-10){weeklyArenaEvents.duoWarn=true;showToast('WEEKLY TRIAL: DUAL HUNT IN 10',2.6);}
+  if(!weeklyArenaEvents.duo&&t>=WEEKLY_ARENA.duoAt){weeklyArenaEvents.duo=true;spawnMiniboss();spawnMiniboss();showToast('WEEKLY TRIAL II - DUAL HUNT',3.0);shake(0.28,0.18);}
+  if(!weeklyArenaEvents.overtimeWarn&&t>=WEEKLY_ARENA.overtimeAt-10){weeklyArenaEvents.overtimeWarn=true;showToast('COVENANT OVERTIME IN 10',2.8);}
+  if(!weeklyArenaEvents.bossWarn&&t>=WEEKLY_ARENA.bossAt-10){weeklyArenaEvents.bossWarn=true;showToast('FINAL JUDGMENT IN 10',3.0);}
+  if(!weeklyArenaEvents.boss&&t>=WEEKLY_ARENA.bossAt){weeklyArenaEvents.boss=true;summonBoss();}
+}
 function altarToPortal(kind,nextStage){ if(!altar) return; altar.state='portal'; altar.portalKind=kind||'victory'; altar.nextStage=nextStage||null;
-  const portalKey=(altar.portalKind==='nextStage'||altar.portalKind==='challengeExit') && tex.obj_normal_portal ? 'obj_normal_portal' : 'obj_portal';
-  if (altar.sprIcon && tex[portalKey]){ altar.sprIcon.material.map=tex[portalKey]; altar.sprIcon.material.needsUpdate=true; }
+  const portalKey=altar.portalKind==='weeklyVictory'&&tex.obj_weekly_gate?'obj_weekly_gate':(altar.portalKind==='nextStage'||altar.portalKind==='challengeExit') && tex.obj_normal_portal ? 'obj_normal_portal' : 'obj_portal';
+  if (altar.sprIcon && tex[portalKey]){
+    if(altar.portalKind==='weeklyVictory'){
+      altar.group.remove(altar.sprIcon);freeObj(altar.sprIcon);altar.sprIcon=billboard(portalKey,3.5);altar.sprIcon.position.y=0;altar.group.add(altar.sprIcon);
+    } else { altar.sprIcon.material.map=tex[portalKey]; altar.sprIcon.material.needsUpdate=true; }
+  }
   setAltarColor(altar.portalKind==='nextStage'?0xff5638:altar.portalKind==='challengeExit'?0x9a55ff:0x57e0ff); }
 function spawnChallengeDoors(nextStage){
   if(!altar || mapStage>=3 || !nextStage || nextStage>3) return;
@@ -507,8 +574,10 @@ function spawnChallengeDoors(nextStage){
 function rewardMul(){ return Math.min(3, 1 + Math.max(0, (typeof overtimeElapsed==='function'?overtimeElapsed():stageTime()-RUN_TARGET))/150); }
 const HUD_ARROWS=['\u2191','\u2197','\u2192','\u2198','\u2193','\u2199','\u2190','\u2196'];
 function arrowTo(dx,dz){ const a=Math.atan2(dx,-dz); return HUD_ARROWS[(((Math.round(a/(Math.PI/4))%8)+8)%8)]; }
-function spawnObject(type, tier){
-  let x,z,t=0; do{ x=(Math.random()*2-1)*MAP_BOUND*0.85; z=(Math.random()*2-1)*MAP_BOUND*0.85; t++; } while(Math.hypot(x,z)<12 && t<40);
+function spawnObject(type, tier, fixed){
+  let x,z,t=0;
+  if(fixed){x=fixed.x;z=fixed.z;}
+  else do{ x=(Math.random()*2-1)*MAP_BOUND*0.85; z=(Math.random()*2-1)*MAP_BOUND*0.85; t++; } while(Math.hypot(x,z)<12 && t<40);
   let key,h;
   if (type==='chest'){ key=['chest_common','chest_rare','chest_epic'][tier]; h=1.1; }
   else if (type==='shrine'){ key=['obj_shrine_elite','obj_shrine_blood','obj_shrine_speed','obj_shrine_curse','obj_shrine_gamble'][tier]; h=2.2; }
@@ -538,6 +607,59 @@ function spawnAddAt(x,z){
     behavior:behaviorFor(t.name), kx:0,kz:0, atkCd:1+Math.random(), chargeCd:1.5+Math.random()*2, charging:0,
     bw:spr.scale.x, bh:spr.scale.y, born:gameTime, face:1, anim, spr, sh });
 }
+function makeWeeklyWorldObjects(){
+  spawnObject('chest',0,{x:-24,z:-18});
+  spawnObject('chest',1,{x:24,z:-18});
+  spawnObject('chest',2,{x:0,z:-34});
+  spawnObject('shrine',activeChallengeSeed%5,{x:-31,z:18});
+  spawnObject('shrine',(activeChallengeSeed+2)%5,{x:31,z:18});
+  spawnObject('magnet_pillar',0,{x:0,z:34});
+}
+function spawnEndlessDoor(){
+  if(!altar||interactables.some(o=>!o.used&&o.type==='endless_door')) return;
+  const a=Math.atan2(player.z-altar.z,player.x-altar.x)+Math.PI;
+  let x=clamp(altar.x+Math.cos(a)*6.4,-MAP_BOUND*0.88,MAP_BOUND*0.88);
+  let z=clamp(altar.z+Math.sin(a)*6.4,-MAP_BOUND*0.88,MAP_BOUND*0.88);
+  const open=findOpenPosition(x,z,2.8); if(open){x=open.x;z=open.z;}
+  const key=tex.obj_challenge_gate?'obj_challenge_gate':'obj_portal';
+  const spr=billboard(key,3.35); spr.position.set(x,groundHeight(x,z),z); scene.add(spr);
+  if(!tex.obj_challenge_gate) spr.material.color.setHex(0xff4b8b);
+  const glow=makeObjectGlow(0xff4b8b,1.55,'portal'); glow.position.set(x,groundHeight(x,z),z);
+  const beacon=makeLootBeacon(0xff4b8b,2.2,'portal'); beacon.position.set(x,groundHeight(x,z)+0.1,z);
+  interactables.push({type:'endless_door',x,z,used:false,spr,glow,beacon,baseW:spr.scale.x,baseH:spr.scale.y});
+}
+function enterEndlessDoor(o){
+  if(!o||o.used||endlessMode||gameOver||won) return false;
+  o.used=true; endlessMode=true; endlessStartedAt=gameTime; endlessBossTier=0; nextEndlessBossAt=gameTime+120;
+  if(o.spr){scene.remove(o.spr);freeObj(o.spr);} if(o.glow){scene.remove(o.glow);freeObj(o.glow);} if(o.beacon){scene.remove(o.beacon);freeObj(o.beacon);}
+  score+=1000;
+  spawnObjectPulse(player.x,player.z,0xff4b8b,10,0.8);
+  spawnBurst(player.x,player.z,0xff4b8b,30,1.2);
+  showToast('ENDLESS COVENANT: survive as long as possible',3.5);
+  return true;
+}
+function spawnEndlessBoss(){
+  const pool=bossPool().filter(b=>!b.final); if(!pool.length) return false;
+  const b=pool[(Math.random()*pool.length)|0],a=Math.random()*Math.PI*2,d=22;
+  const x=clamp(player.x+Math.cos(a)*d,-MAP_BOUND,MAP_BOUND),z=clamp(player.z+Math.sin(a)*d,-MAP_BOUND,MAP_BOUND);
+  const H=b.h,{spr,anim}=entitySprite(b.sprite,H),sh=makeShadow(H*0.34); scene.add(spr);scene.add(sh);
+  const tierMul=1+endlessBossTier*0.20,hp=Math.round(b.hp*bossHpScale()*tierMul);
+  const e={x,z,hp,maxHp:hp,atk:Math.round(b.atk*atkTimeScale()*1.3*stageAtkMul()*otPowerMul()*tierMul*(typeof difficultyBossAtkMul==='function'?difficultyBossAtkMul():1)),spd:52*SPD_SCALE*BOSS_SPEED_MUL,
+    xp:520,r:H*0.34,name:'Endless '+b.name,alive:true,cd:0,flash:0,isBoss:true,isStageBoss:false,endlessBoss:true,elite:true,
+    behavior:'boss',kx:0,kz:0,atkCd:0,chargeCd:0,charging:0,patternCd:2.2,patternFlip:0,summonCd:5,bw:spr.scale.x,bh:spr.scale.y,born:gameTime,face:1,anim,spr,sh};
+  assignSkills(e,BOSS_SKILLS[b.sprite]||['ring','fan','summon']);
+  e.aura=makeBossAura(0xff4b8b,e.r*2.05,false);e.tint=0xffd5e5;enemies.push(e);boss=e;
+  spawnObjectPulse(x,z,0xff4b8b,H*2.2,0.8);spawnBurst(x,z,0xff4b8b,28,1.25);shake(0.35,0.24);
+  showToast('ENDLESS BOSS '+endlessBossTier+': '+b.name,3.0);
+  return true;
+}
+function updateEndlessMode(){
+  if(!endlessMode||gameOver||won||!player||!player.alive) return;
+  if(gameTime<nextEndlessBossAt) return;
+  if(boss&&boss.alive){nextEndlessBossAt=gameTime+10;return;}
+  endlessBossTier++;
+  if(spawnEndlessBoss()) nextEndlessBossAt=gameTime+120;
+}
 function spawnMinibossMinionAt(x,z,preferredName){
   const t=ENEMY_TYPES.find(v=>v.name===preferredName) || ENEMY_TYPES.find(v=>v.name==='Wraith') || pickEnemyType({ allowWarder:false });
   const hpSc=normalHpScale(t.tier), atkSc=normalAtkScale(t.tier), H=t.h*0.92;
@@ -565,7 +687,10 @@ function spawnElite(cx,cz){
 }
 function activateNearby(){
   if (paused||userPaused||gameOver||won||!started) return;
-  if (altar && altar.state==='idle' && Math.hypot(player.x-altar.x, player.z-altar.z)<3.0){ summonBoss(); return; }
+  if (altar && altar.state==='idle' && Math.hypot(player.x-altar.x, player.z-altar.z)<3.0){
+    if(typeof weeklyArenaActive==='function'&&weeklyArenaActive()){showToast('The Weekly Obelisk awakens at 12:00',1.8);return;}
+    summonBoss(); return;
+  }
   if (altar && altar.state==='portal' && Math.hypot(player.x-altar.x, player.z-altar.z)<2.6){
     enterPortal();
     return;
@@ -578,6 +703,7 @@ function activateNearby(){
   else if (best.type==='merchant') openShop(best);
   else if (best.type==='magnet_pillar') activateMagnetPillar(best);
   else if (best.type==='challenge_door') enterChallengeDoor(best);
+  else if (best.type==='endless_door') enterEndlessDoor(best);
 }
 function clearCombatActors(){
   for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); removeShadow(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } if(e.cursedEyeMark){ scene.remove(e.cursedEyeMark); freeObj(e.cursedEyeMark); } }
@@ -1104,10 +1230,13 @@ function completeChallengeRoom(success){
   spawnObjectPulse(player.x,player.z,room.color,8,0.7);
   spawnBurst(player.x,player.z,room.color,24,1.0);
 }
-const SPECIAL_SPAWN_DELAY_MS = 500;
+const SPECIAL_SPAWN_DELAY_MS = 2000;
 function telegraphSpecialSpawn(x,z,color,label,opts){
   opts=opts||{};
-  showToast(label, opts.toast||1.6);
+  const delayMs=opts.delay==null ? SPECIAL_SPAWN_DELAY_MS : opts.delay;
+  const seconds=Math.max(0,delayMs/1000);
+  const delayLabel=seconds>0 ? ' · '+(Number.isInteger(seconds)?seconds:seconds.toFixed(1))+'s' : '';
+  showToast(label+delayLabel, Math.max(opts.toast||1.6,seconds+0.15));
   spawnRing(x,z,color,opts.ring||2.8,opts.life||0.5);
   spawnObjectPulse(x,z,color,opts.pulse||4.2,opts.life||0.5);
   spawnBurst(x,z,color,opts.burst||16,opts.scale||0.85);
@@ -1115,7 +1244,7 @@ function telegraphSpecialSpawn(x,z,color,label,opts){
   setTimeout(()=>{
     if(gameOver || won) return;
     if(opts.done) opts.done();
-  }, opts.delay==null ? SPECIAL_SPAWN_DELAY_MS : opts.delay);
+  }, delayMs);
 }
 function openChest(o){
   const cost=chestCost(o.tier);
@@ -1140,6 +1269,65 @@ function openChest(o){
   heroQuip('loot',0.32,2.1);
   if (gameTime>=nextGoldRainAt && Math.random()<0.18) startGoldRain();
 }
+function resolveShrineEffect(type,o,forced){
+  forced=forced||{};
+  switch(type){
+    case 0: {
+      const oldMax=player.maxHp;
+      player.maxHp=Math.max(1,Math.round(player.maxHp*0.70));
+      player.hp=Math.min(player.maxHp,Math.max(1,player.hp-(oldMax-player.maxHp)));
+      player.dmgMul*=1.25;
+      player.flash=0.3;
+      showToast('Sacrifice accepted: Damage +25%',2.2);
+      return 'elite_sacrifice';
+    }
+    case 1: {
+      player.hp=Math.max(1,Math.round(player.hp*0.50));
+      player.flash=0.3;
+      const rarity=(forced.rarity==='rare'||forced.rarity==='legendary') ? forced.rarity : (Math.random()<0.25?'legendary':'rare');
+      const pool=availableItemPool(rarity);
+      const item=pool.length ? pool[(forced.itemIndex==null ? (Math.random()*pool.length)|0 : Math.abs(forced.itemIndex)%pool.length)] : null;
+      if(item) spawnGroundItem(o.x,o.z,item);
+      showToast('Blood price paid: '+rarity.toUpperCase()+' item',2.2);
+      return rarity;
+    }
+    case 2:
+      player.shrineEnemySpeedMul=(player.shrineEnemySpeedMul||1)*1.20;
+      player.rateMul*=1.25;
+      showToast('Time Warp: ATK Speed +25% / Enemies +20%',2.4);
+      return 'time_warp';
+    case 3: {
+      const curses=[
+        ()=>{ player.maxHp=Math.max(1,Math.round(player.maxHp*0.85)); player.hp=Math.min(player.hp,player.maxHp); return 'Max HP -15%'; },
+        ()=>{ player.armorMul=(player.armorMul||1)*0.80; return 'Armor -20%'; },
+        ()=>{ player.spd*=0.90; return 'Move Speed -10%'; },
+        ()=>{ player.goldMul*=0.80; return 'Gold gain -20%'; }
+      ];
+      const ci=forced.curseIndex==null ? (Math.random()*curses.length)|0 : Math.abs(forced.curseIndex)%curses.length;
+      const curseText=curses[ci]();
+      const ti=forced.tomeIndex==null ? (Math.random()*UPGRADES.length)|0 : Math.abs(forced.tomeIndex)%UPGRADES.length;
+      const tome=UPGRADES[ti];
+      tome.apply();
+      player.tomeCount[tome.id]=(player.tomeCount[tome.id]||0)+1;
+      showToast('Cursed Gamble: '+curseText+' / Tome: '+tome.name,3.0);
+      return {curseIndex:ci,tomeId:tome.id};
+    }
+    case 4: {
+      const win=forced.win==null ? Math.random()<0.5 : !!forced.win;
+      if(win){
+        const relic=grantRandomRelic('Gamble Shrine');
+        showToast(relic?'All or Nothing: Free Relic!':'All Relics already owned',2.4);
+        return 'relic';
+      }
+      player.maxHp=Math.max(1,Math.round(player.maxHp*0.80));
+      player.hp=Math.min(player.hp,player.maxHp);
+      for(let i=0;i<8;i++) spawnElite(o.x,o.z);
+      showToast('All or Nothing: Max HP -20% and 8 Elites!',2.6);
+      return 'elite_ambush';
+    }
+  }
+  return null;
+}
 function activateShrine(o){
   o.used=true; scene.remove(o.spr); if(o.glow) scene.remove(o.glow); if(o.beacon) scene.remove(o.beacon);
   const type=o.tier; // 0=Elite,1=Blood,2=Speed,3=Curse,4=Gamble
@@ -1149,39 +1337,7 @@ function activateShrine(o){
   sfx('shrine');
   spawnBurst(o.x,o.z,cols[type],14,0.9);
   // 1 second delay before effect
-  setTimeout(()=>{
-    switch(type){
-      case 0: // Elite Pack
-        for(let i=0;i<8;i++) spawnElite(o.x,o.z);
-        break;
-      case 1: // Blood Shrine — lose 30% HP, get boosted item
-        player.hp=Math.max(1,Math.round(player.hp*0.7));
-        player.flash=0.3;
-        const bitem=rollItemDrop(true);
-        if(bitem) spawnGroundItem(o.x,o.z,bitem);
-        break;
-      case 2: // Speed Shrine — +40% speed for 30s
-        player.speedBoost=(player.speedBoost||0)+0.4;
-        player.speedBoostTimer=(player.speedBoostTimer||0)+30;
-        break;
-      case 3: // Curse Shrine — harder new enemies, +50% XP/Gold for rest of run
-        player.cursedAtk=(player.cursedAtk||0)+0.15;
-        player.cursedHp=(player.cursedHp||0)+0.10;
-        player.xpMul*=1.5; player.goldMul*=1.5;
-        showToast('+50% XP & Gold — new enemies gain HP/ATK!',2.4);
-        break;
-      case 4: // Gamble Shrine — 50/50: legendary item or 12 elites
-        if(Math.random()<0.5){
-          const lgd=availableItemPool('legendary');
-          if(lgd.length) spawnGroundItem(o.x,o.z,lgd[(Math.random()*lgd.length)|0]);
-          showToast('Lucky! Legendary item!',2);
-        } else {
-          for(let i=0;i<12;i++) spawnElite(o.x,o.z);
-          showToast('Bad luck... 12 elites!',2);
-        }
-        break;
-    }
-  },1000);
+  setTimeout(()=>resolveShrineEffect(type,o),1000);
 }
 function activateMagnetPillar(o){
   o.used=true;
@@ -1320,12 +1476,109 @@ function clearEventActors(){
   }
   hauntedClones.length=0;
 }
+const WORLD_EVENT_DEFS={
+  blood_moon:{name:'BLOOD MOON',desc:'Enemies +30% power / XP x1.5',duration:30,color:0xff3d57},
+  elite_patrol:{name:'ELITE PATROL',desc:'A miniboss patrol enters the field',duration:12,color:0xff9a4d},
+  gold_rush:{name:'GOLD RUSH',desc:'Gold rains for 30 seconds',duration:30,color:0xffd45c},
+  fog_of_war:{name:'FOG OF WAR',desc:'Vision range reduced by 50%',duration:15,color:0x9c83bc},
+  divine_intervention:{name:'DIVINE INTERVENTION',desc:'Offering ready / Divine damage x1.5',duration:6,color:0xeed6ff}
+};
+function updateWorldEventHud(){
+  const el=document.getElementById('worldeventhud');
+  if(!el) return;
+  if(!activeWorldEvent){ el.classList.remove('active'); el.innerHTML=''; return; }
+  const d=WORLD_EVENT_DEFS[activeWorldEvent.id]||{};
+  el.style.setProperty('--event-color','#'+('000000'+((d.color||0xb666ff)>>>0).toString(16)).slice(-6));
+  el.innerHTML='<b>'+escHtml(d.name||activeWorldEvent.id)+' · '+Math.max(0,Math.ceil(activeWorldEvent.t))+'s</b><small>'+escHtml(d.desc||'')+'</small>';
+  el.classList.add('active');
+}
+function finishWorldEvent(silent){
+  if(activeWorldEvent&&activeWorldEvent.id==='fog_of_war'&&activeWorldEvent.fog&&scene&&scene.fog){
+    scene.fog.near=activeWorldEvent.fog.near;
+    scene.fog.far=activeWorldEvent.fog.far;
+    scene.fog.color.setHex(activeWorldEvent.fog.color);
+  }
+  const ended=activeWorldEvent;
+  activeWorldEvent=null;
+  updateWorldEventHud();
+  if(ended&&!silent) showToast((WORLD_EVENT_DEFS[ended.id]||{}).name+' ended',1.4);
+}
+function spawnElitePatrol(){
+  spawnMiniboss();
+  const center=pointAroundPlayer(18,23,false)||{x:player.x+16,z:player.z};
+  for(let i=0;i<5;i++){
+    const a=i*Math.PI*2/5;
+    spawnEnemy(null,center.x+Math.cos(a)*2.2,center.z+Math.sin(a)*2.2,{noModifier:i>1});
+  }
+  spawnObjectPulse(center.x,center.z,0xff9a4d,7,0.7);
+  spawnBurst(center.x,center.z,0xff9a4d,24,1.1);
+}
+function startWorldEvent(id,forced){
+  const d=WORLD_EVENT_DEFS[id];
+  if(!d||!player||gameOver||won||challengeRoom) return false;
+  if(activeWorldEvent) finishWorldEvent(true);
+  activeWorldEvent={id,t:d.duration};
+  if(id==='fog_of_war'&&scene&&scene.fog){
+    activeWorldEvent.fog={near:scene.fog.near,far:scene.fog.far,color:scene.fog.color.getHex()};
+    scene.fog.near=Math.max(4,scene.fog.near*0.36);
+    scene.fog.far=Math.max(scene.fog.near+8,scene.fog.far*0.50);
+    scene.fog.color.setHex(0x17101f);
+  } else if(id==='gold_rush') startGoldRain(30);
+  else if(id==='elite_patrol') telegraphSpecialSpawn(player.x,player.z,0xff9a4d,'Elite Patrol incoming!',{ring:5.5,pulse:7.5,done:spawnElitePatrol});
+  else if(id==='blood_moon'){
+    spawnObjectPulse(player.x,player.z,0xff3d57,11,0.9);
+    for(let i=0;i<3;i++) spawnElite(player.x,player.z);
+  }
+  showToast(d.name+': '+d.desc,2.8);
+  updateWorldEventHud();
+  return true;
+}
+function triggerDivineIntervention(){
+  if(divineInterventionUsed||!player||player.hp/player.maxHp>=0.15) return false;
+  if(typeof activeDivineOffering!=='function'||!activeDivineOffering()) return false;
+  divineInterventionUsed=true;
+  player.offeringCd=0;
+  player.divineInterventionPower=1.5;
+  player.divineInterventionT=25;
+  const d=WORLD_EVENT_DEFS.divine_intervention;
+  spawnObjectPulse(player.x,player.z,d.color,7,0.75);
+  spawnBurst(player.x,player.z,d.color,28,1.1);
+  showToast(d.name+': '+d.desc,3.0);
+  return true;
+}
+function updateDynamicWorldEvents(dt){
+  if(!player||gameOver||won) return;
+  triggerDivineIntervention();
+  if(typeof weeklyArenaActive==='function'&&weeklyArenaActive()) return;
+  if(activeWorldEvent){
+    activeWorldEvent.t-=dt;
+    updateWorldEventHud();
+    if(activeWorldEvent.t<=0) finishWorldEvent(false);
+    return;
+  }
+  if(challengeRoom) return;
+  if(bloodMoonPending&&mapStage===2&&stageTime()>2){
+    bloodMoonPending=false;
+    startWorldEvent('blood_moon');
+    return;
+  }
+  if(gameTime>=nextElitePatrolAt){
+    nextElitePatrolAt=gameTime+180;
+    startWorldEvent('elite_patrol');
+    return;
+  }
+  if(gameTime<nextWorldEventAt) return;
+  nextWorldEventAt=gameTime+105+Math.random()*75;
+  const pool=['gold_rush','fog_of_war'];
+  startWorldEvent(pool[(Math.random()*pool.length)|0]);
+}
 function resetEventState(full){
   goldRainT=0; goldRainDropT=0; goldRainSpawnT=0; goldRainCollected=0; goldRainElite=false;
   dontMoveT=0; dontMoveWarnT=0;
   butcherActive=false;
   nextButcherOvertimeRollAt=Infinity;
   clearEventActors();
+  finishWorldEvent(true);
   if(full){
     nextGoldRainAt=150;
     butcherRunEligible=Math.random() < BUTCHER_RUN_CHANCE;
@@ -1333,9 +1586,17 @@ function resetEventState(full){
     nextButcherAt=butcherRunEligible ? 360+Math.random()*120 : Infinity;
     butcherKills=0;
     debtCollectorCooldownUntil=0;
+    activeWorldEvent=null; nextWorldEventAt=105+Math.random()*45; nextElitePatrolAt=180;
+    bloodMoonPending=false; bloodMoonSeen=false; divineInterventionUsed=false;
   } else {
     nextGoldRainAt=Math.max(gameTime+65,nextGoldRainAt);
     nextButcherAt=(butcherRunEligible && !butcherAppeared) ? Math.max(gameTime+85,nextButcherAt) : Infinity;
+    nextWorldEventAt=Math.max(gameTime+75,nextWorldEventAt);
+    nextElitePatrolAt=Math.max(gameTime+120,nextElitePatrolAt);
+    if(mapStage===2 && !bloodMoonSeen){
+      bloodMoonSeen=true;
+      bloodMoonPending=Math.random()<0.20;
+    }
   }
 }
 function spawnMimicChest(x,z,tier){
@@ -1453,8 +1714,8 @@ function expireButcher(e){
   spawnBurst(e.x,e.z,0xff263f,30,1.2);
   showToast('The Butcher vanishes...',2.2);
 }
-function startGoldRain(){
-  goldRainT=14;
+function startGoldRain(duration){
+  goldRainT=duration||14;
   goldRainDropT=0;
   goldRainSpawnT=0.5;
   goldRainCollected=0;
@@ -1487,6 +1748,7 @@ function spawnHauntedClone(duration){
   showToast('Haunted clone joins you',1.8);
 }
 function updateSpecialEvents(dt){
+  updateDynamicWorldEvents(dt);
   updateGoldRain(dt);
   updateDontMoveCurse(dt);
   updateHauntedClones(dt);
@@ -1632,7 +1894,8 @@ function removeBossAoeVisual(a){
   if(a.core){ scene.remove(a.core); freeObj(a.core); }
   if(a.mark){ scene.remove(a.mark); freeObj(a.mark); }
 }
-function spawnBossImpactFx(x,z,radius,color,kind){
+function spawnBossImpactFx(x,z,radius,color,kind,opts){
+  opts=opts||{};
   const key=kind==='fire'?'fx_boss_aoe_fire_gen':
             kind==='arcane'?'fx_boss_aoe_arcane_gen':
             kind==='void'?'fx_boss_aoe_void_gen':
@@ -1643,8 +1906,10 @@ function spawnBossImpactFx(x,z,radius,color,kind){
             kind==='poison_hazard'?'fx_poison_hazard':
             kind==='mud_hazard'?'fx_mud_hazard':
             kind==='root_hazard'?'fx_root_hazard':
+            kind==='web_hazard'?'fx_web_hazard':
             kind==='void_pull'?'fx_void_pull':
             kind==='gold_steal'?'fx_gold_steal':
+            kind==='cursed_charge'?'fx_cursed_charge':
             kind==='enemy_buff'?'fx_enemy_buff_aura':'';
   const base=key&&tex[key];
   if(!base) return;
@@ -1658,7 +1923,7 @@ function spawnBossImpactFx(x,z,radius,color,kind){
   mat._ownsMap=true;
   const mesh=new THREE.Mesh(EFFECT_PLANE_GEO,mat);
   mesh.position.set(x,groundHeight(x,z)+0.2,z);
-  mesh.rotation.z=Math.random()*Math.PI;
+  mesh.rotation.z=Number.isFinite(opts.rotation)?opts.rotation:Math.random()*Math.PI;
   const visualRadius=kind==='burrow_emerge'?radius*1.35:
                      kind==='executioner_gallows'?radius*1.18:
                      kind==='troll_regrowth'?radius*1.22:
@@ -1667,6 +1932,15 @@ function spawnBossImpactFx(x,z,radius,color,kind){
   scene.add(mesh);
   const life=kind==='burrow_emerge'?0.56:kind==='warden_bulwark'?0.62:kind==='troll_regrowth'?0.58:0.46;
   bossImpactFx.push({ x,z,radius:visualRadius*1.12,life,t:0,frames:6,map,mesh,color });
+}
+function spawnCursedGuardFx(e){
+  const base=tex.fx_cursed_guard;if(!base||!e) return;
+  const map=base.clone();map.magFilter=THREE.NearestFilter;map.minFilter=THREE.NearestFilter;map.repeat.set(1/6,1);map.offset.set(0,0);map.needsUpdate=true;
+  const mat=new THREE.SpriteMaterial({map,color:0xffffff,transparent:true,opacity:0.96,alphaTest:0.04,depthWrite:false,blending:THREE.AdditiveBlending});
+  mat._ownsMap=true;
+  const mesh=new THREE.Sprite(mat),radius=Math.max(1.25,e.r*1.45),baseY=Math.max(0.9,(e.bh||1.7)*0.52);
+  mesh.position.set(e.x,groundHeight(e.x,e.z)+baseY,e.z);scene.add(mesh);
+  bossImpactFx.push({x:e.x,z:e.z,radius,baseY,life:0.72,t:0,frames:6,map,mesh,color:0xd8b45a,follow:e});
 }
 function bossAoe(e,x,z,radius,delay,dmgMul,color,knock,impact,opts){
   opts=opts||{};
@@ -1697,7 +1971,7 @@ function bossAoe(e,x,z,radius,delay,dmgMul,color,knock,impact,opts){
     mark.position.set(x,groundHeight(x,z)+0.205,z);
     scene.add(mark);
   }
-  bossAoEs.push({ x,z,radius,delay:castDelay,t:0,damage:Math.round(e.atk*(dmgMul||1)),color,knock:knock||13,impact:impact||'void',src:e,mesh,core,mark,danger,markSpin:opts.markSpin||0,enemyHazard:!!opts.enemyHazard });
+  bossAoEs.push({ x,z,radius,delay:castDelay,t:0,damage:Math.round(e.atk*(dmgMul||1)),color,knock:knock||13,impact:impact||'void',src:e,mesh,core,mark,danger,markSpin:opts.markSpin||0,enemyHazard:!!opts.enemyHazard,healSourceMul:Math.max(0,opts.healSourceMul||0),slowMul:Math.max(0,opts.slowMul||0),slowDuration:Math.max(0,opts.slowDuration||0) });
 }
 const SK = {
   ring:    { cd:3.4, fn:(e)=>{ const n=12; for(let i=0;i<n;i++){const a=(i/n)*6.2832; spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),e.atk);} e.flash=0.12; } },
@@ -1724,13 +1998,17 @@ const SK = {
   wardensDecree:{ cd:5.9, fn:(e)=>{ const base=bossPlayerAngle(e)+Math.PI*0.5; e.shieldT=Math.max(e.shieldT||0,2.4); for(let i=-1;i<=1;i++){ const x=clamp(player.x+Math.cos(base)*i*3.0,-MAP_BOUND,MAP_BOUND), z=clamp(player.z+Math.sin(base)*i*3.0,-MAP_BOUND,MAP_BOUND); const r=i===0?2.25:1.85; bossAoe(e,x,z,r,0.76+Math.abs(i)*0.08,0.82,0x8fd0ff,18,'warden_bulwark',{danger:true,markSpin:i*0.55}); spawnObjectPulse(x,z,0x8fd0ff,r*1.85,0.58); spawnRing(x,z,0xd6f3ff,r*1.25,0.36); } bossRing(e,14,gameTime*0.9,0.55); spawnBossImpactFx(e.x,e.z,3.45,0x8fd0ff,'warden_bulwark'); spawnBurst(e.x,e.z,0xd6f3ff,24,1.05); showToast("WARDEN'S DECREE!",1.05); e.flash=0.24; } },
   lichCross: { cd:3.2, fn:(e)=>{ const a=bossPlayerAngle(e); bossCross(e,a,1.05); bossRing(e,8,a+Math.PI/8,0.75); spawnBurst(e.x,e.z,0x8bd7ff,12,1.0); e.flash=0.16; } },
   lichPrison:{ cd:5.6, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<6;i++){ const side=i%2?-1:1, dist=1.8+(i*0.45); bossFan(e,a+side*0.95,3,0.07,0.9); bossShot(e,a+side*0.55,0.95,Math.cos(a+side*1.57)*dist,Math.sin(a+side*1.57)*dist); } bossAoe(e,player.x,player.z,3.2,0.95,1.05,0x8bd7ff,12,'arcane'); spawnObjectPulse(player.x,player.z,0x8bd7ff,3.2,0.55); e.flash=0.14; } },
+  necroticOrb:{ cd:4.5, fn:(e)=>{ const a=bossPlayerAngle(e); spawnEnemyShot(e.x,e.z,Math.cos(a),Math.sin(a),Math.round(e.atk*1.45),{speed:4.6,life:4.2,color:0x78dfff,coreColor:0xeaffff,glowSize:0.62,coreSize:0.25,hitRadius:0.72,trailScale:0.72,source:e}); spawnObjectPulse(e.x,e.z,0x78dfff,e.r*2.4,0.48); showToast('NECROTIC ORB!',1.0); e.flash=0.2; } },
+  soulDrain:{ cd:7.0, fn:(e)=>{ bossAoe(e,player.x,player.z,3.0,0.9,0.92,0xc9287c,8,'void',{danger:true,markSpin:0.8,healSourceMul:0.12}); spawnObjectPulse(player.x,player.z,0xc9287c,4.0,0.58); showToast('SOUL DRAIN!',1.1); e.flash=0.22; } },
   behemothSlam:{ cd:4.4, fn:(e)=>{ bossAoe(e,e.x,e.z,5.7,0.8,1.45,0xffaa44,19,'fire'); spawnRing(e.x,e.z,0xffaa44,6.2,0.55); spawnBurst(e.x,e.z,0xffaa44,18,1.3); bossRing(e,18,0,0.85); shake(0.32,0.24); e.flash=0.2; } },
   behemothQuake:{ cd:5.2, fn:(e)=>{ for(let i=0;i<3;i++){ const a=bossPlayerAngle(e)+i*0.42-0.42; const ox=Math.cos(a)*(2.3+i*1.5), oz=Math.sin(a)*(2.3+i*1.5); bossAoe(e,e.x+ox,e.z+oz,2.4+i*0.65,0.65+i*0.16,0.92,0xffd27a,13,'fire'); spawnRing(e.x+ox,e.z+oz,0xffd27a,2.5+i*0.7,0.42); bossFan(e,a,5+i*2,0.18,0.72); } shake(0.28,0.2); e.flash=0.16; } },
   behemothRoar:{ cd:6.4, fn:(e)=>{ const base=bossPlayerAngle(e); for(let lane=-2;lane<=2;lane++){ const a=base+lane*0.18; for(let step=0;step<3;step++){ const dist=2.9+step*1.9+Math.abs(lane)*0.22; const x=e.x+Math.cos(a)*dist, z=e.z+Math.sin(a)*dist; const r=1.25+step*0.32; bossAoe(e,x,z,r,0.58+step*0.10+Math.abs(lane)*0.04,0.72+step*0.08,0xff7a2f,18,'fire',{danger:true,markRot:a}); spawnRing(x,z,0xffaa44,r*1.15,0.36); if(step===2) spawnObjectPulse(x,z,0xd84a24,r*1.7,0.48); } } bossFan(e,base,9,0.10,0.65); spawnBossImpactFx(e.x,e.z,4.1,0xff7a2f,'fire'); spawnObjectPulse(e.x,e.z,0xff7a2f,e.r*3.0,0.55); spawnBurst(e.x,e.z,0xff7a2f,26,1.15); showToast('ABYSSAL ROAR!',1.1); shake(0.36,0.24); e.flash=0.24; } },
   reaperScythes:{ cd:3.1, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<7;i++){ const o=(i-3)*0.17; bossShot(e,a+Math.PI*0.5+o,0.9); bossShot(e,a-Math.PI*0.5-o,0.9); } bossFan(e,a,7,0.12,1.0); spawnBurst(e.x,e.z,0xff3f66,16,1.0); e.flash=0.16; } },
   reaperBlink:{ cd:5.0, fn:(e)=>{ const a=bossPlayerAngle(e); const side=Math.random()<0.5?-1:1; bossAoe(e,player.x,player.z,2.8,0.62,1.05,0xff3f66,15,'void'); e.x=clamp(player.x-Math.cos(a)*3.2+Math.cos(a+side*1.57)*1.4,-MAP_BOUND,MAP_BOUND); e.z=clamp(player.z-Math.sin(a)*3.2+Math.sin(a+side*1.57)*1.4,-MAP_BOUND,MAP_BOUND); spawnBurst(e.x,e.z,0xff3f66,22,1.25); bossFan(e,a,9,0.13,0.95); shake(0.28,0.18); e.flash=0.22; } },
+  reaperClone:{ cd:9.0, fn:(e)=>{ if(enemies.some(t=>t.alive&&t!==e&&t.name==='Soul Reaper Echo')) return; const type=BOSS_TYPES.find(t=>t.sprite==='boss_reaper'); if(!type) return; const a=Math.random()*Math.PI*2; const echo=spawnBossAddAt(e.x+Math.cos(a)*4.2,e.z+Math.sin(a)*4.2,type,true); if(echo){ echo.maxHp=echo.hp=Math.max(1,Math.round(e.maxHp*0.18)); echo.damageTakenMul=0.72; echo.xp=80; echo.skills=[SK.reaperScythes,SK.scatter].filter(Boolean); echo.skillT=[0.8,1.7]; } spawnObjectPulse(e.x,e.z,0xff3f66,e.r*3.3,0.65); showToast('SOUL REAPER SPLITS!',1.1); } },
   wyrmBreath:{ cd:3.6, fn:(e)=>{ const a=bossPlayerAngle(e); bossFan(e,a,13,0.09,0.82); bossFan(e,a,7,0.16,1.05); spawnObjectPulse(e.x+Math.cos(a)*2.2,e.z+Math.sin(a)*2.2,0x8bd7ff,4.2,0.45); e.flash=0.16; } },
   wyrmMeteor:{ cd:5.8, fn:(e)=>{ const base=bossPlayerAngle(e); for(let i=0;i<7;i++){ const a=base+(i-3)*0.20, sx=e.x+Math.cos(a+Math.PI*0.5)*(i-3)*0.62, sz=e.z+Math.sin(a+Math.PI*0.5)*(i-3)*0.62; spawnEnemyShot(sx,sz,Math.cos(a),Math.sin(a),Math.round(e.atk*(i%3===0?1.15:0.9))); if(i%3===0) bossAoe(e,sx+Math.cos(a)*3.4,sz+Math.sin(a)*3.4,2.1,0.9+i*0.03,1.15,0x55ddff,12,'arcane'); } bossRing(e,12,gameTime*0.7,0.72); spawnBurst(e.x,e.z,0x55ddff,18,1.1); e.flash=0.16; } },
+  wyrmDive:{ cd:7.2, fn:(e)=>{ const a=bossPlayerAngle(e),side=(Math.random()<0.5?-1:1)*1.1; e.burrowT=0.82; e.burrowMax=0.82; e.burrowX=clamp(player.x-Math.cos(a)*2.4+Math.cos(a+side)*1.8,-MAP_BOUND,MAP_BOUND); e.burrowZ=clamp(player.z-Math.sin(a)*2.4+Math.sin(a+side)*1.8,-MAP_BOUND,MAP_BOUND); e.burrowDone=false; bossAoe(e,e.burrowX,e.burrowZ,3.2,0.82,1.28,0x55ddff,20,'arcane',{danger:true,markSpin:-0.8}); spawnObjectPulse(e.x,e.z,0x55ddff,e.r*2.8,0.5); showToast('VOID WYRM DIVES!',1.1); e.flash=0.2; } },
   overlordStar:{ cd:3.8, fn:(e)=>{ const a=gameTime*0.9; bossRing(e,20,a,0.8); bossCross(e,a+Math.PI/8,1.0); bossFan(e,bossPlayerAngle(e),9,0.11,1.05); spawnObjectPulse(e.x,e.z,0x9a55ff,e.r*3.4,0.48); e.flash=0.2; } },
   overlordJudgment:{ cd:6.2, fn:(e)=>{ const a=bossPlayerAngle(e); for(let i=0;i<4;i++) bossFan(e,a+i*Math.PI*0.5,7,0.12,0.9); bossRing(e,28,a+Math.PI/28,0.78); bossAoe(e,player.x,player.z,3.7,1.05,1.25,0xff3355,16,'void',{danger:true,markSpin:0.65}); for(let i=0;i<4;i++){ const q=a+i*Math.PI*0.5; bossAoe(e,e.x+Math.cos(q)*5.2,e.z+Math.sin(q)*5.2,2.7,1.15,1.0,0x78dfff,13,'void',{danger:true,markRot:q,markSpin:-0.45}); } if((e.finalPhase||3)<=2) for(let i=0;i<2;i++){ const q=a+(i?1:-1)*1.2; spawnAddAt(e.x+Math.cos(q)*5,e.z+Math.sin(q)*5); } spawnBurst(e.x,e.z,0xff3355,32,1.35); shake(0.42,0.3); e.flash=0.24; } },
   voidChains:{ cd:5.4, fn:(e)=>{ const a=bossPlayerAngle(e); bossAoe(e,player.x,player.z,2.25,0.55,0.82,0x8d55ff,18,'void',{danger:true,markSpin:0.8}); for(let k=-2;k<=2;k++){ const q=a+k*0.36, x=player.x+Math.cos(q)*2.6, z=player.z+Math.sin(q)*2.6; bossAoe(e,x,z,1.45,0.72+Math.abs(k)*0.04,0.70,0x8d55ff,15,'void',{danger:true,markRot:q}); } spawnObjectPulse(player.x,player.z,0x8d55ff,4.8,0.55); spawnBurst(player.x,player.z,0x8d55ff,16,0.9); showToast('VOID CHAINS!',1.0); e.flash=0.22; } },
@@ -1738,10 +2016,10 @@ const SK = {
   overlordBlinkCharge:{ cd:4.4, fn:(e)=>{ const a=bossPlayerAngle(e); const side=(Math.random()<0.5?-1:1)*1.35; const ox=Math.cos(a+side)*2.0, oz=Math.sin(a+side)*2.0; spawnBurst(e.x,e.z,0x9a55ff,18,1.0); e.x=clamp(player.x-Math.cos(a)*4.2+ox,-MAP_BOUND,MAP_BOUND); e.z=clamp(player.z-Math.sin(a)*4.2+oz,-MAP_BOUND,MAP_BOUND); e.charging=0.58; e.cdx=Math.cos(a); e.cdz=Math.sin(a); bossAoe(e,e.x+e.cdx*3.0,e.z+e.cdz*3.0,2.35,0.5,0.86,0xff3355,16,'void',{danger:true,markRot:a}); spawnObjectPulse(e.x,e.z,0x9a55ff,e.r*2.6,0.42); spawnBurst(e.x,e.z,0xff3355,22,1.15); shake(0.30,0.18); e.flash=0.24; } },
 };
 const BOSS_SKILLS = {
-  boss_lich:     ['lichCross','lichPrison','summon'],
+  boss_lich:     ['lichCross','necroticOrb','soulDrain','lichPrison','summon'],
   boss_behemoth: ['behemothSlam','behemothQuake','behemothRoar','charge'],
-  boss_reaper:   ['reaperScythes','reaperBlink','scatter'],
-  boss_dragon:   ['wyrmBreath','wyrmMeteor','charge'],
+  boss_reaper:   ['reaperScythes','reaperBlink','reaperClone','scatter'],
+  boss_dragon:   ['wyrmBreath','wyrmMeteor','wyrmDive','charge'],
   boss_overlord: ['overlordStar','overlordJudgment','voidChains','mirrorRift','overlordBlinkCharge','summon3'],
 };
 const MB_SKILLS = {
@@ -1763,6 +2041,30 @@ function setupFinalBoss(e){
   e.damageTakenMul=0.42;
   e.spd=52*SPD_SCALE*BOSS_SPEED_MUL;
   e.atk=Math.round(e.atk*1.18);
+  e.arenaX=e.x; e.arenaZ=e.z; e.arenaFxT=0;
+}
+function updateFinalBossArena(e,dt){
+  if(!e || !e.finalPhase) return;
+  const radius=e.finalPhase===1?14.5:e.finalPhase===2?17:20;
+  const cx=e.arenaX==null?e.x:e.arenaX, cz=e.arenaZ==null?e.z:e.arenaZ;
+  e.arenaRadius=radius;
+  e.arenaFxT=(e.arenaFxT||0)-dt;
+  if(e.arenaFxT<=0){
+    e.arenaFxT=1.15;
+    const color=e.finalPhase===1?0xff3355:e.finalPhase===2?0x8bd7ff:0x9a55ff;
+    spawnRing(cx,cz,color,radius,1.05);
+  }
+  const dx=player.x-cx,dz=player.z-cz,d=Math.hypot(dx,dz)||1;
+  if(d>radius){
+    const nx=dx/d,nz=dz/d;
+    player.x=cx+nx*(radius-0.25);
+    player.z=cz+nz*(radius-0.25);
+    hurtPlayer(Math.max(1,Math.round(e.atk*0.42)),-nx,-nz,10,e,'void arena');
+  }
+  if(typeof localCoopActive==='function'&&localCoopActive()&&!coopPlayer.down){
+    const cdx=coopPlayer.x-cx,cdz=coopPlayer.z-cz,cd=Math.hypot(cdx,cdz)||1;
+    if(cd>radius){const cnx=cdx/cd,cnz=cdz/cd;coopPlayer.x=cx+cnx*(radius-0.25);coopPlayer.z=cz+cnz*(radius-0.25);hurtCoopPlayer(Math.max(1,Math.round(e.atk*0.42)),-cnx,-cnz,10,e,'void arena');}
+  }
 }
 function spawnBossAddAt(cx,cz,type,stageBoss){
   const H=type.h*(stageBoss?0.9:0.82);
@@ -1833,6 +2135,7 @@ function updateFinalBossPhase(e,dt){
     }
     spawnObjectPulse(e.x,e.z,color,e.r*(e.finalPhase===1?4.6:3.6),0.45);
   }
+  updateFinalBossArena(e,dt);
 }
 function assignSkills(e, names){
   e.skills = (names||[]).map(n=>SK[n]).filter(Boolean);
@@ -1946,6 +2249,21 @@ function dropPickup(x,z,type,value,eventTag){
 function breakBreakable(b, color){
   if(!b || !b.alive) return;
   b.alive=false;
+  if(b.kind==='barrel'){
+    spawnObjectPulse(b.x,b.z,0xff542f,5.8,0.55);
+    aoeProc(b.x,b.z,4.2,40+mapStage*10,0xff6b32,true,'explosive_barrel');
+    if(Math.hypot(player.x-b.x,player.z-b.z)<4.2) hurtPlayer(16,player.x-b.x,player.z-b.z,5,{name:'Explosive Barrel',environment:true},'explosion');
+    if(typeof localCoopActive==='function'&&localCoopActive()&&!coopPlayer.down&&Math.hypot(coopPlayer.x-b.x,coopPlayer.z-b.z)<4.2)hurtCoopPlayer(16,coopPlayer.x-b.x,coopPlayer.z-b.z,5,{name:'Explosive Barrel',environment:true},'explosion');
+    for(const other of breakables){
+      if(other===b||!other.alive||other.kind!=='barrel'||other.chainFuse>0) continue;
+      const d=Math.hypot(other.x-b.x,other.z-b.z);
+      if(d>5.4) continue;
+      other.chainFuse=0.18+d*0.035;
+      spawnRing(other.x,other.z,0xff8b42,1.15,other.chainFuse);
+    }
+    shake(0.24,0.16);
+    return;
+  }
   spawnBurst(b.x,b.z,color||0xd7a05a,b.kind==='crate'?9:7,b.kind==='crate'?0.55:0.45);
   spawnRing(b.x,b.z,color||0xd7a05a,0.9,0.18);
   const gold=1+Math.floor(Math.random()*(b.gold||1)+0.6);
@@ -1997,7 +2315,7 @@ function applyMagnetPickup(duration){
   sfx('pickup');
 }
 function collect(pk){ pk.alive=false; if(pk.type==='gold'){ const g=Math.round(pk.value*player.goldMul); player.gold+=g; if(pk.eventTag==='goldrain') goldRainCollected+=g; } else if(pk.type==='hp'){ const before=player.hp; player.hp=Math.min(healCap(player), player.hp+scaledHeal(pk.value)); recordRunItem('hp_orb',{ heal:Math.max(0,player.hp-before), procs:1 }); } else if(pk.type==='haste'||pk.type==='might'){ applyPickupBuff(pk.type,pk.value); } else if(pk.type==='magnet'){ applyMagnetPickup(pk.value); } else { let v=pk.value; if(player.echoChance && Math.random()<player.echoChance){ v*=2; recordRunItem('echo_shard',{ procs:1 }); } addXP(v); } }
-function addXP(v){ player.xp += Math.round(v*player.xpMul); while(player.xp>=player.xpToNext){ levelUp(); } }
+function addXP(v){ player.xp += Math.round(v*player.xpMul*worldEventXpMul()); while(player.xp>=player.xpToNext){ levelUp(); } }
 function levelUp(){
   if (player.level>=MAX_LEVEL){ player.xp=0; player.xpToNext=Infinity; return; }   // hard cap
   player.xp-=player.xpToNext; player.level++;
@@ -2014,14 +2332,30 @@ function hurtPlayer(amt,dx,dz,force,src,kind){
   const guard=typeof trySkullGuard==='function' ? trySkullGuard(amt,src) : { blocked:false, amount:amt };
   amt=guard.amount;
   if(typeof tryDivineShield==='function') amt=tryDivineShield(amt,src);
+  if(player.archetypeShield>0){
+    if((player.archetypeShieldUntil||0)<=gameTime) player.archetypeShield=0;
+    else {
+      const blocked=Math.min(player.archetypeShield,Math.max(0,amt));
+      player.archetypeShield-=blocked; amt-=blocked;
+      if(blocked>0) spawnDmg(player.x,player.z,'BLOOD SHIELD',0xd55278,false,'guard');
+    }
+  }
   if(amt<=0){ player.invuln=Math.max(player.invuln,0.16); return; }
   sfx('hurt');
   // armor = percentage mitigation (stays useful as def scales), never below 1
-  const effectiveDef=player.def*(player.armorMul||1);
+  const effectiveDef=src&&src.eliteMod==='ethereal'?0:player.def*(player.armorMul||1);
   const r=Math.max(1, Math.round(amt*100/(100+effectiveDef*4)));
   damageTaken += r;
   recordPlayerHit(r,src,kind || (src&&src.isBoss?'boss hit':src&&src.elite?'miniboss hit':'contact'));
   player.hp-=r; player.flash=0.12; player.invuln=0.4;
+  if(src&&src.alive&&src.eliteMod==='vampiric'){
+    const healed=Math.max(1,Math.round(r*0.15));
+    src.hp=Math.min(src.maxHp,src.hp+healed);
+    if(gameTime>(src.eliteHealFxAt||0)){
+      src.eliteHealFxAt=gameTime+0.55;
+      spawnObjectPulse(src.x,src.z,0xc9284e,Math.max(1.4,src.r*1.7),0.3);
+    }
+  }
   spawnDmg(player.x, player.z, r, 0xff536d, false, 'playerhit');
   heroQuip('hurt',0.18,2.0);
   if(typeof petReact==='function') petReact('hurt');
@@ -2068,6 +2402,7 @@ function hurtPlayer(amt,dx,dz,force,src,kind){
     return;
   }
   if(player.hp<=0){
+    if(typeof downMainPlayerForCoop==='function'&&downMainPlayerForCoop()) return;
     player.hp=0; player.alive=false; recordDeathCause();
     if(src && src.butcher){
       showToast('The Butcher laughs: "Too slow."',4.0);
@@ -2225,9 +2560,13 @@ function shake(duration, magnitude){
 }
 function updateCamera(dt) {
   const ang = 50*Math.PI/180, D = camDist;
-  const gy = groundHeight(player.x, player.z);
+  let tx=player.x,tz=player.z;
+  if(typeof localCoopActive==='function'&&localCoopActive()&&coopPlayer.alive){
+    if(player.coopDown){tx=coopPlayer.x;tz=coopPlayer.z;}
+    else if(!coopPlayer.down){tx=(player.x+coopPlayer.x)*0.5;tz=(player.z+coopPlayer.z)*0.5;}
+  }
+  const gy = groundHeight(tx, tz);
   camGY += (gy - camGY) * (1 - Math.pow(0.03, dt));
-  const tx=player.x, tz=player.z;
   cameraTarget.set(tx, camGY + Math.sin(ang)*D, tz + Math.cos(ang)*D);
   camera.position.lerp(cameraTarget, 1-Math.pow(0.001, dt));
   camera.lookAt(tx, camGY+1.0, tz);
@@ -2259,6 +2598,7 @@ function updateHUD(dt){
   if(typeof updateDivineOfferingHud==='function') updateDivineOfferingHud();
   { const st=stageTime(), ot=overtimeElapsed();
     if (challengeRoom){ $('time').textContent = 'CH '+fmt(Math.max(0,(challengeRoom.startedAt+challengeRoom.duration)-gameTime)); $('time').style.color='#c994ff'; }
+    else if(endlessMode){ $('time').textContent='ENDLESS '+fmt(gameTime-endlessStartedAt)+' · x'+otPowerMul(); $('time').style.color='#ff75b7'; }
     else if (overtimeLevel()){ $('time').textContent = '⚠ OT x'+otPowerMul()+' '+fmt(Math.max(0,ot)); $('time').style.color='#ff6a6a'; }
     else { $('time').textContent = fmt(st); $('time').style.color='#ffcc00'; } }
   const trackedBoss=(boss&&boss.alive)?boss:enemies.find(e=>e.alive&&e.isBoss);
@@ -2274,7 +2614,10 @@ function updateHUD(dt){
   } else $('bossbar').style.display='none';
   if (altar && !(boss&&boss.alive) && !gameOver && !won){
     const dx=altar.x-player.x, dz=altar.z-player.z, d=Math.hypot(dx,dz);
+    if(altar.state==='idle'&&typeof weeklyArenaActive==='function'&&weeklyArenaActive()) $('altar').textContent='WEEKLY BOSS '+fmt(Math.max(0,WEEKLY_ARENA.bossAt-stageTime()));
+    else
     if (altar.state==='idle') $('altar').textContent = d<3 ? '⛧ [F] เรียกบอส' : `⛧ แท่นบอส ${Math.round(d)}m ${arrowTo(dx,dz)}`;
+    else if(altar.state==='summoning') $('altar').textContent='⚠ บอสกำลังปรากฏ · 2s';
     else $('altar').textContent = d<2.6 ? '◯ เข้าวาป!' : `◯ วาป ${Math.round(d)}m ${arrowTo(dx,dz)}`;
     $('altar').style.display='block';
   } else $('altar').style.display='none';
@@ -2321,13 +2664,25 @@ function fmt(seconds){
 function clamp(v,a,b){ return v<a?a:v>b?b:v; }
 
 const LEADERBOARD_KEY = 'sc3_leaderboard';
+let leaderboardMode='standard';
+function readLocalLeaderboard(){
+  try{
+    const value=JSON.parse(localStorage.getItem(LEADERBOARD_KEY)||'[]');
+    return Array.isArray(value) ? value.filter(row=>row&&typeof row==='object') : [];
+  }catch(_){ return []; }
+}
+function writeLocalLeaderboard(board){
+  try{ localStorage.setItem(LEADERBOARD_KEY,JSON.stringify(Array.isArray(board)?board:[])); return true; }
+  catch(_){ return false; }
+}
 function saveScore(){
   const character = (CHARACTERS[player.char]||{}).name || 'Unknown';
   const pact = typeof pactSummary === 'function' ? pactSummary(activePactIds) : { ids:[], multiplier:1, label:'No Pact', count:0 };
   const diff = typeof activeDifficulty === 'function' ? activeDifficulty() : { id:'normal', name:'Normal', mult:1 };
   const pet = player.petId && typeof petById==='function' ? petById(player.petId) : null;
   const dp=deathPenalty || { rate:0, percent:0, baseScore:score, finalScore:score, amount:0, reason:'' };
-  const entry = { name:cleanPlayerName(playerName), country_code:cleanCountryCode(playerCountry), character, build:window.SHADOW_BUILD_VERSION||'', score, scoreBeforePenalty:dp.baseScore||score, deathPenaltyRate:Number(dp.rate||0), deathPenaltyPercent:Number(dp.percent||0), deathPenaltyAmount:Number(dp.amount||0), deathPenaltyReason:dp.reason||'', kills, time: Math.floor(gameTime), won, level:player.level, stage:mapStage, damage:Math.round(damageTaken), items:player.items.length, petId:player.petId||'', petName:pet?pet.name:'', difficultyId:diff.id||'normal', difficultyName:diff.name||'Normal', difficultyMultiplier:Number(diff.mult||1), pactIds:pact.ids, pactMultiplier:pact.multiplier, pactLabel:pact.label, pactCount:pact.count, date: new Date().toISOString() };
+  const currentRunMode=endlessMode?'endless':(typeof challengeRunMode==='function'?challengeRunMode():'standard');
+  const entry = { name:cleanPlayerName(playerName), country_code:cleanCountryCode(playerCountry), character, build:window.SHADOW_BUILD_VERSION||'', score, scoreBeforePenalty:dp.baseScore||score, deathPenaltyRate:Number(dp.rate||0), deathPenaltyPercent:Number(dp.percent||0), deathPenaltyAmount:Number(dp.amount||0), deathPenaltyReason:dp.reason||'', kills, time: Math.floor(gameTime), won, level:player.level, stage:mapStage, damage:Math.round(damageTaken), items:player.items.length, petId:player.petId||'', petName:pet?pet.name:'', difficultyId:diff.id||'normal', difficultyName:diff.name||'Normal', difficultyMultiplier:Number(diff.mult||1), pactIds:pact.ids, pactMultiplier:pact.multiplier, pactLabel:pact.label, pactCount:pact.count, runMode:currentRunMode, endlessTime:endlessMode?Math.max(0,Math.floor(gameTime-endlessStartedAt)):0, challengeKey:currentRunMode==='weekly'?challengeKey(currentRunMode):'', challengeSummary:typeof challengeSummary==='function'?challengeSummary():'', date: new Date().toISOString() };
   if(typeof saveRunTelemetry==='function'){
     const telemetry = saveRunTelemetry(entry);
     if(telemetry && telemetry.id) entry.run_id = telemetry.id;
@@ -2341,12 +2696,13 @@ function saveScore(){
     entry.onlineError = 'Casual runs are unranked';
     return entry;
   }
-  let board = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || '[]');
+  let board = readLocalLeaderboard();
   board.push(entry);
   board.sort((a,b) => b.score - a.score);
-  const rank = board.indexOf(entry) + 1;
-  board = board.slice(0, 8);
-  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(board));
+  const sameMode=board.filter(e=>(e.runMode||'standard')===entry.runMode&&(!entry.challengeKey||e.challengeKey===entry.challengeKey));
+  const rank = sameMode.indexOf(entry) + 1;
+  board = board.filter(e=>sameMode.indexOf(e)<8);
+  writeLocalLeaderboard(board);
   entry.rank = rank;
   entry.personalBest = rank === 1;
   entry.onlineStatus = 'pending';
@@ -2367,9 +2723,12 @@ function saveScore(){
     });
   return entry;
 }
-function loadLeaderboard(){
-  return JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || '[]').filter(e=>e.difficultyId!=='casual');
+function loadLeaderboard(mode){
+  const selected=mode||leaderboardMode;
+  const period=selected==='weekly'?challengeKey(selected):'';
+  return readLocalLeaderboard().filter(e=>e.difficultyId!=='casual'&&(e.runMode||'standard')===selected&&(!period||e.challengeKey===period));
 }
+function setLeaderboardMode(mode){ leaderboardMode=['endless','weekly'].includes(mode)?mode:'standard'; showLeaderboard(); }
 function renderLeaderboard(board, source, emptyMessage){
   const el = document.getElementById('leaderboard');
   if (!el) return;
@@ -2377,9 +2736,10 @@ function renderLeaderboard(board, source, emptyMessage){
   const rows=Array.isArray(board)?board:[];
   const bindRankControls=()=>{
     const btn=document.getElementById('ranktoggle'); if(btn && typeof toggleTitleRanking==='function') btn.onclick=toggleTitleRanking;
+    document.querySelectorAll('[data-rank-mode]').forEach(b=>b.onclick=()=>setLeaderboardMode(b.dataset.rankMode));
     if(typeof updateRankToggleLabel==='function') updateRankToggleLabel();
   };
-  const rankHead = (scoreText)=>'<div class="rankhead"><span>'+escHtml(source||tt('rank.title','Ranking'))+'</span><div class="ranktools"><b>'+escHtml(scoreText)+'</b><button id="ranktoggle" class="ranktoggle" type="button">'+escHtml(tt('title.rank.hide','Hide Ranking'))+'</button></div></div>';
+  const rankHead = (scoreText)=>'<div class="rankhead"><span>'+escHtml(source||tt('rank.title','Ranking'))+'</span><div class="rankmodes"><button data-rank-mode="standard" class="'+(leaderboardMode==='standard'?'active':'')+'">Standard</button><button data-rank-mode="endless" class="'+(leaderboardMode==='endless'?'active':'')+'">Endless</button><button data-rank-mode="weekly" class="'+(leaderboardMode==='weekly'?'active':'')+'">Weekly</button></div><div class="ranktools"><b>'+escHtml(scoreText)+'</b><button id="ranktoggle" class="ranktoggle" type="button">'+escHtml(tt('title.rank.hide','Hide Ranking'))+'</button></div></div>';
   if (!rows.length) {
     el.innerHTML='<div class="rankpanel empty">'+rankHead(tt('rank.none','No records'))+'<p>'+escHtml(emptyMessage||tt('rank.empty','Finish a run to carve your name into the covenant.'))+'</p></div>';
     bindRankControls();
@@ -2417,12 +2777,12 @@ function showLeaderboardLegacy(){
 function showLeaderboard(){
   if(typeof loadOnlineLeaderboard==='function' && typeof onlineLeaderboardReady==='function' && onlineLeaderboardReady()){
     renderLeaderboard([], tr('rank.online'), tr('rank.loading'));
-    loadOnlineLeaderboard()
+    loadOnlineLeaderboard(leaderboardMode)
       .then(rows=>{ renderLeaderboard(rows,tr('rank.online'),tr('rank.emptyOnline')); })
-      .catch(err=>{ console.warn(err.message||err); renderLeaderboard(loadLeaderboard(), tr('rank.local')); });
+      .catch(err=>{ console.warn(err.message||err); renderLeaderboard(loadLeaderboard(leaderboardMode), tr('rank.local')); });
     return;
   }
-  renderLeaderboard(loadLeaderboard(), tr('rank.title'));
+  renderLeaderboard(loadLeaderboard(leaderboardMode), tr('rank.title'));
 }
 function renderRunRanking(){
   let el=document.getElementById('overrank');
@@ -2445,6 +2805,14 @@ function fmtStatNumber(v){
 }
 function topRows(obj, scoreFn, limit){
   return Object.values(obj||{}).filter(r=>scoreFn(r)>0).sort((a,b)=>scoreFn(b)-scoreFn(a)).slice(0,limit||5);
+}
+function deathRecapTip(hit){
+  const k=String(hit&&hit.kind||'').toLowerCase();
+  if(k.includes('aoe')) return gameLang()==='en'?'Leave the warning circle before the cast completes.':'รีบออกจากวงเตือนก่อนร่ายเสร็จ';
+  if(k.includes('projectile')) return gameLang()==='en'?'Move sideways and keep an escape lane open.':'ขยับด้านข้างและเหลือทางหนีไว้เสมอ';
+  if(k.includes('explod')) return gameLang()==='en'?'Keep distance from enemies that flash before death.':'เว้นระยะจากมอนที่กะพริบก่อนตาย';
+  if(k.includes('contact')) return gameLang()==='en'?'Add movement, armor, or evade before the next swarm.':'เพิ่มความเร็ว เกราะ หรือหลบหลีกก่อนเจอฝูงถัดไป';
+  return gameLang()==='en'?'Review defense and save Dash for the final hit.':'ตรวจค่าสายป้องกันและเก็บ Dash ไว้หลบจังหวะสุดท้าย';
 }
 function renderRunSummary(){
   let el=document.getElementById('runsummary');
@@ -2474,6 +2842,19 @@ function renderRunSummary(){
     return `<div class="summaryline"><i>${index+1}</i><b>${escHtml(it.name)}</b><span>${bits.join(' · ')}</span></div>`;
   }).join('') : '<p>No major item procs</p>';
   const deathText=won?'Cleared the covenant':death?`${death.label} · ${fmtStatNumber(death.amount)} damage at ${fmt(death.time||gameTime)}`:'Unknown';
+  const deathAt=death&&Number.isFinite(death.time)?death.time:gameTime;
+  const recentHits=won?[]:(runStats.playerHits||[]).filter(hit=>deathAt-hit.time<=3.001&&deathAt-hit.time>=-0.01).slice(-8);
+  const recentTypes={};
+  recentHits.forEach(hit=>{ recentTypes[hit.category||'Physical']=(recentTypes[hit.category||'Physical']||0)+(hit.amount||0); });
+  const breakdownHtml=Object.entries(recentTypes).sort((a,b)=>b[1]-a[1]).map(([type,total])=>'<span><b>'+escHtml(type)+'</b> '+fmtStatNumber(total)+'</span>').join('');
+  const timelineHtml=recentHits.length?recentHits.map(hit=>{
+    const before=Math.max(0,deathAt-hit.time);
+    const source=(hit.modifierName?hit.modifierName+' ':'')+(hit.source||hit.label||'Unknown');
+    return '<div class="deathtimeline"><i>-'+before.toFixed(1)+'s</i><b>'+escHtml(source)+'</b><span>'+escHtml(hit.category||'Physical')+' · '+fmtStatNumber(hit.amount)+'</span></div>';
+  }).join(''):'<p>'+(gameLang()==='en'?'No recent damage events recorded.':'ไม่มีข้อมูลดาเมจก่อนตาย')+'</p>';
+  const ds=runStats.deathStats;
+  const deathStatsHtml=ds?'<div class="deathstats"><span>HP <b>'+Math.ceil(ds.hp)+' / '+Math.round(ds.maxHp)+'</b></span><span>ARMOR <b>'+ds.armor.toFixed(1)+'</b></span><span>EVADE <b>'+pausePct(ds.evade)+'</b></span><span>LIFESTEAL <b>'+pausePct(ds.lifestealPct)+'</b></span></div>':'';
+  const deathRecapHtml=won?'':'<section class="summarydeath"><h3>'+(gameLang()==='en'?'Last 3 Seconds':'3 วินาทีก่อนตาย')+'</h3>'+deathStatsHtml+'<div class="deathbreakdown">'+(breakdownHtml||'<span>Unknown</span>')+'</div><div class="deathtimelines">'+timelineHtml+'</div><small>'+escHtml(deathRecapTip(death))+'</small></section>';
   const unlockHtml=achievementSummaryHtml();
   const pactHtml=(typeof currentPactSummaryHtml==='function'?currentPactSummaryHtml():'')+(typeof pactUnlockSummaryHtml==='function'?pactUnlockSummaryHtml():'');
   const soulHtml=typeof soulCoinSummaryHtml==='function' ? soulCoinSummaryHtml() : '';
@@ -2484,10 +2865,12 @@ function renderRunSummary(){
   const scoreHtml='<section class="summaryscore"><h3>Final Score</h3><div><b>'+fmtStatNumber(score)+'</b><span>'
     +(dp.rate>0 ? 'Base '+fmtStatNumber(dp.baseScore)+' - Death Penalty '+dp.percent+'% ('+escHtml(dp.reason)+')' : 'No death penalty')
     +'</span></div></section>';
-  el.innerHTML=`<div class="summarypanel ${won?'victory':'defeat'}"><div class="summaryhead"><div><span>RUN SUMMARY</span><h2>${won?'COVENANT CLEARED':'RUN ENDED'}</h2></div><b>${won?'Victory':'Death Cause'}<small>${escHtml(deathText)}</small></b></div><div class="summarycols${unlockHtml||pactHtml||soulHtml?' hasunlock':''}">${scoreHtml}<section class="summaryweapons"><h3>Weapon DPS</h3>${weaponHtml}</section><section class="summaryitems"><h3>Best Items</h3>${itemHtml}</section>${petHtml}${divineHtml}${soulHtml}${pactHtml}${unlockHtml}</div></div>`;
+  el.innerHTML=`<div class="summarypanel ${won?'victory':'defeat'}"><div class="summaryhead"><div><span>RUN SUMMARY</span><h2>${won?'COVENANT CLEARED':'RUN ENDED'}</h2></div><b>${won?'Victory':'Death Cause'}<small>${escHtml(deathText)}</small></b></div><div class="summarycols${unlockHtml||pactHtml||soulHtml?' hasunlock':''}">${scoreHtml}${deathRecapHtml}<section class="summaryweapons"><h3>Weapon DPS</h3>${weaponHtml}</section><section class="summaryitems"><h3>Best Items</h3>${itemHtml}</section>${petHtml}${divineHtml}${soulHtml}${pactHtml}${unlockHtml}</div></div>`;
 }
 function restart(){
   clearTimeout(deathCinematicTimer); deathCinematic=false;
+  if(typeof startChallengeRandom==='function') startChallengeRandom();
+  if(typeof clearLocalCoop==='function') clearLocalCoop();
   { const dfx=document.getElementById('deathfx'); if(dfx) dfx.style.display='none'; }
   for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); removeShadow(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } if(e.cursedEyeMark){ scene.remove(e.cursedEyeMark); freeObj(e.cursedEyeMark); } }
   for (const p of projectiles){ scene.remove(p.mesh); freeObj(p.mesh); }
@@ -2517,18 +2900,22 @@ function restart(){
   if(player.pet && player.pet.sh){ scene.remove(player.pet.sh); }
   scene.remove(player.spr); freeObj(player.spr); scene.remove(player.sh); if(player.hpbar){ scene.remove(player.hpbar); freeObj(player.hpbar); }
   player = makePlayer();
+  if(typeof initLocalCoop==='function') initLocalCoop();
   resetRunStats();
-  gameTime=0; stageStartTime=0; globalPickupMagnet=0; heroQuipAt=0; kills=0; gameOver=false; deathCinematic=false; won=false; boss=null; mapStage=1; challengeRoom=null; finalBossKilledAt=null; overtimeWarnStage=0; overtimeAnnouncedTier=1; finalBossWarnStage=0; score=0; damageTaken=0; scoreFinalized=false; lastScoreEntry=null; deathPenalty=null; lastAchievementUnlocks=[]; lastPactUnlocks=[]; runBossKills=0; runMinibossKills=0; lastSoulCoinAward=null; resetEventState(true); applyMapTheme(); clearStageScenery();
-  if(!worldScenery.length){ spawnTrees(40); buildScenery(); }
+  const weeklyRun=typeof weeklyArenaActive==='function'&&weeklyArenaActive();
+  gameTime=0; stageStartTime=0; globalPickupMagnet=0; heroQuipAt=0; kills=0; gameOver=false; deathCinematic=false; won=false; boss=null; mapStage=weeklyRun?WEEKLY_ARENA.stage:1; challengeRoom=null; finalBossKilledAt=null; endlessMode=false; endlessStartedAt=0; nextEndlessBossAt=Infinity; endlessBossTier=0; overtimeWarnStage=0; overtimeAnnouncedTier=1; finalBossWarnStage=0; score=0; damageTaken=0; scoreFinalized=false; lastScoreEntry=null; deathPenalty=null; lastAchievementUnlocks=[]; lastPactUnlocks=[]; runBossKills=0; runMinibossKills=0; lastSoulCoinAward=null; resetWeeklyArenaEvents(); resetEventState(true); applyMapTheme(); clearStageScenery(); buildStageScenery(mapStage);
+  if(weeklyRun) clearWorldScenery();
+  else if(!worldScenery.length){ spawnTrees(40); buildScenery(); }
   waveTimer=0; waveInterval=3.2; enemiesPerWave=2; maxEnemies=18;
   nextHordeAt=240; hordeRemaining=0; hordeSpawnTimer=0; hordeNumber=0; hordeSpawned=0; hordeWarned=false; relocationCursor=0;
   mbTimer=0; nextMinibossAt=180; paused=false; pendingUps=0; pendingRelicPortal=null; currentRelicChoices=[]; userPaused=false;
   chestsOpened=0; shopPurchases=0;
   removeAltar(); makeAltar();
-  clearWorldObjects(); makeWorldObjects();
+  clearWorldObjects(); if(weeklyRun) makeWeeklyWorldObjects(); else makeWorldObjects();
   document.getElementById('pause').style.display='none'; document.getElementById('pausebtn').textContent='⏸'; { const dfx=document.getElementById('deathfx'); if(dfx) dfx.style.display='none'; }
   document.getElementById('levelup').style.display='none';
   document.getElementById('relicup').style.display='none';
   { const ds=document.getElementById('difficultyselect'); if(ds) ds.style.display='none'; }
-  for (let i=0;i<4;i++) spawnEnemy();
+  for (let i=0;i<(weeklyRun?8:4);i++) spawnEnemy();
+  if(weeklyRun){spawnObjectPulse(altar.x,altar.z,0x58e7ff,8,0.8);showToast('WEEKLY: COVENANT CRUCIBLE',3.2);}
 }

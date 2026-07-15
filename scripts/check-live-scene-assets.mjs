@@ -1,7 +1,7 @@
 import { readdir } from "node:fs/promises";
 
 const baseUrl = (process.argv[2] || "https://shadow-covenant-3d.netlify.app").replace(/\/+$/, "");
-const sceneAsset = /^(map2_|map3_|prop_challenge_|floor_challenge_|px_|obj_|chest_).+\.(png|webp)$/i;
+const sceneAsset = /^(map2_|map3_|weekly_|prop_challenge_|floor_challenge_|px_|obj_|chest_).+\.(png|webp)$/i;
 const files = (await readdir("assets/sprites")).filter((name) => sceneAsset.test(name)).sort();
 const failures = [];
 let cursor = 0;
