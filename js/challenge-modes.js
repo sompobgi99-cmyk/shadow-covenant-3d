@@ -28,7 +28,7 @@ function challengeConfig(mode){
   const key=challengeKey(mode),seed=challengeHash('shadow-covenant:'+mode+':'+key),rand=challengePrng(seed),pool=CHALLENGE_RULES.slice(),rules=[];
   const count=mode==='weekly'?3:2;
   while(rules.length<count&&pool.length)rules.push(pool.splice(Math.floor(rand()*pool.length),1)[0]);
-  return {mode,key,seed,rules,scoreMul:mode==='weekly'?1.30:1.15,reward:mode==='weekly'?300:60};
+  return {mode,key,seed,rules,scoreMul:mode==='weekly'?1.30:1.15,reward:mode==='weekly'?1000:60};
 }
 function setActiveChallengeMode(mode){
   const cfg=challengeConfig(mode);activeChallengeMode=cfg.mode;activeChallengeSeed=cfg.seed;activeChallengeRules=cfg.rules.slice();return cfg;
