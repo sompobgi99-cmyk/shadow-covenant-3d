@@ -10,12 +10,13 @@ const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260715-ranking-reliability";
+const REQUIRED_BUILD = "20260715-progress-ranking-fix";
 const RANKED_DIFFICULTY_MULTIPLIERS = {
   normal: 1,
   hard: 1.4,
 };
 const MAX_RANKED_STAGE = 3;
+const WEEKLY_RANKED_STAGE = 4;
 const MAX_RANKED_LEVEL = 60;
 const MAX_RANKED_PACTS = 5;
 
@@ -200,11 +201,18 @@ function validateScore(entry) {
   if (!entry.player_name) return "Missing player name";
   if (entry.score < 0 || entry.kills < 0 || entry.time < 0) return "Negative values are not allowed";
   if (entry.score > 0 && entry.time < 8) return "Run is too short for a scored entry";
-  if (entry.stage < 1 || entry.stage > MAX_RANKED_STAGE) return "Stage is outside the accepted range";
+  if (entry.run_mode === "weekly") {
+    if (entry.stage !== WEEKLY_RANKED_STAGE) return "Weekly runs must use the Weekly Arena stage";
+  } else if (entry.stage < 1 || entry.stage > MAX_RANKED_STAGE) {
+    return "Stage is outside the accepted range";
+  }
   if (entry.level < 1 || entry.level > MAX_RANKED_LEVEL) return "Level is outside the accepted range";
   if (entry.items < 0 || entry.items > 120) return "Item count is outside the accepted range";
   if (entry.time > (entry.run_mode === "endless" ? 86400 : 3600)) return "Run time is outside the accepted range";
-  if (entry.won && entry.stage !== MAX_RANKED_STAGE) return "Winning runs must finish on Map 3";
+  const winningStage = entry.run_mode === "weekly" ? WEEKLY_RANKED_STAGE : MAX_RANKED_STAGE;
+  if (entry.won && entry.stage !== winningStage) return entry.run_mode === "weekly"
+    ? "Winning Weekly runs must finish in the Weekly Arena"
+    : "Winning runs must finish on Map 3";
   if (entry.run_mode === "endless" && entry.stage !== MAX_RANKED_STAGE) return "Endless runs must reach Map 3";
   if (entry.run_mode === "daily" && !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(entry.challenge_key)) return "Daily challenge period key is invalid";
   if (entry.run_mode === "weekly" && !/^[0-9]{4}-W[0-9]{2}$/.test(entry.challenge_key)) return "Weekly challenge period key is invalid";
@@ -377,19 +385,19 @@ async function insertPostgresRows(rows) {
   return Array.isArray(inserted) ? inserted : [];
 }
 
-async function postgresTopStatus(dedupeKey, source, limit = 8) {
+async function postgresTopStatus(dedupeKey, source, displayLimit = 8) {
   const params = new URLSearchParams({
     select: "dedupe_key",
     build: `eq.${REQUIRED_BUILD}`,
     source: `eq.${source}`,
     order: "score.desc,created_at.asc",
-    limit: String(limit),
+    limit: "1000",
   });
   const res = await postgresRequest(`${POSTGRES_TABLE}?${params.toString()}`, { method: "GET" });
   if (!res.ok) throw await postgresError(res, "leaderboard placement read");
   const rows = await res.json();
   const index = (Array.isArray(rows) ? rows : []).findIndex((row) => row.dedupe_key === dedupeKey);
-  return { listed: index >= 0, rank: index >= 0 ? index + 1 : null, display_limit: limit };
+  return { listed: index >= 0 && index < displayLimit, rank: index >= 0 ? index + 1 : null, display_limit: displayLimit };
 }
 
 function blobScoreDigest(rows) {

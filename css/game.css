@@ -904,6 +904,7 @@ body.playing #offeringhud{ display:grid; }
   .runonline.failed{ color:#ff8aa0; }
   .runrankretry{ margin-top:6px; min-height:24px; padding:3px 8px; border:1px solid rgba(255,138,160,.65); background:#351522; color:#ffd5dc; font:700 9px var(--font-ui); cursor:pointer; }
   .runrankretry:hover{ background:#542033; color:#fff; }
+  .runrankerror{ display:block; margin-top:5px; color:#ff9aab; font-size:9px; line-height:1.25; text-transform:none; overflow-wrap:anywhere; }
   #title,#authchoice,#guide,#whatsnew,#mailbox,#firsthelp,#playersetup,#select,#difficultyselect,#pactselect,#offeringselect,#shop,#levelup,#relicup,#pause,#over{
     font-family:var(--font-ui);
   }

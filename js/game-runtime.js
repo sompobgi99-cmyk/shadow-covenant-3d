@@ -4616,7 +4616,8 @@ function openPetBox(){
     markSoulCoinSpendGuard(soulCoins());
     showPetBoxPopup({ amount:result.amount });
     showToast('เปิดกล่องไม่ติด Pet · ได้คืน '+result.amount.toLocaleString()+' Soul Coins',2.8);
-    if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet_box');
+    if(typeof syncCriticalPlayerProgress==='function') syncCriticalPlayerProgress('pet_box');
+    else if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet_box');
     openGuide('pets',{scrollTop});
     return true;
   }
@@ -4637,7 +4638,8 @@ function openPetBox(){
     showToast('เปิดกล่องได้ Pet ใหม่: '+p.name+(p.premium?' ★ SPECIAL':''),3.4);
     petReact('select', true);
   }
-  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet_box');
+  if(typeof syncCriticalPlayerProgress==='function') syncCriticalPlayerProgress('pet_box');
+  else if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet_box');
   openGuide('pets',{petFocus:p.id,scrollTop});
   return true;
 }
@@ -4653,7 +4655,8 @@ function buyPet(id){
   state.owned[p.id]=new Date().toISOString();
   state.selected=p.id;
   savePetState(state);
-  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet_purchase');
+  if(typeof syncCriticalPlayerProgress==='function') syncCriticalPlayerProgress('pet_purchase');
+  else if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('pet_purchase');
   showToast('ซื้อ Pet: '+p.name,2.8);
   openGuide('pets',{petFocus:p.id,scrollTop});
   return true;
@@ -5349,7 +5352,6 @@ function completeAchievement(a){
   const index=lastAchievementUnlocks.length;
   lastAchievementUnlocks.push(a);
   setTimeout(()=>showToast(tr('ach.unlocked',{name:achievementName(a)}),3.6), 250 + index*900);
-  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('unlock');
   return true;
 }
 function evaluateRunAchievements(){
@@ -5357,6 +5359,10 @@ function evaluateRunAchievements(){
   const ctx=achievementContext();
   for(const a of ACHIEVEMENTS){
     if(!hasAchievement(a.id) && a.test(ctx)) completeAchievement(a);
+  }
+  if(lastAchievementUnlocks.length){
+    if(typeof syncCriticalPlayerProgress==='function') syncCriticalPlayerProgress('unlock_batch');
+    else if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('unlock_batch');
   }
   return lastAchievementUnlocks;
 }

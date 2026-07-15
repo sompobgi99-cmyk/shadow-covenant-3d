@@ -197,7 +197,8 @@ function buyDivineOffering(id){
   setSoulCoins(coins-DIVINE_OFFERING_PRICE); markSoulCoinSpendGuard(soulCoins());
   const state=loadDivineOfferingState(); state.owned[id]=new Date().toISOString(); saveDivineOfferingState(state);
   selectedDivineOfferingId=id;
-  if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('divine_purchase');
+  if(typeof syncCriticalPlayerProgress==='function') syncCriticalPlayerProgress('divine_purchase');
+  else if(typeof queueOnlineAchievementSync==='function') queueOnlineAchievementSync('divine_purchase');
   showToast('ปลดล็อกเทพ '+o.name+' สำเร็จ',2.8); buildDivineOfferingSelect(); return true;
 }
 

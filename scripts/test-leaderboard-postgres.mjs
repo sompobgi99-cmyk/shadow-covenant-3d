@@ -54,6 +54,17 @@ const dailyPublic = leaderboardContract.databaseToPublicScore(dailyDatabase);
 assert.equal(dailyPublic.run_mode, "daily");
 assert.equal(dailyPublic.challenge_key, "2026-07-14");
 
+const weekly = leaderboardContract.cleanScore({
+  ...validInput,
+  run_mode:"weekly",
+  challenge_key:"2026-W29",
+  stage:4,
+  won:true,
+}, null);
+assert.equal(leaderboardContract.validateScore(weekly), "", "Weekly Arena stage 4 must be rankable");
+const wrongWeeklyStage = leaderboardContract.cleanScore({ ...weekly, stage:3 }, null);
+assert.match(leaderboardContract.validateScore(wrongWeeklyStage), /Weekly Arena stage/);
+
 const migratedStandard = leaderboardContract.cleanScore({ ...validInput, run_id:"run_migrated_standard", run_mode:"standard" }, null);
 const migratedDatabase = leaderboardContract.databaseScore(migratedStandard, leaderboardContract.scoreDedupeKey(migratedStandard,"legacy:tester"));
 assert.equal(migratedDatabase.source, "game", "migrated fallback scores must remain visible on Standard ranking");
@@ -61,7 +72,7 @@ const blobRows = [{ ...validInput, created_at:createdAt }];
 assert.equal(leaderboardContract.blobScoreDigest(blobRows), leaderboardContract.blobScoreDigest(blobRows));
 assert.notEqual(leaderboardContract.blobScoreDigest(blobRows), leaderboardContract.blobScoreDigest([{ ...blobRows[0], score:validInput.score+1 }]));
 
-const invalidChallenge = leaderboardContract.cleanScore({ ...validInput, run_mode:"weekly", challenge_key:"" }, null);
+const invalidChallenge = leaderboardContract.cleanScore({ ...validInput, run_mode:"weekly", challenge_key:"", stage:4 }, null);
 assert.match(leaderboardContract.validateScore(invalidChallenge), /period key/);
 
 const casual = leaderboardContract.cleanScore({ ...validInput, difficulty_id: "casual", difficulty_multiplier: 0.6 }, null);

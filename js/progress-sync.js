@@ -13,6 +13,7 @@
     pendingReason: '',
     timer: 0,
     inFlightMutationId: '',
+    dirty: false,
   };
 
   function mutationId(){
@@ -54,6 +55,7 @@
     if(!Number.isFinite(delta)||delta===0) return;
     const id=mutationId();
     try { localStorage.setItem(SOUL_MUTATION_KEY_PREFIX+id,JSON.stringify({id,soulCoinDelta:delta,createdAt:Date.now()})); } catch (_) {}
+    state.dirty = true;
   }
 
   function acknowledgeSoulCoinMutation(id){
@@ -137,12 +139,15 @@
       const remote = await remoteRes.json();
       // Keep this device's current selection until its full state has been merged.
       // Ownership still imports immediately; the authoritative selection is applied after POST.
-      const imported = applyRemote(withProjectedCoins(remote), { authoritativeCoins:true, skipPetSelection:true });
+      const localBeforeMerge = localPayload();
+      const keepLocalPetSelection = !!(localBeforeMerge.pets && localBeforeMerge.pets.selected);
+      const imported = applyRemote(withProjectedCoins(remote), { authoritativeCoins:true, skipPetSelection:keepLocalPetSelection });
       const payload = localPayload();
       payload.mutation={ id:requestMutation.id, soulCoinDelta:requestMutation.soulCoinDelta };
       const saveRes = await fetch(ONLINE_PROGRESS.apiEndpoint, {
         method:'POST',
         headers,
+        keepalive:true,
         body: JSON.stringify(payload),
       });
       if(!saveRes.ok) throw new Error('Progress save failed: '+saveRes.status);
@@ -150,6 +155,7 @@
       if(queuedMutation) acknowledgeSoulCoinMutation(requestMutation.id);
       applyRemote(withProjectedCoins(saved), { authoritativeCoins:true, skipPetSelection:false });
       state.loaded = true;
+      state.dirty = readMutationQueue().length > 0;
       state.lastSyncAt = new Date().toISOString();
       if(imported && imported.length && typeof showToast === 'function') showToast('Cloud unlocks synced: '+imported.length, 2.4);
       if(typeof onAchievementProgressSynced === 'function') onAchievementProgressSynced(reason || 'sync');
@@ -172,8 +178,16 @@
   }
 
   function queueOnlineAchievementSync(reason){
+    state.dirty = true;
     clearTimeout(state.timer);
     state.timer = setTimeout(()=>syncOnlineAchievements(reason || 'queued'), ONLINE_PROGRESS.debounceMs);
+  }
+
+  function syncCriticalPlayerProgress(reason){
+    state.dirty = true;
+    clearTimeout(state.timer);
+    state.timer = 0;
+    return syncOnlineAchievements(reason || 'critical');
   }
 
   function progressSyncStatus(){
@@ -186,8 +200,15 @@
 
   window.onlineProgressState = state;
   window.syncOnlineAchievements = syncOnlineAchievements;
+  window.syncCriticalPlayerProgress = syncCriticalPlayerProgress;
   window.queueOnlineAchievementSync = queueOnlineAchievementSync;
   window.progressSyncStatus = progressSyncStatus;
   window.recordSoulCoinMutation = recordSoulCoinMutation;
   window.pendingSoulCoinDelta = pendingSoulCoinDelta;
+
+  window.addEventListener('pagehide',()=>{
+    if((state.dirty || readMutationQueue().length) && typeof currentAuthUser==='function' && currentAuthUser()) {
+      syncOnlineAchievements('pagehide');
+    }
+  });
 })();
