@@ -392,6 +392,7 @@ function killEnemy(e){
     boss=null;
     if(weeklyFinal){
       finalBossKilledAt=gameTime;
+      grantRandomRelic('Weekly Covenant Relic');
       altarToPortal('weeklyVictory',null);
       showToast('WEEKLY COVENANT CLEARED - ENTER THE FINAL GATE',4);
     } else if(finalStage){
@@ -610,7 +611,9 @@ function spawnAddAt(x,z){
 }
 function makeWeeklyWorldObjects(){
   spawnObject('chest',0,{x:-24,z:-18});
-  spawnObject('chest',1,{x:24,z:-18});
+  spawnObject('chest',0,{x:24,z:-18});
+  spawnObject('chest',1,{x:-18,z:-30});
+  spawnObject('chest',1,{x:18,z:-30});
   spawnObject('chest',2,{x:0,z:-34});
   spawnObject('shrine',activeChallengeSeed%5,{x:-31,z:18});
   spawnObject('shrine',(activeChallengeSeed+2)%5,{x:31,z:18});

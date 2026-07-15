@@ -2540,7 +2540,7 @@ function openGuide(kind, opts){
       guideTextCard('ขนาดสกิล (Skill Size)','เพิ่มขนาดภาพและ hitbox ของกระสุน ความกว้างอาวุธใกล้ และรัศมี AOE แต่ไม่เพิ่มระยะเดินทางหรือดาเมจโดยตรง','มี diminishing return: กระสุนสูงสุด x1.40 · อาวุธใกล้ x1.60 · AOE สูงสุด x1.75'),
       guideTextCard('ระยะสกิล (Range)','เพิ่มระยะเล็งและระยะเดินทางของกระสุน ระยะแทง/ฟัน ตำแหน่งวางสกิล ระยะชิ่ง และวงโคจร แต่ไม่ทำให้วง AOE ใหญ่ขึ้น','ระยะอาวุธใกล้และวงโคจรสูงสุด x1.60 · ระยะชิ่งสูงสุด x1.50'),
       guideTextCard('Duration / Projectile Speed','Duration ทำให้กระสุนหรือพื้นที่อยู่นานขึ้น ส่วน Projectile Speed ทำให้วัตถุเคลื่อนที่เร็วขึ้น ทั้งสองค่าไม่ขยาย hitbox','Range และ Duration อาจช่วยระยะเดินทางร่วมกัน แต่ทำหน้าที่คนละแบบ'),
-      guideTextCard('Weekly Challenge','Weekly ใช้ระดับ Hard พร้อม modifier 3 อัน และเล่นใน Covenant Crucible โดยใช้กติกาเดียวกันทุกคนตลอดสัปดาห์','Mini 4:00 · Duo 8:00 · OT 10:00 · Boss 12:00 · แยก Ranking และรับ Soul Coins ครั้งเดียวเมื่อเคลียร์'),
+      guideTextCard('Weekly Challenge','Weekly ใช้ระดับ Hard พร้อม modifier 3 อันที่เบาลง และเล่นใน Covenant Crucible โดยใช้กติกาเดียวกันทุกคนตลอดสัปดาห์','Mini 4:00 · Duo 8:00 · OT 10:00 · Boss 12:00 · หีบ 5 ใบ · Relic 1 ชิ้น · 300 Soul Coins เมื่อเคลียร์'),
       guideTextCard('Endless Mode','หลังฆ่า Overlord เลือก Endless Gate แทน Final Portal เพื่อเล่นต่อ บอสใหม่เกิดทุก 2 นาทีและแรงขึ้นทุกครั้ง','คะแนนถูกแยกไปกระดาน Endless'),
       guideTextCard('โอกาสคริติคอล','โอกาสที่การโจมตีจะติดคริติคอล Focus Tome และบางตัวละครช่วยเพิ่มค่านี้','มี pity เล็กน้อย ถ้าดวงไม่ติดหลายครั้ง โอกาสครั้งถัดไปจะดีขึ้น'),
       guideTextCard('ดาเมจคริติคอล','ตัวคูณดาเมจเมื่อโจมตีติดคริติคอล Execution Tome และ Stormcaller ช่วยเพิ่มค่านี้','คริติคอลต่อเนื่องเกิด chain bonus และทำให้ศัตรูติด Rend เลือดไหลสั้น ๆ'),
@@ -3011,14 +3011,14 @@ function atkTimeScale(){
 // Map 2+ ramps clearly, but a new map no longer inherits the previous map's
 // global clock as a second hidden difficulty multiplier.
 function lateMapHpBonus(){ return mapStage>=2 ? 1.10 : 1; }
-function stageHpMul(){ if(typeof weeklyArenaActive==='function'&&weeklyArenaActive())return 1.7; return (mapStage>=3 ? 3.5 : mapStage>=2 ? 2.2 : 1) * lateMapHpBonus(); }
-function stageAtkMul(){ if(typeof weeklyArenaActive==='function'&&weeklyArenaActive())return 1.25; return mapStage>=3 ? 1.8 : mapStage>=2 ? 1.4 : 1; }
+function stageHpMul(){ if(typeof weeklyArenaActive==='function'&&weeklyArenaActive())return 1.45; return (mapStage>=3 ? 3.5 : mapStage>=2 ? 2.2 : 1) * lateMapHpBonus(); }
+function stageAtkMul(){ if(typeof weeklyArenaActive==='function'&&weeklyArenaActive())return 1.15; return mapStage>=3 ? 1.8 : mapStage>=2 ? 1.4 : 1; }
 function worldEventEnemyPowerMul(){ return activeWorldEvent&&activeWorldEvent.id==='blood_moon'?1.30:1; }
 function worldEventXpMul(){ return activeWorldEvent&&activeWorldEvent.id==='blood_moon'?1.50:1; }
 function normalHpScale(tier){ return combatTimeScale()*1.10*[1,1.22,1.48][tier||0]*stageHpMul()*otHpMul()*pactNormalHpMul()*worldEventEnemyPowerMul()*(typeof coopEnemyHpMul==='function'?coopEnemyHpMul():1)*(typeof challengeEnemyHpMul==='function'?challengeEnemyHpMul():1); }
 function normalAtkScale(tier){ return atkTimeScale()*[1,1.12,1.27][tier||0]*stageAtkMul()*otAtkMul()*difficultyAtkMul()*worldEventEnemyPowerMul()*(typeof challengeEnemyAtkMul==='function'?challengeEnemyAtkMul():1); }
-function minibossHpScale(){ const stageMul=typeof weeklyArenaActive==='function'&&weeklyArenaActive()?2.0:(mapStage>=3 ? 5.0 : mapStage>=2 ? 2.9 : 1); return combatTimeScale()*1.35*1.05*stageMul*lateMapHpBonus()*otHpMul()*difficultyBossHpMul()*worldEventEnemyPowerMul()*(typeof coopEnemyHpMul==='function'?coopEnemyHpMul():1)*(typeof challengeEnemyHpMul==='function'?challengeEnemyHpMul():1); }
-function bossHpScale(){ const stageMul=typeof weeklyArenaActive==='function'&&weeklyArenaActive()?3.1:(mapStage>=3 ? 5.8 : mapStage>=2 ? 3.1 : 1); return combatTimeScale()*1.45*1.08*stageMul*lateMapHpBonus()*(typeof weeklyArenaActive==='function'&&weeklyArenaActive()?1:otHpMul())*difficultyBossHpMul()*(typeof coopEnemyHpMul==='function'?coopEnemyHpMul():1)*(typeof challengeEnemyHpMul==='function'?challengeEnemyHpMul():1); }
+function minibossHpScale(){ const stageMul=typeof weeklyArenaActive==='function'&&weeklyArenaActive()?1.7:(mapStage>=3 ? 5.0 : mapStage>=2 ? 2.9 : 1); return combatTimeScale()*1.35*1.05*stageMul*lateMapHpBonus()*otHpMul()*difficultyBossHpMul()*worldEventEnemyPowerMul()*(typeof coopEnemyHpMul==='function'?coopEnemyHpMul():1)*(typeof challengeEnemyHpMul==='function'?challengeEnemyHpMul():1); }
+function bossHpScale(){ const stageMul=typeof weeklyArenaActive==='function'&&weeklyArenaActive()?2.5:(mapStage>=3 ? 5.8 : mapStage>=2 ? 3.1 : 1); return combatTimeScale()*1.45*1.08*stageMul*lateMapHpBonus()*(typeof weeklyArenaActive==='function'&&weeklyArenaActive()?1:otHpMul())*difficultyBossHpMul()*(typeof coopEnemyHpMul==='function'?coopEnemyHpMul():1)*(typeof challengeEnemyHpMul==='function'?challengeEnemyHpMul():1); }
 function bossRegenCap(e){
   if(e && e.final && e.phaseHp && e.finalPhase) return e.phaseHp*e.finalPhase;
   return e && e.maxHp ? e.maxHp : 0;

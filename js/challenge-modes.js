@@ -9,13 +9,13 @@ let challengeRandomActive=false;
 const WEEKLY_ARENA={stage:4,minibossAt:240,duoAt:480,overtimeAt:600,bossAt:720};
 
 const CHALLENGE_RULES=[
-  {id:'armored',name:'Iron Host',desc:'Enemy HP +25%',hp:1.25},
-  {id:'furious',name:'Red Tempo',desc:'Enemy ATK and speed +15%',atk:1.15,speed:1.15},
-  {id:'swarm',name:'Crowded Grave',desc:'Enemy waves +25%',spawn:1.25},
-  {id:'glass',name:'Glass Oath',desc:'Player max HP -20%',playerHp:0.80},
-  {id:'famine',name:'Dry Chalice',desc:'Healing -35%',heal:0.65},
-  {id:'bounty',name:'Gilded Peril',desc:'XP and gold +25%, enemy ATK +10%',reward:1.25,atk:1.10},
-  {id:'elite',name:'Noble Hunt',desc:'Elite chance rises sharply',elite:0.05}
+  {id:'armored',name:'Iron Host',desc:'Enemy HP +15%',hp:1.15},
+  {id:'furious',name:'Red Tempo',desc:'Enemy ATK and speed +10%',atk:1.10,speed:1.10},
+  {id:'swarm',name:'Crowded Grave',desc:'Enemy waves +15%',spawn:1.15},
+  {id:'glass',name:'Glass Oath',desc:'Player max HP -10%',playerHp:0.90},
+  {id:'famine',name:'Dry Chalice',desc:'Healing -20%',heal:0.80},
+  {id:'bounty',name:'Gilded Peril',desc:'XP and gold +35%, enemy ATK +5%',reward:1.35,atk:1.05},
+  {id:'elite',name:'Noble Hunt',desc:'Elite chance rises',elite:0.035}
 ];
 function challengeHash(text){let h=2166136261;for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
 function challengePrng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
@@ -28,7 +28,7 @@ function challengeConfig(mode){
   const key=challengeKey(mode),seed=challengeHash('shadow-covenant:'+mode+':'+key),rand=challengePrng(seed),pool=CHALLENGE_RULES.slice(),rules=[];
   const count=mode==='weekly'?3:2;
   while(rules.length<count&&pool.length)rules.push(pool.splice(Math.floor(rand()*pool.length),1)[0]);
-  return {mode,key,seed,rules,scoreMul:mode==='weekly'?1.30:1.15,reward:mode==='weekly'?180:60};
+  return {mode,key,seed,rules,scoreMul:mode==='weekly'?1.30:1.15,reward:mode==='weekly'?300:60};
 }
 function setActiveChallengeMode(mode){
   const cfg=challengeConfig(mode);activeChallengeMode=cfg.mode;activeChallengeSeed=cfg.seed;activeChallengeRules=cfg.rules.slice();return cfg;
