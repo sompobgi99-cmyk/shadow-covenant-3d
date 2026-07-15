@@ -408,6 +408,7 @@ function killEnemy(e){
     const soulMul = player._soulLantern && !e.isStageBoss && !e.elite && !e.final ? 1.5 : 1;
     for (let i=0;i<6;i++) dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm*soulMul));
     for (let i=0;i<10;i++) dropPickup(e.x, e.z, 'gold', Math.round(3*rm*soulMul));
+    if(e.isMiniboss && !overtimeLevel()) dropPickup(e.x, e.z, 'hp', 18);
     if(e.secretMerchantBoss){
       const pool=availableItemPool(Math.random()<0.35?'legendary':'rare');
       const item=pool.length ? pool[(Math.random()*pool.length)|0] : rollItemDrop(true);
@@ -427,8 +428,8 @@ function killEnemy(e){
     dropPickup(e.x, e.z, 'xp', Math.round(e.xp*rm));
     dropPickup(e.x, e.z, 'gold', Math.max(1, Math.round(e.xp*0.3*rm)));
     if (!overtimeLevel()) {
-      // 2.5% chance to drop a stronger HP orb (14-24 HP) before overtime.
-      if (Math.random() < 0.025) dropPickup(e.x, e.z, 'hp', 14+Math.floor(Math.random()*11));
+      // 5% chance to drop a stronger HP orb (14-24 HP) before overtime.
+      if (Math.random() < 0.05) dropPickup(e.x, e.z, 'hp', 14+Math.floor(Math.random()*11));
       const buffRoll=Math.random();
       if (buffRoll < 0.003) dropPickup(e.x, e.z, 'haste', 12);
       else if (buffRoll < 0.006) dropPickup(e.x, e.z, 'might', 12);
@@ -513,7 +514,7 @@ function spawnSummonedBoss(b,weekly,altarRef,spawnX,spawnZ){
   let spriteKey = b.sprite;                               // use dedicated boss art if loaded...
   if (!(DIR_SHEETS[spriteKey] && tex[DIR_SHEETS[spriteKey].key]))
     spriteKey = MINIBOSS_TYPES[(Math.random()*MINIBOSS_TYPES.length)|0].sprite;   // ...else recycle miniboss art
-  const sc = atkTimeScale()*1.3*stageAtkMul()*(weekly?1:otPowerMul());
+  const sc = atkTimeScale()*1.3*stageAtkMul()*(weekly?1:otAtkMul());
   const H = b.h, hp = Math.round(b.hp*bossHpScale());
   const { spr, anim } = entitySprite(spriteKey, H);
   const sh = makeShadow(H*0.34); scene.add(spr); scene.add(sh);
@@ -644,7 +645,7 @@ function spawnEndlessBoss(){
   const x=clamp(player.x+Math.cos(a)*d,-MAP_BOUND,MAP_BOUND),z=clamp(player.z+Math.sin(a)*d,-MAP_BOUND,MAP_BOUND);
   const H=b.h,{spr,anim}=entitySprite(b.sprite,H),sh=makeShadow(H*0.34); scene.add(spr);scene.add(sh);
   const tierMul=1+endlessBossTier*0.20,hp=Math.round(b.hp*bossHpScale()*tierMul);
-  const e={x,z,hp,maxHp:hp,atk:Math.round(b.atk*atkTimeScale()*1.3*stageAtkMul()*otPowerMul()*tierMul*(typeof difficultyBossAtkMul==='function'?difficultyBossAtkMul():1)),spd:52*SPD_SCALE*BOSS_SPEED_MUL,
+  const e={x,z,hp,maxHp:hp,atk:Math.round(b.atk*atkTimeScale()*1.3*stageAtkMul()*otAtkMul()*tierMul*(typeof difficultyBossAtkMul==='function'?difficultyBossAtkMul():1)),spd:52*SPD_SCALE*BOSS_SPEED_MUL,
     xp:520,r:H*0.34,name:'Endless '+b.name,alive:true,cd:0,flash:0,isBoss:true,isStageBoss:false,endlessBoss:true,elite:true,
     behavior:'boss',kx:0,kz:0,atkCd:0,chargeCd:0,charging:0,patternCd:2.2,patternFlip:0,summonCd:5,bw:spr.scale.x,bh:spr.scale.y,born:gameTime,face:1,anim,spr,sh};
   assignSkills(e,BOSS_SKILLS[b.sprite]||['ring','fan','summon']);
@@ -1675,7 +1676,7 @@ function spawnButcher(force){
       const sh=makeShadow(H*0.36); scene.add(spr); scene.add(sh);
       const hp=Math.round(base.hp*bossHpScale()*0.62);
       const e={ x:point.x, z:point.z, hp, maxHp:hp,
-        atk:Math.round(base.atk*atkTimeScale()*stageAtkMul()*otPowerMul()*1.0*(typeof difficultyBossAtkMul==='function'?difficultyBossAtkMul():1)),
+        atk:Math.round(base.atk*atkTimeScale()*stageAtkMul()*otAtkMul()*1.0*(typeof difficultyBossAtkMul==='function'?difficultyBossAtkMul():1)),
         spd:64*SPD_SCALE*BOSS_SPEED_MUL, xp:520, r:H*0.32, name:'The Butcher',
         alive:true, cd:0, flash:0, isBoss:true, isStageBoss:false, elite:true, butcher:true,
         behavior:'butcher', kx:0,kz:0, atkCd:0, chargeCd:0.75, charging:0, knockImmune:true,

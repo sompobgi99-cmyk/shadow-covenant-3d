@@ -872,7 +872,7 @@ function stageTime(){ return gameTime - stageStartTime; }   // per-stage clock (
 function healCap(p){ return Math.round(p.maxHp*(1+(p.overheal||0))); }   // Chonkplate lets HP exceed max
 // Overtime starts at x2, then climbs x3, x4, x5... on a shared cadence.
 function overtimeThreshold(){ return activeDifficulty().otStart || RUN_TARGET; }
-function overtimeStep(){ return typeof weeklyArenaActive==='function'&&weeklyArenaActive()?60:(activeDifficulty().otStep || 60); }
+function overtimeStep(){ return typeof weeklyArenaActive==='function'&&weeklyArenaActive()?60:(activeDifficulty().otStep || 45); }
 function overtimeCapBase(){ return activeDifficulty().otCapBase || 220; }
 function overtimeCapStep(){ return activeDifficulty().otCapStep || 40; }
 function overtimeElapsed(){
@@ -888,9 +888,12 @@ function overtimeLevel(){
 }
 function overtimeTier(){ const level=overtimeLevel(); return level ? level+1 : 1; }
 function otPowerMul(){ return overtimeTier(); }
+// Overtime count stays dramatic, but combat power ramps more gently so the
+// player is pressured by crowds without being deleted by the first hit.
+function otHpMul(){ const tier=overtimeTier(); return tier>1 ? 1+Math.min(1.50,(tier-1)*0.30) : 1; }
+function otAtkMul(){ const tier=overtimeTier(); return tier>1 ? 1+Math.min(0.75,(tier-1)*0.15) : 1; }
 function otCombatPowerMul(){
-  const tier=overtimeTier();
-  return typeof weeklyArenaActive==='function'&&weeklyArenaActive()&&tier>1 ? 1+(tier-1)*0.5 : tier;
+  return otHpMul();
 }
 function otSpeedMul(){ const tier=overtimeTier(); return tier>1 ? 1 + Math.min(0.72,(tier-2)*0.08) : 1; }
 // Unified enemy cap on ALL platforms so leaderboard scoring conditions are identical (fair single board).
@@ -973,14 +976,14 @@ let activePactIds = [];
 let pactMultiplier = 1;
 const DIFFICULTIES = [
   { id:'casual', name:'Casual', badge:'ฝึก · ไม่นับ Ranking', mult:0.6, hp:0.82, atk:0.82, bossHp:0.88, bossAtk:0.88, spawnCap:0.78, spawnInterval:1.22, spawnBatch:0.82,
-    otStart:600, otStep:30, otCapBase:170, otCapStep:24,
-    desc:'โหมดฝึกลองตัวละครและบิลด์ มอนพิเศษลดลง ปิด Pact และไม่ขึ้น Ranking', meta:'Score x0.60 · Unranked · OT 10:00 / x2 แล้ว +1 ทุก 30 วิ' },
+    otStart:600, otStep:45, otCapBase:170, otCapStep:24,
+    desc:'โหมดฝึกลองตัวละครและบิลด์ มอนพิเศษลดลง ปิด Pact และไม่ขึ้น Ranking', meta:'Score x0.60 · Unranked · OT 10:00 / x2 แล้ว +1 ทุก 45 วิ' },
   { id:'normal', name:'Normal', badge:'เริ่มที่นี่', mult:1.0, hp:1, atk:1, bossHp:1, bossAtk:1, spawnCap:1, spawnInterval:1, spawnBatch:1,
-    otStart:600, otStep:30, otCapBase:220, otCapStep:40,
-    desc:'โหมดมาตรฐานสำหรับเล่นจริง เคลียร์ Map 3 เพื่อปลดล็อก Pact ระดับ Normal', meta:'Score x1.00 · ใช้ Pact ได้ · OT 10:00 / x2 แล้ว +1 ทุก 30 วิ' },
-  { id:'hard', name:'Hard', badge:'เอาคะแนน', mult:1.4, hp:1.25, atk:1.22, bossHp:1.24, bossAtk:1.18, spawnCap:1.18, spawnInterval:0.88, spawnBatch:1.22,
-    otStart:600, otStep:30, otCapBase:250, otCapStep:52,
-    desc:'มอนโหดขึ้น และ Pact ระดับ Hard ต้องปลดด้วยการเคลียร์ Hard เท่านั้น', meta:'Score x1.40 · Hard enemy pool · OT 10:00 / x2 แล้ว +1 ทุก 30 วิ' }
+    otStart:600, otStep:45, otCapBase:220, otCapStep:40,
+    desc:'โหมดมาตรฐานสำหรับเล่นจริง เคลียร์ Map 3 เพื่อปลดล็อก Pact ระดับ Normal', meta:'Score x1.00 · ใช้ Pact ได้ · OT 10:00 / x2 แล้ว +1 ทุก 45 วิ' },
+  { id:'hard', name:'Hard', badge:'เอาคะแนน', mult:1.4, hp:1.18, atk:1.16, bossHp:1.18, bossAtk:1.14, spawnCap:1.12, spawnInterval:0.94, spawnBatch:1.12,
+    otStart:600, otStep:45, otCapBase:245, otCapStep:48,
+    desc:'มอนโหดขึ้น และ Pact ระดับ Hard ต้องปลดด้วยการเคลียร์ Hard เท่านั้น', meta:'Score x1.40 · Hard enemy pool · OT 10:00 / x2 แล้ว +1 ทุก 45 วิ' }
 ] ;
 let activeDifficultyId = 'normal';
 let selectedDifficultyChoiceId = 'normal';
@@ -1287,7 +1290,7 @@ function whatsNewItems(){
     ['One-page Run Setup','Character, player identity, difficulty, Pacts, Pet, and Divine Spirit are now configured on one screen. Your last loadout is remembered.'],
     ['Soul Market','Pet purchases, Pet Boxes, and all ten Divine Spirits now live in one market. Each Divine Spirit costs 1,500 Soul Coins.'],
     ['Death penalty','Dying now reduces final score: -20% normally, -15% after Overtime, and -10% on Map 3. Clears are not penalized.'],
-    ['Overtime rules','All difficulties now start Overtime at 10:00. Enemy pressure begins at x2, then rises to x3, x4, x5 and keeps climbing every 30 seconds.'],
+    ['Overtime rules','All difficulties now start Overtime at 10:00. Crowd pressure begins at x2, then rises to x3, x4, x5 every 45 seconds; enemy HP and ATK ramp more gently.'],
     ['Score summary','Run Summary now shows final score, base score, and Death Penalty so you can see exactly why points changed. Ranking uses the final score.'],
     ['Difficulty balance','Casual, Normal, and Hard keep their own enemy/score settings, but Overtime timing is shared so runs are easier to compare.'],
     ['Challenge rooms','Mystery gates can lead to Treasure Vault, Cursed Shrine Room, Butcher Arena, Soul Trial, or Merchant Trap.'],
@@ -1297,7 +1300,7 @@ function whatsNewItems(){
     ['เตรียมรันในหน้าเดียว','เลือกตัวละคร ชื่อผู้เล่น ประเทศ ระดับความยาก Pact, Pet และวิญญาณเทพได้ในหน้าเดียว พร้อมจำชุดที่ใช้ล่าสุด'],
     ['ตลาดวิญญาณ','รวมการซื้อ Pet กล่องสุ่ม และวิญญาณเทพทั้ง 10 องค์ไว้ที่เดียว วิญญาณเทพราคาองค์ละ 1,500 Soul Coins'],
     ['คะแนนเมื่อตาย','ตายแล้วคะแนนสุดท้ายจะลดลง: ปกติ -20%, หลัง Overtime -15%, และ Map 3 -10% ถ้าเคลียร์สำเร็จจะไม่โดนหัก'],
-    ['กติกา Overtime','ทุกระดับความยากเริ่ม Overtime ที่ 10:00 เหมือนกัน เริ่ม x2 แล้วเพิ่มเป็น x3, x4, x5 ต่อไปทุก 30 วินาที'],
+    ['กติกา Overtime','ทุกระดับความยากเริ่ม Overtime ที่ 10:00 เหมือนกัน จำนวนมอนเริ่ม x2 แล้วเพิ่มเป็น x3, x4, x5 ทุก 45 วินาที ส่วน HP และ ATK จะเพิ่มช้ากว่าเดิม'],
     ['สรุปคะแนนชัดขึ้น','หน้า Run Summary แสดงคะแนนสุดท้าย คะแนนก่อนหัก และ Death Penalty เพื่อให้รู้ว่าคะแนนหายไปเท่าไหร่ Ranking ใช้คะแนนหลังหัก'],
     ['ปรับสมดุลระดับความยาก','Casual, Normal และ Hard ยังมีค่าสถานะ/คะแนนต่างกัน แต่เวลา Overtime เท่ากันเพื่อให้เปรียบเทียบรันง่ายขึ้น'],
     ['Challenge Room','ประตูลึกลับพาไป Treasure Vault, Cursed Shrine Room, Butcher Arena, Soul Trial หรือ Merchant Trap'],
@@ -2546,7 +2549,7 @@ function openGuide(kind, opts){
       guideTextCard('บิลด์ Ricochet','Football เด้งต่อเป้าหมาย, Shield Toss ทะลุก่อนเด้ง, Bone Boomerang ยิงเป็นโค้งคู่, Bouncing Bomb ทิ้งแรงระเบิด','Ricochet ไม่ส่งผลกับ melee, nova, orbit, smite หรือ lightning'),
       guideTextCard('Knockback','แรงผลักศัตรู ยิ่งเข้า Overtime ศัตรูยิ่งต้านแรงผลักมากขึ้น','ผู้เล่นเองก็โดนมอนสเตอร์ตีจนกระเด็นได้'),
       guideTextCard('Guard','Orbiting Skull บล็อกดาเมจได้ หัวกะโหลกจะหายไปเมื่อบล็อกแล้วค่อยฟื้นตามคูลดาวน์','มีกะโหลกมากเท่ากับกันตายได้มากขึ้น'),
-      guideTextCard('Overtime','หลัง 10:00 ศัตรูจะเริ่มที่ x2 แล้วเพิ่มเป็น x3, x4, x5 ต่อเนื่อง Map 3 เริ่มหลังบอสสุดท้ายตาย','ทุกโหมดเริ่ม Overtime และเพิ่มระดับทุก 30 วิเหมือนกัน เพื่อให้คะแนนเทียบกันง่ายขึ้น')
+      guideTextCard('Overtime','หลัง 10:00 จำนวนศัตรูจะเริ่มที่ x2 แล้วเพิ่มเป็น x3, x4, x5 ทุก 45 วินาที Map 3 เริ่มหลังบอสสุดท้ายตาย','ทุกโหมดใช้เวลาเริ่มและจังหวะเพิ่มระดับเดียวกัน ส่วน HP และ ATK เพิ่มแบบนุ่มลงเพื่อไม่ให้เกิดวันช็อต')
     ].join('');
   } else if(kind==='shrine'){
     title='Shrine';
@@ -2997,17 +3000,25 @@ function checkEvolveReady(){
 function currentTier(){ return mapStage>=2 ? 2 : gameTime>=240 ? 2 : gameTime>=120 ? 1 : 0; }
 function timeScale(){ return Math.min(10, 1 + gameTime/130); }
 // ATK scales far slower than HP so late-game hits sting without one-shotting.
-function atkTimeScale(){ return Math.min(2.4, 1 + gameTime/420); }
-// Map 2+ ramps hard: enemies/minibosses/bosses get much tougher each stage.
+function combatTimeScale(){
+  const t=mapStage>=2 ? stageTime() : gameTime;
+  return mapStage===1 ? Math.min(3.4,1+t/180) : Math.min(5,1+t/130);
+}
+function atkTimeScale(){
+  const t=mapStage>=2 ? stageTime() : gameTime;
+  return mapStage===1 ? Math.min(1.8,1+t/600) : Math.min(2.2,1+t/420);
+}
+// Map 2+ ramps clearly, but a new map no longer inherits the previous map's
+// global clock as a second hidden difficulty multiplier.
 function lateMapHpBonus(){ return mapStage>=2 ? 1.10 : 1; }
-function stageHpMul(){ if(typeof weeklyArenaActive==='function'&&weeklyArenaActive())return 1.7; return (mapStage>=3 ? 4.8 : mapStage>=2 ? 2.7 : 1) * lateMapHpBonus(); }
-function stageAtkMul(){ if(typeof weeklyArenaActive==='function'&&weeklyArenaActive())return 1.25; return mapStage>=3 ? 2.4 : mapStage>=2 ? 1.75 : 1; }
+function stageHpMul(){ if(typeof weeklyArenaActive==='function'&&weeklyArenaActive())return 1.7; return (mapStage>=3 ? 3.5 : mapStage>=2 ? 2.2 : 1) * lateMapHpBonus(); }
+function stageAtkMul(){ if(typeof weeklyArenaActive==='function'&&weeklyArenaActive())return 1.25; return mapStage>=3 ? 1.8 : mapStage>=2 ? 1.4 : 1; }
 function worldEventEnemyPowerMul(){ return activeWorldEvent&&activeWorldEvent.id==='blood_moon'?1.30:1; }
 function worldEventXpMul(){ return activeWorldEvent&&activeWorldEvent.id==='blood_moon'?1.50:1; }
-function normalHpScale(tier){ return timeScale()*1.10*[1,1.22,1.48][tier||0]*stageHpMul()*otCombatPowerMul()*pactNormalHpMul()*worldEventEnemyPowerMul()*(typeof coopEnemyHpMul==='function'?coopEnemyHpMul():1)*(typeof challengeEnemyHpMul==='function'?challengeEnemyHpMul():1); }
-function normalAtkScale(tier){ return atkTimeScale()*[1,1.12,1.27][tier||0]*stageAtkMul()*otCombatPowerMul()*difficultyAtkMul()*worldEventEnemyPowerMul()*(typeof challengeEnemyAtkMul==='function'?challengeEnemyAtkMul():1); }
-function minibossHpScale(){ const stageMul=typeof weeklyArenaActive==='function'&&weeklyArenaActive()?2.0:(mapStage>=3 ? 5.0 : mapStage>=2 ? 2.9 : 1); return timeScale()*1.35*1.05*stageMul*lateMapHpBonus()*otCombatPowerMul()*difficultyBossHpMul()*worldEventEnemyPowerMul()*(typeof coopEnemyHpMul==='function'?coopEnemyHpMul():1)*(typeof challengeEnemyHpMul==='function'?challengeEnemyHpMul():1); }
-function bossHpScale(){ const stageMul=typeof weeklyArenaActive==='function'&&weeklyArenaActive()?3.1:(mapStage>=3 ? 5.8 : mapStage>=2 ? 3.1 : 1); return timeScale()*1.45*1.08*stageMul*lateMapHpBonus()*(typeof weeklyArenaActive==='function'&&weeklyArenaActive()?1:otPowerMul())*difficultyBossHpMul()*(typeof coopEnemyHpMul==='function'?coopEnemyHpMul():1)*(typeof challengeEnemyHpMul==='function'?challengeEnemyHpMul():1); }
+function normalHpScale(tier){ return combatTimeScale()*1.10*[1,1.22,1.48][tier||0]*stageHpMul()*otHpMul()*pactNormalHpMul()*worldEventEnemyPowerMul()*(typeof coopEnemyHpMul==='function'?coopEnemyHpMul():1)*(typeof challengeEnemyHpMul==='function'?challengeEnemyHpMul():1); }
+function normalAtkScale(tier){ return atkTimeScale()*[1,1.12,1.27][tier||0]*stageAtkMul()*otAtkMul()*difficultyAtkMul()*worldEventEnemyPowerMul()*(typeof challengeEnemyAtkMul==='function'?challengeEnemyAtkMul():1); }
+function minibossHpScale(){ const stageMul=typeof weeklyArenaActive==='function'&&weeklyArenaActive()?2.0:(mapStage>=3 ? 5.0 : mapStage>=2 ? 2.9 : 1); return combatTimeScale()*1.35*1.05*stageMul*lateMapHpBonus()*otHpMul()*difficultyBossHpMul()*worldEventEnemyPowerMul()*(typeof coopEnemyHpMul==='function'?coopEnemyHpMul():1)*(typeof challengeEnemyHpMul==='function'?challengeEnemyHpMul():1); }
+function bossHpScale(){ const stageMul=typeof weeklyArenaActive==='function'&&weeklyArenaActive()?3.1:(mapStage>=3 ? 5.8 : mapStage>=2 ? 3.1 : 1); return combatTimeScale()*1.45*1.08*stageMul*lateMapHpBonus()*(typeof weeklyArenaActive==='function'&&weeklyArenaActive()?1:otHpMul())*difficultyBossHpMul()*(typeof coopEnemyHpMul==='function'?coopEnemyHpMul():1)*(typeof challengeEnemyHpMul==='function'?challengeEnemyHpMul():1); }
 function bossRegenCap(e){
   if(e && e.final && e.phaseHp && e.finalPhase) return e.phaseHp*e.finalPhase;
   return e && e.maxHp ? e.maxHp : 0;
@@ -3016,7 +3027,7 @@ function bossRegenRate(e){
   if(!e || !e.isBoss || e.phaseInvuln>0) return 0;
   const pct=e.isStageBoss ? (e.final?0.0018:0.0024) : (e.elite?0.0011:0.0009);
   const flat=e.isStageBoss ? (e.final?2.4:3.2) : (e.elite?1.3:1.0);
-  return e.maxHp*pct + flat*otPowerMul();
+  return e.maxHp*pct + flat*otHpMul();
 }
 const MINIBOSS_SPEED_MUL = 1.18;
 const BOSS_SPEED_MUL = 1.22;
@@ -5853,7 +5864,7 @@ function spawnMiniboss() {
   const ang = Math.random()*Math.PI*2, d = 26;
   const x = clamp(player.x + Math.cos(ang)*d, -MAP_BOUND, MAP_BOUND);
   const z = clamp(player.z + Math.sin(ang)*d, -MAP_BOUND, MAP_BOUND);
-  const hpSc=minibossHpScale(), atkSc=atkTimeScale()*1.15*stageAtkMul()*otPowerMul();
+  const hpSc=minibossHpScale(), atkSc=atkTimeScale()*1.15*stageAtkMul()*otAtkMul();
   const { spr, anim } = entitySprite(t.sprite, t.h);
   const sh = makeShadow(t.h*0.34);
   scene.add(spr); scene.add(sh);
