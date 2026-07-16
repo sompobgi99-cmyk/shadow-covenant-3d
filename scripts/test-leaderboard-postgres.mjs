@@ -28,9 +28,11 @@ const validInput = {
 const entry = leaderboardContract.cleanScore(validInput, null);
 assert.equal(leaderboardContract.validateScore(entry), "");
 const outdated = leaderboardContract.cleanScore({ ...validInput, build: "old-build" }, null);
-assert.match(leaderboardContract.validateScore(outdated), /Outdated game version/);
+assert.equal(leaderboardContract.validateScore(outdated), "");
+const migratedBuildRow = leaderboardContract.databaseScore(outdated, leaderboardContract.scoreDedupeKey(outdated, "guest:old-build"));
+assert.equal(migratedBuildRow.build, leaderboardContract.requiredBuild, "legacy builds must be stored in the current ranking partition");
 const missingBuild = leaderboardContract.cleanScore({ ...validInput, build: "" }, null);
-assert.match(leaderboardContract.validateScore(missingBuild), /Outdated game version/);
+assert.match(leaderboardContract.validateScore(missingBuild), /Missing game build/);
 const longRun = leaderboardContract.cleanScore({ ...validInput, time: 7200, kills: 50000 }, null);
 assert.equal(leaderboardContract.validateScore(longRun), "", "long overtime runs should remain rankable");
 

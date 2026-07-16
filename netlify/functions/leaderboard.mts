@@ -10,7 +10,7 @@ const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260716-ranking-reliability";
+const REQUIRED_BUILD = "20260716-legacy-score-compat";
 const RANKED_DIFFICULTY_MULTIPLIERS = {
   normal: 1,
   hard: 1.4,
@@ -199,7 +199,7 @@ function validateMultipliers(entry) {
 }
 
 function validateScore(entry) {
-  if (!entry.build || entry.build !== REQUIRED_BUILD) return "Outdated game version. Please reload before ranking.";
+  if (!entry.build) return "Missing game build. Please reload before ranking.";
   if (!entry.player_name) return "Missing player name";
   if (entry.score < 0 || entry.kills < 0 || entry.time < 0) return "Negative values are not allowed";
   if (entry.score > 0 && entry.time < 8) return "Run is too short for a scored entry";
@@ -320,7 +320,9 @@ function databaseScore(entry, dedupeKey, source = "") {
     pact_multiplier: entry.pact_multiplier,
     pact_label: entry.pact_label,
     pact_count: entry.pact_count,
-    build: entry.build,
+    // Keep one current ranking partition while allowing an older tab to finish
+    // and submit a valid run after a deployment.
+    build: REQUIRED_BUILD,
     user_id: entry.user_id || null,
     auth_name: entry.auth_name || "",
     verified: !!entry.verified,

@@ -202,19 +202,8 @@ async function saveOnlineScore(entry){
 async function flushPendingOnlineScores(){
   if(onlineScoreFlushPromise) return onlineScoreFlushPromise;
   onlineScoreFlushPromise=(async()=>{
-    const build=window.SHADOW_BUILD_VERSION||'';
     for(const queued of loadPendingOnlineScores()){
       if(queued._blocked) continue;
-      if(queued.build!==build){
-        const error=new Error('Score belongs to an older game version');
-        error.status=426;
-        markPendingOnlineScoreError(queued,error);
-        if(!onlinePermanentErrorNotified && typeof showToast==='function'){
-          showToast('คะแนนจากเวอร์ชันเก่าไม่สามารถขึ้น Ranking ได้',3.2);
-          onlinePermanentErrorNotified=true;
-        }
-        continue;
-      }
       if(queued._verifiedIntent && (typeof currentAuthUser!=='function'||!currentAuthUser())){
         if(!onlineAuthWaitNotified && typeof showToast==='function'){
           showToast('กรุณา Login อีกครั้งเพื่อส่งคะแนนที่ค้างอยู่',3.2);
