@@ -10,7 +10,7 @@ const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260715-weekly-reward-1000";
+const REQUIRED_BUILD = "20260716-ranking-reliability";
 const RANKED_DIFFICULTY_MULTIPLIERS = {
   normal: 1,
   hard: 1.4,
@@ -19,6 +19,7 @@ const MAX_RANKED_STAGE = 3;
 const WEEKLY_RANKED_STAGE = 4;
 const MAX_RANKED_LEVEL = 60;
 const MAX_RANKED_PACTS = 5;
+const MAX_RANKED_TIME = 3 * 60 * 60;
 
 const jsonHeaders = {
   "Content-Type": "application/json; charset=utf-8",
@@ -148,8 +149,9 @@ function cleanScore(input, authUser) {
   };
 }
 
-function clientFingerprint(req, userId = "") {
+function clientFingerprint(req, userId = "", clientId = "") {
   if (userId) return createHash("sha256").update(`user:${userId}`).digest("hex").slice(0, 24);
+  if (clientId) return createHash("sha256").update(`client:${clientId}`).digest("hex").slice(0, 24);
   const forwarded = req.headers.get("x-nf-client-connection-ip") || req.headers.get("x-forwarded-for") || "";
   const ip = forwarded.split(",")[0].trim() || "unknown";
   const agent = req.headers.get("user-agent") || "";
@@ -179,9 +181,9 @@ function rankedDifficultyMultiplier(id) {
 
 function plausibleKillsCap(entry) {
   const minutes = Math.max(1, Math.ceil((entry.time || 0) / 60));
-  const hardBonus = entry.difficulty_id === "hard" ? 120 : 0;
-  const overtimeBonus = Math.max(0, minutes - 10) * 180;
-  return 350 + minutes * (520 + hardBonus) + overtimeBonus;
+  const pace = entry.run_mode === "weekly" ? 820 : entry.difficulty_id === "hard" ? 760 : 650;
+  const overtimeBonus = Math.max(0, minutes - 10) * 260;
+  return 500 + minutes * pace + overtimeBonus + (entry.stage || 1) * 250;
 }
 
 function validateMultipliers(entry) {
@@ -208,7 +210,7 @@ function validateScore(entry) {
   }
   if (entry.level < 1 || entry.level > MAX_RANKED_LEVEL) return "Level is outside the accepted range";
   if (entry.items < 0 || entry.items > 120) return "Item count is outside the accepted range";
-  if (entry.time > (entry.run_mode === "endless" ? 86400 : 3600)) return "Run time is outside the accepted range";
+  if (entry.time > (entry.run_mode === "endless" ? 86400 : MAX_RANKED_TIME)) return "Run time is outside the accepted range";
   const winningStage = entry.run_mode === "weekly" ? WEEKLY_RANKED_STAGE : MAX_RANKED_STAGE;
   if (entry.won && entry.stage !== winningStage) return entry.run_mode === "weekly"
     ? "Winning Weekly runs must finish in the Weekly Arena"
@@ -435,8 +437,8 @@ async function markBlobMigrationPending(store) {
   await store.setJSON(POSTGRES_MIGRATION_KEY, { complete: false, pending_at: new Date().toISOString() });
 }
 
-async function checkRateLimit(store, req, userId = "") {
-  const fingerprint = clientFingerprint(req, userId);
+async function checkRateLimit(store, req, userId = "", clientId = "") {
+  const fingerprint = clientFingerprint(req, userId, clientId);
   const now = Date.now();
   const data = (await store.get(RATE_KEY, { type: "json" })) || {};
   const entries = Object.entries(data)
@@ -460,7 +462,7 @@ export default async (req) => {
 
   if (req.method === "GET") {
     const url = new URL(req.url);
-    const limit = cleanInt(url.searchParams.get("limit"), 8, 50);
+    const limit = cleanInt(url.searchParams.get("limit"), 8, 100);
     const requestedMode = url.searchParams.get("mode") || "standard";
     const mode = ["endless","daily","weekly"].includes(requestedMode) ? requestedMode : "standard";
     const periodKey = cleanText(url.searchParams.get("key"), "", 24);
@@ -471,16 +473,13 @@ export default async (req) => {
         const env = supabaseEnv();
         return json({ rows, required_build: REQUIRED_BUILD, auth_enabled: !!(env.url && env.anonKey), postgres_enabled: true, storage: "postgres", migration });
       } catch (error) {
-        console.warn("leaderboard postgres read fallback", error && error.message ? error.message : error);
+        console.warn("leaderboard postgres read failed", error && error.message ? error.message : error);
+        const env = supabaseEnv();
+        return json({ error: "Ranking database is temporarily unavailable. Please try again.", required_build: REQUIRED_BUILD, auth_enabled: !!(env.url && env.anonKey), postgres_enabled: true }, 503);
       }
     }
-    const rows = (await readScores(store))
-      .filter((row) => row.build === REQUIRED_BUILD && (["endless","daily","weekly"].includes(row.run_mode) ? row.run_mode : "standard") === mode && (!(mode==="daily"||mode==="weekly") || !periodKey || row.challenge_key===periodKey))
-      .sort((a, b) => (b.score || 0) - (a.score || 0) || String(a.created_at || "").localeCompare(String(b.created_at || "")))
-      .slice(0, limit)
-      .map(publicScore);
     const env = supabaseEnv();
-    return json({ rows, required_build: REQUIRED_BUILD, auth_enabled: !!(env.url && env.anonKey), postgres_enabled: postgresReady(), storage: "netlify-blobs-fallback" });
+    return json({ error: "Ranking database is not configured. Please try again later.", required_build: REQUIRED_BUILD, auth_enabled: !!(env.url && env.anonKey), postgres_enabled: false }, 503);
   }
 
   if (req.method === "POST") {
@@ -500,7 +499,7 @@ export default async (req) => {
     if (!postgresReady()) {
       return json({ error: "Ranking database is temporarily unavailable. The score will retry automatically." }, 503);
     }
-    const rate = await checkRateLimit(store, req, auth.user && auth.user.id);
+    const rate = await checkRateLimit(store, req, auth.user && auth.user.id, entry.client_id);
     if (!rate.ok) {
       return new Response(JSON.stringify({ error: "Too many score submissions", retry_after: rate.retryAfter }), {
         status: 429,

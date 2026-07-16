@@ -280,7 +280,7 @@ Object.assign(ITEM_I18N,{
   mirror:{en:{desc:'Reflect 30% damage back'}}, slurp_gloves:{en:{desc:'Lifesteal while attacking +7.5%'}}, eagle_claw:{en:{desc:'Damage to flying enemies +66%'}},
   execution_coin:{en:{desc:'Critical damage +12%; critical hits may drop gold'}}, phase_cloak:{en:{desc:'Dash invulnerability +0.12s, evasion +5%'}},
   battle_banner:{en:{desc:'Ground Haste/Might buffs last +35% longer'}}, butcher_token:{en:{desc:'Damage to The Butcher and Mimics +25%'}},
-  big_bonk:{en:{desc:'2% chance to deal 20x damage'}}, holy_book:{en:{desc:'Max HP +100, regeneration +50'}}, soul_harvester:{en:{desc:'Kills drop extra XP and a little extra gold'}}, singularity_core:{en:{desc:'XP/gold magnet range +200%, XP/gold pull speed +50%'}},
+  big_bonk:{en:{desc:'2% chance to deal 20x damage'}}, holy_book:{en:{desc:'Max HP +100, regeneration +5 per second'}}, soul_harvester:{en:{desc:'Kills drop extra XP and a little extra gold'}}, singularity_core:{en:{desc:'XP/gold magnet range +200%, XP/gold pull speed +50%'}},
   spicy_meatball:{en:{desc:'Attacks have 25% chance to explode for 65% damage'}}, chonkplate:{en:{desc:'Overheal +50%, lifesteal 10% of damage dealt'}},
   energy_core:{en:{desc:'Pulses an energy aura that damages nearby enemies'}}, power_gloves:{en:{name:'Storm Gauntlets',desc:'Attack speed +40%, projectile/object speed +12%, dash cooldown -8%'}},
   dragonfire:{en:{name:'Golden Sword',desc:'Damage +99%'}}, glass_needle:{en:{desc:'Critical chance +25%, critical damage +75%, max HP -15%'}},
@@ -883,7 +883,6 @@ function overtimeElapsed(){
 function overtimeLevel(){
   const ot=overtimeElapsed();
   const step=overtimeStep();
-  if(mapStage>=3) return ot<0 ? 0 : Math.floor(ot/step)+1;
   return ot<0 ? 0 : Math.floor(ot/step)+1;
 }
 function overtimeTier(){ const level=overtimeLevel(); return level ? level+1 : 1; }
@@ -1177,7 +1176,7 @@ document.addEventListener('click', e=>{
 });
 // Dash trigger shared by keyboard (Space) and the mobile Dash button.
 function tryDash(){
-  if (!started || paused || gameOver || won || player.dashCd>0 || player.dashTime>0) return;
+  if (!started || paused || userPaused || gameOver || won || deathCinematic || player.dashCd>0 || player.dashTime>0) return;
   if(player.divineDashLockT>0){ showToast('Tharos ปิดผนึก Dash อีก '+Math.ceil(player.divineDashLockT)+'s',1.2); return; }
   let dx=player.ldx, dz=player.ldz;
   if (!dx && !dz){ dx=player.face||1; dz=0; }
@@ -5627,9 +5626,9 @@ function pickupItem(gi){
   player.itemCounts[it.name]=(player.itemCounts[it.name]||0)+1;
   itemSig=null; updateItemHUD(true);
   sfx('pickup');
-  if (gi.spr) scene.remove(gi.spr);
+  if (gi.spr) { scene.remove(gi.spr); freeObj(gi.spr); gi.spr=null; }
   score += ({common:100,uncommon:200,rare:300,legendary:500})[it.rarity]||100;
-  if (gi.glow) scene.remove(gi.glow);
+  if (gi.glow) { scene.remove(gi.glow); freeObj(gi.glow); gi.glow=null; }
   showToast('📦 '+itemName(it)+' ('+tr('rarity.'+(it.rarity||'common'))+')', 1.5);
   if((it.rarity==='rare' || it.rarity==='legendary') && typeof petReact==='function') petReact('loot', true);
 }

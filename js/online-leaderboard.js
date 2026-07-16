@@ -11,6 +11,8 @@ const ONLINE_SCORE_QUEUE_MAX = 30;
 let onlineScoreFlushPromise = null;
 let onlineScoreRetryTimer = null;
 let onlineScoreClientId = '';
+let onlineAuthWaitNotified = false;
+let onlinePermanentErrorNotified = false;
 
 function rankingClientId(){
   if(onlineScoreClientId) return onlineScoreClientId;
@@ -207,15 +209,29 @@ async function flushPendingOnlineScores(){
         const error=new Error('Score belongs to an older game version');
         error.status=426;
         markPendingOnlineScoreError(queued,error);
+        if(!onlinePermanentErrorNotified && typeof showToast==='function'){
+          showToast('คะแนนจากเวอร์ชันเก่าไม่สามารถขึ้น Ranking ได้',3.2);
+          onlinePermanentErrorNotified=true;
+        }
         continue;
       }
-      if(queued._verifiedIntent && (typeof currentAuthUser!=='function'||!currentAuthUser())) continue;
+      if(queued._verifiedIntent && (typeof currentAuthUser!=='function'||!currentAuthUser())){
+        if(!onlineAuthWaitNotified && typeof showToast==='function'){
+          showToast('กรุณา Login อีกครั้งเพื่อส่งคะแนนที่ค้างอยู่',3.2);
+          onlineAuthWaitNotified=true;
+        }
+        continue;
+      }
       try{
         const result=await submitOnlineScore(queued);
         removePendingOnlineScore(queued._queueId);
         reflectFlushedOnlineScore(queued,result);
       }catch(error){
         markPendingOnlineScoreError(queued,error);
+        if(permanentOnlineScoreError(error) && !onlinePermanentErrorNotified && typeof showToast==='function'){
+          showToast(String(error&&error.message||'ส่งคะแนนไม่สำเร็จ'),3.2);
+          onlinePermanentErrorNotified=true;
+        }
         if(!permanentOnlineScoreError(error)) scheduleOnlineScoreRetry(error);
       }
     }
@@ -259,12 +275,12 @@ if(typeof window!=='undefined'){
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) flushPendingOnlineScores(); });
 }
 
-async function loadOnlineLeaderboard(mode){
+async function loadOnlineLeaderboard(mode, limit=ONLINE_LEADERBOARD.limit){
   if(!onlineLeaderboardReady()) return [];
   const runMode=['endless','weekly'].includes(mode)?mode:'standard';
   if(ONLINE_LEADERBOARD.apiEndpoint){
     const period=runMode==='weekly'&&typeof challengeKey==='function'?challengeKey(runMode):'';
-    const apiRes = await fetch(ONLINE_LEADERBOARD.apiEndpoint+'?limit='+encodeURIComponent(ONLINE_LEADERBOARD.limit)+'&mode='+encodeURIComponent(runMode)+(period?'&key='+encodeURIComponent(period):''));
+    const apiRes = await fetch(ONLINE_LEADERBOARD.apiEndpoint+'?limit='+encodeURIComponent(limit)+'&mode='+encodeURIComponent(runMode)+(period?'&key='+encodeURIComponent(period):''));
     if(apiRes.ok){
       const data = await apiRes.json();
       return (data.rows || []).map(r=>({
@@ -300,7 +316,7 @@ async function loadOnlineLeaderboard(mode){
     }
     if(!ONLINE_LEADERBOARD.supabaseUrl || !ONLINE_LEADERBOARD.supabaseAnonKey) return [];
   }
-  const q = '?select=player_name,country_code,character,score,score_before_penalty,death_penalty_percent,death_penalty_amount,death_penalty_reason,kills,time,won,level,stage,damage,items,difficulty_id,difficulty_name,difficulty_multiplier,pact_ids,pact_multiplier,pact_label,pact_count,created_at&order=score.desc&limit='+ONLINE_LEADERBOARD.limit;
+  const q = '?select=player_name,country_code,character,score,score_before_penalty,death_penalty_percent,death_penalty_amount,death_penalty_reason,kills,time,won,level,stage,damage,items,difficulty_id,difficulty_name,difficulty_multiplier,pact_ids,pact_multiplier,pact_label,pact_count,created_at&order=score.desc&limit='+limit;
   const res = await fetch(onlineEndpoint(q), { headers: onlineHeaders() });
   if(!res.ok) throw new Error('Online leaderboard load failed: '+res.status);
   const rows = await res.json();

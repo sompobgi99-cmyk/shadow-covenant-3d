@@ -31,6 +31,8 @@ const outdated = leaderboardContract.cleanScore({ ...validInput, build: "old-bui
 assert.match(leaderboardContract.validateScore(outdated), /Outdated game version/);
 const missingBuild = leaderboardContract.cleanScore({ ...validInput, build: "" }, null);
 assert.match(leaderboardContract.validateScore(missingBuild), /Outdated game version/);
+const longRun = leaderboardContract.cleanScore({ ...validInput, time: 7200, kills: 50000 }, null);
+assert.equal(leaderboardContract.validateScore(longRun), "", "long overtime runs should remain rankable");
 
 const createdAt = "2026-07-10T03:00:00.000Z";
 const firstKey = leaderboardContract.scoreDedupeKey(entry, "guest:abc", createdAt);
@@ -94,6 +96,11 @@ assert.notEqual(
   leaderboardContract.clientFingerprint(sharedNetworkRequest, "user-a"),
   leaderboardContract.clientFingerprint(sharedNetworkRequest, "user-b"),
   "signed-in users on the same network must have separate rate limits",
+);
+assert.notEqual(
+  leaderboardContract.clientFingerprint(sharedNetworkRequest, "", "client-a"),
+  leaderboardContract.clientFingerprint(sharedNetworkRequest, "", "client-b"),
+  "guest installs must have separate rate limits on the same network",
 );
 
 console.log("Leaderboard Postgres contract passed.");

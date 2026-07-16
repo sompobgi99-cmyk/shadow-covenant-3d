@@ -3,6 +3,7 @@ const CHALLENGE_NATIVE_RANDOM=Math.random;
 const CHALLENGE_REWARD_KEY='sc3_challenge_rewards_v1';
 let activeChallengeMode='standard';
 let activeChallengeSeed=0;
+let activeChallengeKeyValue='';
 let activeChallengeRules=[];
 let challengeRandomActive=false;
 
@@ -31,7 +32,7 @@ function challengeConfig(mode){
   return {mode,key,seed,rules,scoreMul:mode==='weekly'?1.30:1.15,reward:mode==='weekly'?1000:60};
 }
 function setActiveChallengeMode(mode){
-  const cfg=challengeConfig(mode);activeChallengeMode=cfg.mode;activeChallengeSeed=cfg.seed;activeChallengeRules=cfg.rules.slice();return cfg;
+  const cfg=challengeConfig(mode);activeChallengeMode=cfg.mode;activeChallengeKeyValue=cfg.key;activeChallengeSeed=cfg.seed;activeChallengeRules=cfg.rules.slice();return cfg;
 }
 function weeklyArenaActive(){return activeChallengeMode==='weekly';}
 function weeklyBossType(){
@@ -59,7 +60,8 @@ function startChallengeRandom(){
 }
 function stopChallengeRandom(){if(challengeRandomActive)Math.random=CHALLENGE_NATIVE_RANDOM;challengeRandomActive=false;}
 function challengeRunMode(){return activeChallengeMode==='weekly'?'weekly':'standard';}
-function challengeSummary(){const cfg=challengeConfig(activeChallengeMode);return cfg.mode==='standard'?'Standard':cfg.mode.toUpperCase()+' '+cfg.key+' · '+cfg.rules.map(r=>r.name).join(' + ');}
+function challengePeriodKey(){ return activeChallengeMode==='standard' ? '' : (activeChallengeKeyValue || challengeKey(activeChallengeMode)); }
+function challengeSummary(){const cfg=challengeConfig(activeChallengeMode);return cfg.mode==='standard'?'Standard':cfg.mode.toUpperCase()+' '+challengePeriodKey()+' · '+cfg.rules.map(r=>r.name).join(' + ');}
 function loadChallengeRewardState(){try{const state=JSON.parse(localStorage.getItem(CHALLENGE_REWARD_KEY)||'{}');return state&&typeof state==='object'?state:{};}catch(_){return {};}}
 function saveChallengeRewardState(state){try{localStorage.setItem(CHALLENGE_REWARD_KEY,JSON.stringify(state||{}));}catch(_){}}
 function exportChallengeRewardProgress(){return {...loadChallengeRewardState()};}
@@ -75,8 +77,8 @@ function importChallengeRewardProgress(remote){
 }
 function challengeRewardClaimed(mode,key){return !!loadChallengeRewardState()[mode+':'+key];}
 function awardChallengeReward(){
-  const cfg=challengeConfig(activeChallengeMode);if(cfg.mode==='standard'||!won||challengeRewardClaimed(cfg.mode,cfg.key))return 0;
-  const state=loadChallengeRewardState();state[cfg.mode+':'+cfg.key]=new Date().toISOString();saveChallengeRewardState(state);
+  const cfg=challengeConfig(activeChallengeMode), key=challengePeriodKey();if(cfg.mode==='standard'||!won||challengeRewardClaimed(cfg.mode,key))return 0;
+  const state=loadChallengeRewardState();state[cfg.mode+':'+key]=new Date().toISOString();saveChallengeRewardState(state);
   if(typeof addSoulCoins==='function')addSoulCoins(cfg.reward,'challenge_'+cfg.mode,{immediateSync:true});
   showToast(cfg.mode.toUpperCase()+' COMPLETE · +'+cfg.reward+' Soul Coins',3);return cfg.reward;
 }

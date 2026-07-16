@@ -344,7 +344,8 @@ function killEnemy(e){
     }
   }
   if (e.stolenGold>0){
-    for(let i=0;i<Math.min(8,e.stolenGold);i++) dropPickup(e.x+(Math.random()-0.5)*0.6,e.z+(Math.random()-0.5)*0.6,'gold',Math.max(1,Math.ceil(e.stolenGold/Math.min(8,e.stolenGold))),'thief');
+    const piles=Math.min(8,e.stolenGold), base=Math.floor(e.stolenGold/piles), extra=e.stolenGold%piles;
+    for(let i=0;i<piles;i++) dropPickup(e.x+(Math.random()-0.5)*0.6,e.z+(Math.random()-0.5)*0.6,'gold',base+(i<extra?1:0),'thief');
     spawnObjectPulse(e.x,e.z,0xffd86a,3.0,0.45);
     spawnBossImpactFx(e.x,e.z,2.0,0xffd86a,'gold_steal');
   }
@@ -2669,10 +2670,12 @@ function clamp(v,a,b){ return v<a?a:v>b?b:v; }
 
 const LEADERBOARD_KEY = 'sc3_leaderboard';
 let leaderboardMode='standard';
+let leaderboardDisplayLimit=8;
 function readLocalLeaderboard(){
   try{
     const value=JSON.parse(localStorage.getItem(LEADERBOARD_KEY)||'[]');
-    return Array.isArray(value) ? value.filter(row=>row&&typeof row==='object') : [];
+    const currentBuild=window.SHADOW_BUILD_VERSION||'';
+    return Array.isArray(value) ? value.filter(row=>row&&typeof row==='object'&&(!currentBuild||row.build===currentBuild)) : [];
   }catch(_){ return []; }
 }
 function writeLocalLeaderboard(board){
@@ -2686,7 +2689,7 @@ function saveScore(){
   const pet = player.petId && typeof petById==='function' ? petById(player.petId) : null;
   const dp=deathPenalty || { rate:0, percent:0, baseScore:score, finalScore:score, amount:0, reason:'' };
   const currentRunMode=endlessMode?'endless':(typeof challengeRunMode==='function'?challengeRunMode():'standard');
-  const entry = { name:cleanPlayerName(playerName), country_code:cleanCountryCode(playerCountry), character, build:window.SHADOW_BUILD_VERSION||'', score, scoreBeforePenalty:dp.baseScore||score, deathPenaltyRate:Number(dp.rate||0), deathPenaltyPercent:Number(dp.percent||0), deathPenaltyAmount:Number(dp.amount||0), deathPenaltyReason:dp.reason||'', kills, time: Math.floor(gameTime), won, level:player.level, stage:mapStage, damage:Math.round(damageTaken), items:player.items.length, petId:player.petId||'', petName:pet?pet.name:'', difficultyId:diff.id||'normal', difficultyName:diff.name||'Normal', difficultyMultiplier:Number(diff.mult||1), pactIds:pact.ids, pactMultiplier:pact.multiplier, pactLabel:pact.label, pactCount:pact.count, runMode:currentRunMode, endlessTime:endlessMode?Math.max(0,Math.floor(gameTime-endlessStartedAt)):0, challengeKey:currentRunMode==='weekly'?challengeKey(currentRunMode):'', challengeSummary:typeof challengeSummary==='function'?challengeSummary():'', date: new Date().toISOString() };
+  const entry = { name:cleanPlayerName(playerName), country_code:cleanCountryCode(playerCountry), character, build:window.SHADOW_BUILD_VERSION||'', score, scoreBeforePenalty:dp.baseScore||score, deathPenaltyRate:Number(dp.rate||0), deathPenaltyPercent:Number(dp.percent||0), deathPenaltyAmount:Number(dp.amount||0), deathPenaltyReason:dp.reason||'', kills, time: Math.floor(gameTime), won, level:player.level, stage:mapStage, damage:Math.round(damageTaken), items:player.items.length, petId:player.petId||'', petName:pet?pet.name:'', difficultyId:diff.id||'normal', difficultyName:diff.name||'Normal', difficultyMultiplier:Number(diff.mult||1), pactIds:pact.ids, pactMultiplier:pact.multiplier, pactLabel:pact.label, pactCount:pact.count, runMode:currentRunMode, endlessTime:endlessMode?Math.max(0,Math.floor(gameTime-endlessStartedAt)):0, challengeKey:currentRunMode==='weekly'&&typeof challengePeriodKey==='function'?challengePeriodKey():'', challengeSummary:typeof challengeSummary==='function'?challengeSummary():'', date: new Date().toISOString() };
   if(typeof saveRunTelemetry==='function'){
     const telemetry = saveRunTelemetry(entry);
     if(telemetry && telemetry.id) entry.run_id = telemetry.id;
@@ -2705,7 +2708,7 @@ function saveScore(){
   board.sort((a,b) => b.score - a.score);
   const sameMode=board.filter(e=>(e.runMode||'standard')===entry.runMode&&(!entry.challengeKey||e.challengeKey===entry.challengeKey));
   const rank = sameMode.indexOf(entry) + 1;
-  board = board.filter(e=>sameMode.indexOf(e)<8);
+  board = board.filter(e=>sameMode.indexOf(e)<100);
   writeLocalLeaderboard(board);
   entry.rank = rank;
   entry.personalBest = rank === 1;
@@ -2725,6 +2728,7 @@ function saveScore(){
       entry.onlineError=(err&&err.message)||'Online leaderboard failed';
       renderRunRanking();
       if(err&&err.queued) showToast('คะแนนออนไลน์รอส่งใหม่อัตโนมัติ',2.8);
+      if(!(err&&err.queued)) showToast(entry.onlineError,3.2);
       console.warn(entry.onlineError);
     });
   return entry;
@@ -2732,9 +2736,10 @@ function saveScore(){
 function loadLeaderboard(mode){
   const selected=mode||leaderboardMode;
   const period=selected==='weekly'?challengeKey(selected):'';
-  return readLocalLeaderboard().filter(e=>e.difficultyId!=='casual'&&(e.runMode||'standard')===selected&&(!period||e.challengeKey===period));
+  return readLocalLeaderboard().filter(e=>e.difficultyId!=='casual'&&(e.runMode||'standard')===selected&&(!period||e.challengeKey===period)).slice(0,100);
 }
 function setLeaderboardMode(mode){ leaderboardMode=['endless','weekly'].includes(mode)?mode:'standard'; showLeaderboard(); }
+function toggleLeaderboardLimit(){ leaderboardDisplayLimit=leaderboardDisplayLimit===8?100:8; showLeaderboard(); }
 function renderLeaderboard(board, source, emptyMessage){
   const el = document.getElementById('leaderboard');
   if (!el) return;
@@ -2743,9 +2748,10 @@ function renderLeaderboard(board, source, emptyMessage){
   const bindRankControls=()=>{
     const btn=document.getElementById('ranktoggle'); if(btn && typeof toggleTitleRanking==='function') btn.onclick=toggleTitleRanking;
     document.querySelectorAll('[data-rank-mode]').forEach(b=>b.onclick=()=>setLeaderboardMode(b.dataset.rankMode));
-    if(typeof updateRankToggleLabel==='function') updateRankToggleLabel();
+     const limitBtn=document.querySelector('[data-rank-limit]'); if(limitBtn) limitBtn.onclick=toggleLeaderboardLimit;
+     if(typeof updateRankToggleLabel==='function') updateRankToggleLabel();
   };
-  const rankHead = (scoreText)=>'<div class="rankhead"><span>'+escHtml(source||tt('rank.title','Ranking'))+'</span><div class="rankmodes"><button data-rank-mode="standard" class="'+(leaderboardMode==='standard'?'active':'')+'">Standard</button><button data-rank-mode="endless" class="'+(leaderboardMode==='endless'?'active':'')+'">Endless</button><button data-rank-mode="weekly" class="'+(leaderboardMode==='weekly'?'active':'')+'">Weekly</button></div><div class="ranktools"><b>'+escHtml(scoreText)+'</b><button id="ranktoggle" class="ranktoggle" type="button">'+escHtml(tt('title.rank.hide','Hide Ranking'))+'</button></div></div>';
+   const rankHead = (scoreText)=>'<div class="rankhead"><span>'+escHtml(source||tt('rank.title','Ranking'))+'</span><div class="rankmodes"><button data-rank-mode="standard" class="'+(leaderboardMode==='standard'?'active':'')+'">Standard</button><button data-rank-mode="endless" class="'+(leaderboardMode==='endless'?'active':'')+'">Endless</button><button data-rank-mode="weekly" class="'+(leaderboardMode==='weekly'?'active':'')+'">Weekly</button></div><div class="ranktools"><b>'+escHtml(scoreText)+'</b><button data-rank-limit class="ranktoggle" type="button">'+(leaderboardDisplayLimit===8?'Top 100':'Top 8')+'</button><button id="ranktoggle" class="ranktoggle" type="button">'+escHtml(tt('title.rank.hide','Hide Ranking'))+'</button></div></div>';
   if (!rows.length) {
     el.innerHTML='<div class="rankpanel empty">'+rankHead(tt('rank.none','No records'))+'<p>'+escHtml(emptyMessage||tt('rank.empty','Finish a run to carve your name into the covenant.'))+'</p></div>';
     bindRankControls();
@@ -2783,9 +2789,9 @@ function showLeaderboardLegacy(){
 function showLeaderboard(){
   if(typeof loadOnlineLeaderboard==='function' && typeof onlineLeaderboardReady==='function' && onlineLeaderboardReady()){
     renderLeaderboard([], tr('rank.online'), tr('rank.loading'));
-    loadOnlineLeaderboard(leaderboardMode)
-      .then(rows=>{ renderLeaderboard(rows,tr('rank.online'),tr('rank.emptyOnline')); })
-      .catch(err=>{ console.warn(err.message||err); renderLeaderboard(loadLeaderboard(leaderboardMode), tr('rank.local')); });
+     loadOnlineLeaderboard(leaderboardMode, leaderboardDisplayLimit)
+     .then(rows=>{ renderLeaderboard(rows,tr('rank.online'),tr('rank.emptyOnline')); })
+      .catch(err=>{ console.warn(err.message||err); renderLeaderboard([], tr('rank.online'), 'Ranking is temporarily unavailable. Please try again.'); });
     return;
   }
   renderLeaderboard(loadLeaderboard(leaderboardMode), tr('rank.title'));
@@ -2888,6 +2894,7 @@ function renderRunSummary(){
   el.innerHTML=`<div class="summarypanel ${won?'victory':'defeat'}"><div class="summaryhead"><div><span>RUN SUMMARY</span><h2>${won?'COVENANT CLEARED':'RUN ENDED'}</h2></div><b>${won?'Victory':'Death Cause'}<small>${escHtml(deathText)}</small></b></div><div class="summarycols${unlockHtml||pactHtml||soulHtml?' hasunlock':''}">${scoreHtml}${deathRecapHtml}<section class="summaryweapons"><h3>Weapon DPS</h3>${weaponHtml}</section><section class="summaryitems"><h3>Best Items</h3>${itemHtml}</section>${petHtml}${divineHtml}${soulHtml}${pactHtml}${unlockHtml}</div></div>`;
 }
 function restart(){
+  if(deathCinematic) return;
   clearTimeout(deathCinematicTimer); deathCinematic=false;
   if(typeof startChallengeRandom==='function') startChallengeRandom();
   if(typeof clearLocalCoop==='function') clearLocalCoop();

@@ -235,8 +235,8 @@ const ITEMS = [
   // ═══════════════ 🟡 Legendary ═══════════════
   { id:'big_bonk',    name:'Big Bonk',       desc:'โอกาส 2% ทำดาเมจ 20 เท่า',  rarity:'legendary', icon:'item_big_bonk',
     apply:p=>{ p.bonkChance=(p.bonkChance||0)+0.02; } },
-  { id:'holy_book',   name:'Holy Book',      desc:'เลือด +100, ฟื้นเลือด +50',   rarity:'legendary', icon:'item_holy_book',
-    apply:p=>{ p.maxHp+=100; p.hp+=100; p.regen+=50; } },
+  { id:'holy_book',   name:'Holy Book',      desc:'เลือด +100, ฟื้นเลือด +5/วินาที',   rarity:'legendary', icon:'item_holy_book',
+     apply:p=>{ p.maxHp+=100; p.hp+=100; p.regen+=5; } },
   { id:'soul_harvester',name:'Soul Harvester',desc:'ฆ่าศัตรูแล้วดรอป XP เพิ่ม และทองเพิ่มเล็กน้อย', rarity:'legendary', icon:'item_soul_harvester',
     apply:p=>{ p._soulHarv=(p._soulHarv||0)+1; } },
   { id:'singularity_core',name:'Singularity Core',desc:'ระยะดูด XP/ทอง +200%, ความเร็วดูด XP/ทอง +50%', rarity:'legendary', icon:'item_singularity_core',
