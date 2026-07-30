@@ -51,6 +51,16 @@
     state.user = (session && session.user) || null;
   }
 
+  // OAuth can notify the app before the session token is immediately usable.
+  // Retry progress loading after the callback settles so a new device does not
+  // remain on its empty local save when the first request races the callback.
+  function scheduleProgressSync(reason){
+    if(!state.user || typeof syncOnlineAchievements !== 'function') return;
+    [120, 900, 2500].forEach(delay=>setTimeout(()=>{
+      if(state.user) syncOnlineAchievements(reason || 'auth_retry');
+    }, delay));
+  }
+
   function renderAuth(){
     const root = document.getElementById('authbar');
     if (!root) return;
@@ -153,7 +163,7 @@
       renderAuth();
       if (state.user && typeof finishPendingAuthChoice === 'function') finishPendingAuthChoice();
       if (state.user && typeof applyRememberedLogin === 'function') applyRememberedLogin();
-      if (state.user && typeof syncOnlineAchievements === 'function') setTimeout(() => syncOnlineAchievements('auth'), 0);
+      scheduleProgressSync('auth');
       if (state.user && typeof flushPendingOnlineScores === 'function') setTimeout(() => flushPendingOnlineScores(), 250);
       if (typeof showLeaderboard === 'function') showLeaderboard();
     });
@@ -167,7 +177,7 @@
     renderAuth();
     if (state.user && typeof finishPendingAuthChoice === 'function') finishPendingAuthChoice();
     if (state.user && typeof applyRememberedLogin === 'function') applyRememberedLogin();
-    if (state.user && typeof syncOnlineAchievements === 'function') setTimeout(() => syncOnlineAchievements('init'), 0);
+    scheduleProgressSync('init');
     if (state.user && typeof flushPendingOnlineScores === 'function') setTimeout(() => flushPendingOnlineScores(), 250);
     return state;
   }
@@ -217,11 +227,20 @@
     } : null;
   }
 
+  // Synchronous cached token for pagehide fast-path: no await allowed there,
+  // so read the in-memory session directly (may be slightly stale — acceptable,
+  // an expired token just means the keepalive POST 401s and the queued mutation
+  // re-syncs on next launch).
+  function getCachedAuthAccessToken(){
+    return (state.session && state.session.access_token) || '';
+  }
+
   window.gameAuthState = state;
   window.initGameAuth = initGameAuth;
   window.gameAuthLogin = gameAuthLogin;
   window.gameAuthLogout = gameAuthLogout;
   window.renderAuth = renderAuth;
   window.getAuthAccessToken = getAuthAccessToken;
+  window.getCachedAuthAccessToken = getCachedAuthAccessToken;
   window.currentAuthUser = currentAuthUser;
 })();

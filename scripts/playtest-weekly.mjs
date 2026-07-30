@@ -28,9 +28,9 @@ try{
       await prefetchTextureKeys(characterTextureKeys(currentChar).concat(stageTextureKeys(4)));
       started=true;document.getElementById("title").style.display="none";restart();
       const envTypes=stageProps.filter(p=>p.env).map(p=>p.env.visualType).sort();
-      return {stage:mapStage,theme:MAP_THEMES[mapStage].name,props:stageProps.length,objects:interactables.length,breakables:breakables.length,envTypes,altar:[altar.x,altar.z],tiers:[...new Set(enemyPool().map(e=>e.tier))],pacts:activePactIds.length,textures:[!!tex.weekly_ground,!!tex.weekly_border_wall,!!tex.obj_weekly_obelisk,!!tex.obj_weekly_gate,!!tex.weekly_brazier,!!tex.weekly_void_rift,!!tex.weekly_power_conduit,!!tex.weekly_explosive_barrel,!!tex.weekly_healing_spring]};
+      return {stage:mapStage,theme:MAP_THEMES[mapStage].name,props:stageProps.length,objects:interactables.length,objectTypes:interactables.map(o=>o.type).sort(),breakables:breakables.length,envTypes,altar:[altar.x,altar.z],tiers:[...new Set(enemyPool().map(e=>e.tier))],pacts:activePactIds.length,textures:[!!tex.weekly_ground,!!tex.weekly_border_wall,!!tex.obj_weekly_obelisk,!!tex.obj_weekly_gate,!!tex.weekly_brazier,!!tex.weekly_void_rift,!!tex.weekly_power_conduit,!!tex.weekly_explosive_barrel,!!tex.weekly_healing_spring]};
     });
-    if(initial.stage!==4||initial.theme!=="Covenant Crucible"||initial.props!==32||initial.objects!==6||initial.breakables!==4||initial.envTypes.join(',')!=="weekly_conduit,weekly_conduit,weekly_spring,weekly_void_rift,weekly_void_rift,weekly_void_rift"||initial.altar[0]!==0||initial.altar[1]!==-8||initial.tiers.join(',')!=="0"||initial.pacts!==0||initial.textures.some(v=>!v))throw new Error(`${profile.name} weekly setup failed: ${JSON.stringify(initial)}`);
+    if(initial.stage!==4||initial.theme!=="Covenant Crucible"||initial.props!==32||initial.objects!==8||initial.objectTypes.join(',')!=="chest,chest,chest,chest,chest,magnet_pillar,shrine,shrine"||initial.breakables!==4||initial.envTypes.join(',')!=="weekly_conduit,weekly_conduit,weekly_spring,weekly_void_rift,weekly_void_rift,weekly_void_rift"||initial.altar[0]!==0||initial.altar[1]!==-8||initial.tiers.join(',')!=="0"||initial.pacts!==0||initial.textures.some(v=>!v))throw new Error(`${profile.name} weekly setup failed: ${JSON.stringify(initial)}`);
     await wait(350);
     const shot=`outputs/weekly/weekly-${profile.name}-${runId}.png`;await page.screenshot({path:shot});
     if((await stat(shot)).size<12000)throw new Error(`${profile.name} screenshot is unexpectedly small`);
@@ -60,7 +60,7 @@ try{
         const bossName=boss&&boss.name;killEnemy(boss);
         return {at4,at8,ot,telegraphState,bossOt,combatOt,bossResist,weeklyBoss,bossName,portal:altar.portalKind,gate:altar.sprIcon&&altar.sprIcon.material.map===tex.obj_weekly_gate,endless:interactables.some(o=>o.type==="endless_door")};
       });
-      if(milestones.at4!==1||milestones.at8!==3||milestones.ot!==2||milestones.telegraphState!=="summoning"||milestones.bossOt!==4||milestones.combatOt!==2.5||milestones.bossResist!==1||!milestones.weeklyBoss||milestones.portal!=="weeklyVictory"||!milestones.gate||milestones.endless)throw new Error(`weekly milestones failed: ${JSON.stringify(milestones)}`);
+      if(milestones.at4!==1||milestones.at8!==3||milestones.ot!==2||milestones.telegraphState!=="summoning"||milestones.bossOt!==4||milestones.combatOt!==4||milestones.bossResist!==1||!milestones.weeklyBoss||milestones.portal!=="weeklyVictory"||!milestones.gate||milestones.endless)throw new Error(`weekly milestones failed: ${JSON.stringify(milestones)}`);
       await wait(200);await page.screenshot({path:`outputs/weekly/weekly-final-gate-${runId}.png`});
     }
     const viewport=await page.evaluate(()=>({w:innerWidth,h:innerHeight,canvas:[renderer.domElement.clientWidth,renderer.domElement.clientHeight],bodyOverflow:document.documentElement.scrollWidth>innerWidth+2}));

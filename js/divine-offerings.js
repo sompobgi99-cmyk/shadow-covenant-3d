@@ -179,7 +179,7 @@ function buildDivineOfferingSelect(){
     card.type='button';
     card.className='offeringcard'+(o.id===selectedDivineOfferingId?' selected':'')+(owned?' owned':' locked');
     card.style.cssText=divineIconStyle(o);
-    card.innerHTML=`<span class="deityportrait"><i>${o.rune}</i><img src="assets/sprites/deity_${o.id}.png" alt="" onerror="this.style.display='none'"></span><span class="deitycopy"><b>${o.name}</b><em>${o.title}</em><small>${owned?'บูชา: '+o.cost:'ซื้อ '+DIVINE_OFFERING_PRICE.toLocaleString()+' Soul Coins'}</small><p>${owned?o.effect:'เทพองค์นี้ยังไม่ถูกปลดล็อก'}</p></span>`;
+    card.innerHTML=`<span class="deityportrait"><i>${o.rune}</i><img src="${assetSrc(`assets/sprites/deity_${o.id}.png`)}" alt="" onerror="this.style.display='none'"></span><span class="deitycopy"><b>${o.name}</b><em>${o.title}</em><small>${owned?'บูชา: '+o.cost:'ซื้อ '+DIVINE_OFFERING_PRICE.toLocaleString()+' Soul Coins'}</small><p>${owned?o.effect:'เทพองค์นี้ยังไม่ถูกปลดล็อก'}</p></span>`;
     card.onclick=()=>{ if(owned){ selectedDivineOfferingId=o.id; buildDivineOfferingSelect(); } else buyDivineOffering(o.id); };
     wrap.appendChild(card);
   }

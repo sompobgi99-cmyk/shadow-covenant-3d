@@ -1,6 +1,8 @@
 // ---------- loop ----------
 let frameN=0;
+let pickupMergeTimer=0;
 const PLAYER_CONTACT_KNOCKBACK_MUL = 1.4;
+const bambooEnemyHits = new Map();
 function monsterContactKnockback(e){
   if(e && e.butcher) return 18 * PLAYER_CONTACT_KNOCKBACK_MUL;
   const base = e && e.isBoss ? 13 : e && e.elite ? 11 : 8.5;
@@ -52,6 +54,7 @@ function startPlayerRicochet(p, fromEnemy){
   p.lastRicochetEnemy=fromEnemy||null;
   p.dmg=Math.max(1, Math.round(p.dmg*(p.bounceDmgMul||0.88)));
   p.bouncesLeft--;
+  if(typeof signatureOnRicochet==='function') signatureOnRicochet(p);
   p.life=Math.max(p.life, Math.min(1.1, Math.max(0.35, len/Math.max(1,p.speed)+0.24)));
   rotateProjectileToVelocity(p);
   const shape=p.shape||'orb';
@@ -117,6 +120,7 @@ function tryProjectileRicochet(p, fromEnemy){
   p.dx=dx/len; p.dz=dz/len;
   p.dmg=Math.max(1, Math.round(p.dmg*(p.bounceDmgMul||0.88)));
   p.bouncesLeft--;
+  if(typeof signatureOnRicochet==='function') signatureOnRicochet(p);
   p.life=Math.max(p.life, Math.min(0.9, Math.max(0.28, len/Math.max(1,p.speed)+0.16)));
   rotateProjectileToVelocity(p);
   const shape=p.shape||'orb';
@@ -136,6 +140,8 @@ function frame() {
 
 function update(dt) {
   gameTime += dt; player.runTime = gameTime;
+  bambooEnemyHits.clear();
+  if(typeof updateRunDelayedEvents==='function') updateRunDelayedEvents();
   updateAltar(dt);
   if (globalPickupMagnet>0) globalPickupMagnet=Math.max(0, globalPickupMagnet-dt);
   updateSpecialEvents(dt);
@@ -144,6 +150,7 @@ function update(dt) {
 
   if (player.dashCd > 0) player.dashCd -= dt;
   if(typeof updateDivineOffering==='function') updateDivineOffering(dt);
+  if(typeof updateSignatures==='function') updateSignatures(dt);
 
   // shrine buffs
   if (player.speedBoostTimer > 0) { player.speedBoostTimer -= dt; if (player.speedBoostTimer <= 0) player.speedBoost = 0; }
@@ -239,9 +246,23 @@ function update(dt) {
     if (e.burnT>0){
       e.burnT-=dt;
       const burnDamage=(e.final&&e.phaseInvuln>0)?0:e.burnDps*dt;
-      if(burnDamage>0) recordRunDamage(burnDamage,{ item:'burn' });
+      if(burnDamage>0) recordRunDamage(burnDamage,e.burnMeta||{ item:'burn' });
       const floor=(e.final&&e.finalPhase&&(e.finalPhase>1||e.phaseInvuln>0))?1:-Infinity;
       e.hp=Math.max(floor,e.hp-burnDamage);
+      e.flash=Math.max(e.flash,0.04);
+      if(e.hp<=0 && isDeathWarded(e)){
+        e.hp=1;
+        spawnDmg(e.x,e.z,'WARD',0x9a55ff,false,'guard');
+        spawnBurst(e.x,e.z,0x9a55ff,4,0.45);
+      }
+      if(e.hp<=0){ killEnemy(e); continue; }
+    }
+    if (e.sigBurnT>0){
+      e.sigBurnT-=dt;
+      const sigBurnDamage=(e.final&&e.phaseInvuln>0)?0:e.sigBurnDps*dt;
+      if(sigBurnDamage>0) recordRunDamage(sigBurnDamage,{ item:'sig_sorceress' });
+      const floor=(e.final&&e.finalPhase&&(e.finalPhase>1||e.phaseInvuln>0))?1:-Infinity;
+      e.hp=Math.max(floor,e.hp-sigBurnDamage);
       e.flash=Math.max(e.flash,0.04);
       if(e.hp<=0 && isDeathWarded(e)){
         e.hp=1;
@@ -539,6 +560,18 @@ function update(dt) {
   // pickups (magnet + collect)
   for (const pk of pickups) {
     if (!pk.alive) continue;
+    if (pk.expiresAt && gameTime>=pk.expiresAt){
+      pk.alive=false;
+      continue;
+    }
+    if (pk.expiresAt){
+      const remain=pk.expiresAt-gameTime;
+      const warn=remain<=15;
+      if(pk.spr && pk.spr.material){
+        const pulse=warn ? 0.45+0.55*(0.5+0.5*Math.sin(gameTime*(remain<=5?18:9))) : 1;
+        pk.spr.material.opacity=pulse;
+      }
+    }
     const dx=player.x-pk.x, dz=player.z-pk.z, rawDistance=Math.hypot(dx,dz);
     if (rawDistance < PICKUP_COLLECT){ collect(pk); continue; }
     const d=rawDistance||1;
@@ -550,6 +583,8 @@ function update(dt) {
       pk.x += (dx/d)*sp*dt; pk.z += (dz/d)*sp*dt;
     } else { pk.x += pk.vx*dt; pk.z += pk.vz*dt; pk.vx*=0.9; pk.vz*=0.9; }
   }
+  pickupMergeTimer-=dt;
+  if(pickupMergeTimer<=0){ pickupMergeTimer=0.5; mergeNearbyPickups(); }
 
   // Item drops are collected automatically within the player's magnet range.
   for(let i=groundItems.length-1;i>=0;i--){
@@ -589,6 +624,12 @@ function update(dt) {
     if (tr.core) tr.core.material.opacity=0.52*o;
     if (tr.glow) tr.glow.material.opacity=0.16*o;
     tr.mesh.scale.multiplyScalar(1+dt*1.8); }
+  for (let i=signatureFxs.length-1;i>=0;i--){ const f=signatureFxs[i]; f.life-=dt;
+    if(f.life<=0){ scene.remove(f.mesh); freeObj(f.mesh); signatureFxs.splice(i,1); continue; }
+    const p=1-f.life/f.max;
+    f.mesh.scale.setScalar(f.base*(1+p*0.22));
+    f.mesh.material.opacity=0.94*(1-p)*(0.82+0.18*Math.sin(p*Math.PI));
+    f.mesh.position.y=groundHeight(f.mesh.position.x,f.mesh.position.z)+0.16; }
   for (let i=rings.length-1;i>=0;i--){ const r=rings[i]; r.life-=dt;
     if (r.life<=0){ scene.remove(r.mesh); freeObj(r.mesh); rings.splice(i,1); continue; }
     const t=1-r.life/r.max, rad=0.5+(r.maxR-0.5)*t;
@@ -688,7 +729,12 @@ function update(dt) {
       if(b.evolved) spawnBurst(b.x,b.z,0xffe27a,5,0.32);
       forEachNearbyEnemy(b.x,b.z,b.r+1,e=>{ if(!e.alive) return;
         const dx=e.x-b.x, dz=e.z-b.z;
-        if(dx*dx+dz*dz < (b.r+e.r)*(b.r+e.r)) dealEnemyDamage(e,b.dmg,b.color,dx,dz,2.8,false,{ weapon:b.sourceKey });
+        if(dx*dx+dz*dz < (b.r+e.r)*(b.r+e.r)) {
+          const overlap=bambooEnemyHits.get(e)||0;
+          bambooEnemyHits.set(e,overlap+1);
+          const tickDmg=overlap ? Math.max(1,Math.round(b.dmg*0.50)) : b.dmg;
+          dealEnemyDamage(e,tickDmg,b.color,dx,dz,2.8,false,{ weapon:b.sourceKey, bambooOverlap:overlap>0 });
+        }
       });
       hitBreakablesAt(b.x,b.z,b.r,b.dmg,b.color);
     }

@@ -55,7 +55,7 @@
   function buildRunTelemetry(entry){
     const p = typeof player !== 'undefined' ? player : null;
     const stats = typeof runStats !== 'undefined' ? runStats : null;
-    const runId = 'run_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    const runId = entry && entry.run_id || ('run_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8));
     return {
       schema: 1,
       id: runId,

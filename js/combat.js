@@ -40,6 +40,8 @@ const WEAPON_TYPES = {
             dmg:13, rate:0.86, range:10, count:1, pierce:0, speed:13, life:1.75, color:0xff9a4a, shape:'bomb', bounces:2, bounceRadius:8, bounceDmgMul:0.82, impactRadius:1.25, impactDmgMul:0.50, evolveTo:'bouncebombX', evolveTome:'impact' },
   bamboo_spikes:{ name:'Bamboo Spike Field', icon:'wpn_bamboo_spikes', desc:'วางพื้นเรียกหน่อไม้แทงขึ้นจากดินแบบกวน ๆ', mode:'bamboo',
             dmg:15, rate:0.78, range:9.5, count:2, pierce:99, speed:0, life:1.25, color:0xa8e36a, radius:1.45, shape:'bamboo', evolveTo:'bamboo_spikesX', evolveTome:'growth' },
+  frost_familiar:{ name:'Frost Familiar', icon:'wpn_frost_familiar', desc:'Frost spirit that orbits the player and fires freezing shards.', mode:'familiar',
+            dmg:16, rate:0.72, range:10.5, count:1, pierce:1, speed:17, life:7.5, color:0x9cecff, shape:'frost_shard', evolveTo:'frost_familiarX', evolveTome:'duration' },
   // evolved forms (hidden from the acquire pool)
   boltX:  { name:'Doom Bolt',      icon:'wpn_bolt_evolved',     desc:'ร่างวิวัฒน์: ยิงกระสุนทะลุเป็นชุด', mode:'aim', hidden:true,
             dmg:28, rate:2.4, range:13, count:2, pierce:4, speed:20, life:1.6, color:0xff66ff, shape:'doom' },
@@ -75,6 +77,8 @@ const WEAPON_TYPES = {
             dmg:27, rate:1.25, range:12, count:2, pierce:0, speed:15, life:2.0, color:0xffbd5f, shape:'bomb', bounces:3, bounceRadius:10, bounceDmgMul:0.86, impactRadius:2.0, impactDmgMul:0.70 },
   bamboo_spikesX:{ name:'Bamboo Forest Judgment', icon:'wpn_bamboo_spikes_evolved', desc:'ร่างวิวัฒน์: ป่าหน่อไม้แทงซ้ำหลายระลอก', mode:'bamboo', hidden:true,
             dmg:24, rate:1.15, range:11.5, count:4, pierce:99, speed:0, life:1.75, color:0xd9ff7a, radius:2.05, shape:'bamboo' },
+  frost_familiarX:{ name:'Frozen Sentinel', icon:'wpn_frozen_sentinel', desc:'Evolution: crystal sentinels orbit longer and fire stronger frozen lances.', mode:'familiar', hidden:true,
+            dmg:31, rate:0.96, range:12.5, count:2, pierce:2, speed:20, life:9.5, color:0xc8f5ff, shape:'frost_sentinel' },
 };
 const BONUS_COUNT_DMG_MUL = 0.65;
 const GLOBAL_WEAPON_DMG_MUL = 1.0602;
@@ -162,6 +166,8 @@ const ITEMS = [
     apply:p=>{ p._bossBuster=(p._bossBuster||0)+1; } },
   { id:'ice_crystal', name:'Ice Crystal',    desc:'โจมตีมีโอกาสแช่แข็ง +10%',      rarity:'common', icon:'item_ice_crystal',
     apply:p=>{ p.freezeChance=(p.freezeChance||0)+0.10; } },
+  { id:'frost_shard', name:'Frost Shard', desc:'โอกาสแช่แข็ง +6%', rarity:'common', icon:'item_frost_shard',
+    apply:p=>{ p.freezeChance=(p.freezeChance||0)+0.06; } },
   { id:'clover',      name:'Clover',         desc:'Luck +7.5% ของดรอปดีขึ้น', rarity:'common', icon:'item_clover',
     apply:p=>{ p.luck=(p.luck||0)+0.075; } },
   { id:'wrench',      name:'Wrench',         desc:'ค่าหีบ -8% ต่อ stack', rarity:'common', icon:'item_wrench',
@@ -189,6 +195,8 @@ const ITEMS = [
     apply:p=>{ p._campfire=(p._campfire||0)+1; } },
   { id:'leech_crystal',name:'Leeching Crystal',desc:'เลือดสูงสุด +50, ฟื้นเลือด -50%', rarity:'uncommon', icon:'item_leech_crystal',
     apply:p=>{ p.maxHp+=50; p.hp+=50; p.regen*=0.5; } },
+  { id:'frozen_heart', name:'Frozen Heart', desc:'ระยะเวลาแช่แข็ง +35%', rarity:'uncommon', icon:'item_frozen_heart',
+    apply:p=>{ p.freezeDurationMul=(p.freezeDurationMul||1)*1.35; } },
   { id:'demon_blood', name:'Demonic Blood',  desc:'ฆ่าศัตรูแล้วเลือดสูงสุด +0.5 สูงสุด 200', rarity:'uncommon', icon:'item_demon_blood',
     apply:p=>{ p._demonBlood=(p._demonBlood||0)+1; } },
   { id:'idle_juice',  name:'Idle Juice',     desc:'ยืนนิ่ง 3 วิแล้วดาเมจ +100%', rarity:'uncommon', icon:'item_idle_juice',
@@ -216,6 +224,8 @@ const ITEMS = [
     apply:p=>{ p.xpMul*=1.12; } },
   { id:'gamer_goggles',name:'Gamer Goggles', desc:'เลือดต่ำแล้วยิ่งแรง สูงสุด +60%', rarity:'rare', icon:'item_gamer_goggles',
     apply:p=>{ p._goggles=(p._goggles||0)+1; } },
+  { id:'ice_crown', name:'Ice Crown', desc:'ดาเมจต่อศัตรูที่ถูกแช่แข็งหรือชะลอ +18%', rarity:'rare', icon:'item_ice_crown',
+    apply:p=>{ p.frostbiteMul=(p.frostbiteMul||0)+0.18; } },
   { id:'demon_soul',  name:'Demonic Soul',   desc:'ฆ่าศัตรูแล้วดาเมจ +0.1% สูงสุด 100%', rarity:'rare', icon:'item_demon_soul',
     apply:p=>{ p._demonSoul=(p._demonSoul||0)+1; } },
   { id:'mirror',      name:'Mirror',         desc:'สะท้อนดาเมจกลับ 30%',  rarity:'rare', icon:'item_mirror',
@@ -303,6 +313,12 @@ function wstats(key, lvl){
       s.radius = b.radius * (1 + 0.055*k) * s.skillSizeMul;
       if (b.mode==='nova') s.radius = Math.min(s.radius, key==='novaX'?8.6:6.2);
       if (b.mode==='bamboo') s.radius = Math.min(s.radius, key==='bamboo_spikesX'?2.45:1.65);
+      if (b.mode==='smite') {
+        const cap=weaponMatchesFamily(key,'lightning')
+          ? (key==='lightningX'?3.8:2.8)
+          : (key==='smiteX'?4.8:3.2);
+        s.radius=Math.min(s.radius,cap);
+      }
     }
     if (b.bounces != null) {
       s.bounces = Math.max(0, (b.bounces||0) + (player.ricochetBonus||0));
@@ -314,7 +330,12 @@ function wstats(key, lvl){
   }
   if(hasWeaponSynergy('grave_waltz')&&(weaponMatchesFamily(key,'soulspiral')||weaponMatchesFamily(key,'boneboomerang'))) s.rate*=1.25;
   if(hasWeaponSynergy('rangers_focus')&&(weaponMatchesFamily(key,'bolt')||weaponMatchesFamily(key,'arrow'))){ s.speed*=1.30; s.pierce=(s.pierce||0)+2; }
-  if(hasWeaponSynergy('verdant_wrath')&&(weaponMatchesFamily(key,'nova')||weaponMatchesFamily(key,'bamboo_spikes'))) s.radius=(s.radius||1)*1.20;
+  if(hasWeaponSynergy('verdant_wrath')&&(weaponMatchesFamily(key,'nova')||weaponMatchesFamily(key,'bamboo_spikes'))){
+    const radiusCap=weaponMatchesFamily(key,'nova')
+      ? (key==='novaX'?8.6:6.2)
+      : (key==='bamboo_spikesX'?2.45:1.65);
+    s.radius=Math.min(radiusCap,(s.radius||1)*1.20);
+  }
   if(hasWeaponSynergy('explosive_derby')&&(weaponMatchesFamily(key,'football')||weaponMatchesFamily(key,'bouncebomb'))){ s.impactRadius=(s.impactRadius||0.72)*1.40; s.impactDmgMul=s.impactDmgMul||0.30; }
   if(hasWeaponSynergy('hex_blade')&&(weaponMatchesFamily(key,'bladewhirl')||weaponMatchesFamily(key,'spread'))) s.arc=(s.arc||0.45)*1.50;
   if(hasWeaponSynergy('close_quarters')&&(weaponMatchesFamily(key,'toolstab')||weaponMatchesFamily(key,'bladewhirl'))){ s.range=Math.min(b.range*1.60,s.range*1.25); s.dmg=Math.round(s.dmg*1.15); }
@@ -380,11 +401,21 @@ function hitMul(e){
   if (player._eagle && e.airborne) m *= 1 + 0.66*player._eagle;
   if (player._creditCard) m *= 1 + 0.025*player._creditCard*chestsOpened;
   if (player._idle && (player.stillT||0) > 3) m *= 1 + 1.0*player._idle;
+  if (player.frostbiteMul && e.slowT > 0) m *= 1 + player.frostbiteMul;
   if (player.killDmgBonus) m *= 1 + player.killDmgBonus;
   if (player._cursedEye && e._cursedEyeUntil && e._cursedEyeUntil > (typeof gameTime==='number'?gameTime:0)) m *= 1 + Math.min(0.30, player._cursedEye);
   return m;
 }
-function rollCrit(){
+function rollCrit(meta){
+  const guaranteedFamily=player && player._sigGuaranteedCritFamily;
+  const guaranteedHit=!!(guaranteedFamily && meta && meta.weapon && weaponMatchesFamily(meta.weapon,guaranteedFamily));
+  if(guaranteedHit){   // Huntress True Shot: only the matching weapon family consumes it
+    player._sigGuaranteedCritFamily='';
+    const now=typeof gameTime==='number'?gameTime:0;
+    const chain=now < (player._critChainUntil||0) ? Math.min(5,(player._critChain||0)+1) : 1;
+    player._critPity=0; player._critChain=chain; player._critChainUntil=now+1.1;
+    return { crit:true, mul:Math.max(1,(player.critDmg||1.5)+(hasWeaponSynergy('shadow_strike')?0.25:0))*(1+0.04*(chain-1)), chain };
+  }
   const base=Math.max(0, player.critChance||0);
   const overflow=Math.max(0, base-1);
   const pity=Math.min(0.12, (player._critPity||0)*0.015);
@@ -540,7 +571,7 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc, meta){
   if (!e.alive) return;
   let d = dmg * hitMul(e);
   if (player.bonkChance && Math.random() < player.bonkChance) d *= 20;   // Big Bonk
-  const crit=rollCrit();
+  const crit=rollCrit(meta);
   if(crit.crit) d *= crit.mul;
   if (e.shieldT > 0) d *= 0.4;                                           // Warden shield
   if(e.guardT>0){
@@ -588,10 +619,11 @@ function dealEnemyDamage(e, dmg, color, kx, kz, kbCap, noProc, meta){
     e.kx += kx/kd*kb; e.kz += kz/kd*kb; }
   spawnBurst(e.x, e.z, color, 3, 0.5);
   if (!noProc) onHitProcs(e, d, color);
+  if (d>0 && !immune && typeof signatureOnEnemyHit==='function') signatureOnEnemyHit(e, d, crit.crit, meta, noProc);
   if (e.hp <= 0) killEnemy(e);
 }
 function onHitProcs(e, d, color){
-  if (player.freezeChance && Math.random() < player.freezeChance){ e.slowT = Math.max(e.slowT||0, 1.2); recordRunItem('ice_crystal',{ procs:1 }); }   // Ice Crystal
+  if (player.freezeChance && Math.random() < player.freezeChance){ const freezeDuration=1.2*(player.freezeDurationMul||1); e.slowT = Math.max(e.slowT||0, freezeDuration); if(typeof runStats!=='undefined'&&runStats) runStats.freezeHits=(runStats.freezeHits||0)+1; recordRunItem('ice_crystal',{ procs:1 }); }   // Ice Crystal / Frost Shard
   if (player.thunderChance && Math.random() < player.thunderChance){ recordRunItem('thunder_mitts',{ procs:1 }); aoeProc(e.x, e.z, 3.0, d*0.4, 0x9ad8ff, false, 'thunder_mitts'); }   // Thunder Mitts
   if (player.spicyChance && Math.random() < player.spicyChance){ recordRunItem('spicy_meatball',{ procs:1 }); aoeProc(e.x, e.z, 2.5, d*0.65, 0xff7a3a, false, 'spicy_meatball'); }      // Spicy Meatball
 }
@@ -689,13 +721,19 @@ function fireSmite(s){
   const count=Math.max(1,s.count||1);
   const targets=nearestEnemies(player.x, player.z, s.range||11, count);
   if (!targets.length) return;
+  const volleyHits=new Set();
   for(let i=0;i<count;i++){
     const t=targets[i % targets.length];
     const tx=t.x, tz=t.z, R=s.radius||2.4;
     const slotDmg=damageForCountSlot(s,i);
     hitBreakablesAt(tx,tz,R,slotDmg,s.color);
     forEachNearbyEnemy(tx,tz,R+1,e=>{ if(!e.alive) return;
-      if (Math.hypot(e.x-tx, e.z-tz) < R+e.r) dealEnemyDamage(e, slotDmg, s.color, e.x-tx, e.z-tz, 3.5, false, { weapon:s.sourceKey }); });
+      if (Math.hypot(e.x-tx, e.z-tz) < R+e.r) {
+        const repeat=volleyHits.has(e);
+        volleyHits.add(e);
+        dealEnemyDamage(e, repeat?Math.max(1,Math.round(slotDmg*0.45)):slotDmg, s.color, e.x-tx, e.z-tz, 3.5, false, { weapon:s.sourceKey, smiteRepeat:repeat });
+      }
+    });
     const bm=new THREE.Sprite(new THREE.SpriteMaterial({
       map:getPixelProjectileTexture(s.shape||'smite',s.color), color:0xffffff,
       transparent:true, alphaTest:0.08, depthWrite:false
@@ -716,9 +754,10 @@ function fireSmite(s){
       spawnBurst(tx,tz,s.color,8,0.8);
     }
   }
-  if(weaponMatchesFamily(s.sourceKey,'smite')&&hasWeaponSynergy('divine_storm')&&Math.random()<0.25){
+  if(weaponMatchesFamily(s.sourceKey,'smite')&&hasWeaponSynergy('divine_storm')&&(player._divineStormAt||0)<=gameTime&&Math.random()<0.25){
     const lightning=(player.weapons||[]).find(w=>weaponMatchesFamily(w.key,'lightning'));
     if(lightning){
+      player._divineStormAt=gameTime+2;
       const extra=wstats(lightning.key,lightning.lvl);
       extra.count=1; extra.baseCount=1; extra.dmg=Math.max(1,Math.round(extra.dmg*0.65));
       fireSmite(extra);
@@ -780,6 +819,74 @@ function fireBamboo(s){
     spawnBambooPatch(x,z,s,i);
   }
 }
+function removeFamiliar(f){
+  if(!f) return;
+  if(f.mesh){ scene.remove(f.mesh); freeObj(f.mesh); }
+  const i=familiarSummons.indexOf(f);
+  if(i>=0) familiarSummons.splice(i,1);
+}
+function clearFamiliarSummons(){
+  for(let i=familiarSummons.length-1;i>=0;i--) removeFamiliar(familiarSummons[i]);
+  if(typeof player!=='undefined' && player && player.weapons){
+    for(const w of player.weapons){ if(w.familiars) w.familiars=[]; w._familiarSourceKey=''; }
+  }
+}
+function createFamiliar(w, s, index){
+  const b=WEAPON_TYPES[s.sourceKey]||WEAPON_TYPES.frost_familiar;
+  const map=tex[b.icon]||getPixelProjectileTexture('shard',b.color);
+  const mesh=new THREE.Sprite(new THREE.SpriteMaterial({
+    map, color:0xffffff, transparent:true, opacity:0.98, alphaTest:0.08, depthWrite:false
+  }));
+  const evolved=s.sourceKey==='frost_familiarX';
+  const size=(evolved?1.02:0.78)*(s.skillSizeMul||1);
+  mesh.scale.set(size,size,1);
+  scene.add(mesh);
+  const f={ mesh, weapon:w, angle:(index/Math.max(1,s.count))*Math.PI*2,
+    orbitRadius:evolved?2.15:1.85, orbitSpeed:evolved?1.8:2.25,
+    life:s.life, maxLife:s.life, fireCd:(index*0.18)%Math.max(0.25,1/s.rate),
+    fireRate:s.rate, range:s.range, speed:s.speed, dmg:s.dmg,
+    pierce:s.pierce||0, color:b.color, sourceKey:s.sourceKey, evolved };
+  familiarSummons.push(f);
+  return f;
+}
+function fireFamiliarShot(f){
+  const target=nearestEnemies(f.mesh.position.x,f.mesh.position.z,f.range,1)[0];
+  if(!target) return;
+  const dx=target.x-f.mesh.position.x, dz=target.z-f.mesh.position.z, len=Math.hypot(dx,dz)||1;
+  const stats={ sourceKey:f.sourceKey, mode:'aim', dmg:f.dmg, baseCount:1, count:1,
+    pierce:f.pierce, speed:f.speed, life:0.95*(player.lifeMul||1), range:f.range,
+    color:f.color, shape:f.evolved?'doom':'shard', skillSizeMul:skillSizeMul('projectile') };
+  spawnProjectile(dx/len,dz/len,stats);
+  spawnBurst(f.mesh.position.x,f.mesh.position.z,f.color,f.evolved?3:2,0.24);
+}
+function updateFamiliarWeapon(w,s,dt){
+  w.familiars=w.familiars||[];
+  if(w._familiarSourceKey!==s.sourceKey){
+    for(let i=w.familiars.length-1;i>=0;i--) removeFamiliar(w.familiars[i]);
+    w.familiars=[];
+    w._familiarSourceKey=s.sourceKey;
+  }
+  const needed=Math.min(4,Math.max(1,s.count||1));
+  while(w.familiars.length<needed) w.familiars.push(createFamiliar(w,s,w.familiars.length));
+  while(w.familiars.length>needed) removeFamiliar(w.familiars.pop());
+  for(const f of w.familiars){
+    if(!f || !f.mesh) continue;
+    f.life-=dt;
+    if(f.life<=0){ removeFamiliar(f); continue; }
+    if(s.life>f.maxLife) f.life+=s.life-f.maxLife;
+    f.maxLife=s.life;
+    f.angle+=f.orbitSpeed*dt;
+    f.fireCd-=dt;
+    f.fireRate=s.rate; f.range=s.range; f.speed=s.speed; f.dmg=s.dmg; f.pierce=s.pierce||0;
+    const x=player.x+Math.cos(f.angle)*f.orbitRadius;
+    const z=player.z+Math.sin(f.angle)*f.orbitRadius;
+    f.mesh.position.set(x,groundHeight(x,z)+1.15+(f.evolved?0.22:0.10)*Math.sin(gameTime*4+f.angle),z);
+    f.mesh.material.opacity=Math.min(0.98,0.45+0.55*Math.min(1,f.life/Math.max(0.1,f.maxLife*0.18)));
+    f.mesh.material.rotation+=dt*(f.evolved?0.8:1.2);
+    if(f.fireCd<=0){ fireFamiliarShot(f); f.fireCd+=1/Math.max(0.1,f.fireRate); }
+  }
+  w.familiars=w.familiars.filter(f=>f && f.life>0);
+}
 const WFIRE = { aim:fireAim, spread:fireSpread, nova:fireNova, spiral:fireSpiral, slash:fireSlash, stab:fireStab, smite:fireSmite, bamboo:fireBamboo };
 function updateOrbit(w, s, dt){
   const b = WEAPON_TYPES[w.key] || WEAPON_TYPES.orbit;
@@ -824,10 +931,16 @@ function updateOrbit(w, s, dt){
   }
 }
 function updateWeapon(w, dt){
-  const b = WEAPON_TYPES[w.key], s = wstats(w.key, w.lvl);
+  const b = WEAPON_TYPES[w.key];
+  let s = wstats(w.key, w.lvl);
   if (b.mode === 'orbit'){ updateOrbit(w, s, dt); return; }
+  if (b.mode === 'familiar'){ updateFamiliarWeapon(w, s, dt); return; }
   w.cd -= dt;
-  if (w.cd <= 0){ w.cd = 1/s.rate; WFIRE[b.mode](s); }
+  if (w.cd <= 0){
+    w.cd = 1/s.rate;
+    if(typeof signatureModifyWeaponFire==='function') s=signatureModifyWeaponFire(w,s)||s;
+    WFIRE[b.mode](s);
+  }
 }
 function weaponChoices(){
   const out = [];

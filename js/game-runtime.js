@@ -1,8 +1,15 @@
 let scene, camera, renderer, clock, playerLight, hemiLight, sunLight, rimLight, borderMaterial;
 const APP_VERSION = window.SHADOW_BUILD_VERSION || 'dev';
+function assetSrc(path){
+  const src=String(path||'');
+  const separator=src.includes('?')?'&':'?';
+  return src+separator+'scv='+encodeURIComponent(APP_VERSION);
+}
+document.documentElement.style.setProperty('--title-bg','url("'+assetSrc('/assets/ui/title-covenant.webp')+'")');
 const tex = {};
 let player, ground;
 const enemies = [], projectiles = [], pickups = [];
+const familiarSummons = [];
 const breakables = [];                      // destructible jars/crates for early maps
 const obstacles = [];                       // solid scenery {x,z,r}
 const worldScenery = [];                    // base map scenery that can be removed on stage changes
@@ -91,9 +98,7 @@ const petBubbles=[];
 const damageScreenPos=new THREE.Vector3();
 function spriteSrc(key){
   const src = SP + (MANIFEST[key] || (key + '.png'));
-  if (src.includes('?')) return src;
-  const v = (typeof window !== 'undefined' && window.SHADOW_BUILD_VERSION) ? window.SHADOW_BUILD_VERSION : 'local';
-  return src + '?v=' + encodeURIComponent(v);
+  return assetSrc(src);
 }
 
 const LANG_STORAGE_KEY='sc3_lang_v1';
@@ -133,10 +138,10 @@ const I18N={
   }
 };
 Object.assign(I18N.th,{
-  'title.howto':'วิธีเล่น','guide.howto':'วิธีเล่น','guide.howto.desc':'สรุป core loop สำหรับรันแรกแบบจบในหน้าเดียว','update.title':'Run Setup & Soul Market','update.lead':'รวมการเตรียมรันและร้านค้าระยะยาวให้ใช้ง่ายขึ้น พร้อมสรุประบบคะแนนและ balance ปัจจุบัน'
+  'title.howto':'วิธีเล่น','guide.howto':'วิธีเล่น','guide.howto.desc':'สรุป core loop สำหรับรันแรกแบบจบในหน้าเดียว','update.title':'System Hardening Update','update.lead':'อัปเดตความเสถียรของภาพ การบันทึกข้อมูล Ranking และ Weekly พร้อมระบบตรวจปัญหาจากเครื่องผู้เล่น'
 });
 Object.assign(I18N.en,{
-  'title.howto':'How to Play','guide.howto':'How to Play','guide.howto.desc':'A one-page first-run summary of the core loop','guide.divine':'Divine Spirits','guide.divine.desc':'Q-activated offerings purchased and selected in the Soul Market','update.title':'Run Setup & Soul Market','update.lead':'Run preparation and long-term purchases are now easier to manage, with current scoring and balance notes included.'
+  'title.howto':'How to Play','guide.howto':'How to Play','guide.howto.desc':'A one-page first-run summary of the core loop','guide.divine':'Divine Spirits','guide.divine.desc':'Q-activated offerings purchased and selected in the Soul Market','update.title':'System Hardening Update','update.lead':'Improved asset freshness, cloud progress, Ranking reliability, Weekly accuracy, and production diagnostics.'
 });
 Object.assign(I18N.th,{
   'common.items':'ไอเทม','common.relic':'Relic','common.weapon':'อาวุธ','common.passive':'สกิลติดตัว','common.emptyWeapon':'ช่องอาวุธว่าง','common.emptyTome':'ช่อง Tome ว่าง','common.stackUnlimited':'stack ได้ไม่จำกัด','common.moreItems':'มีไอเทมอีก {count} stack เปิด Pause เพื่อดูทั้งหมด','common.locked':'ล็อก','common.unlocked':'ปลดล็อกแล้ว',
@@ -266,6 +271,7 @@ Object.assign(ITEM_I18N,{
   gym_sauce:{en:{desc:'Damage +10%'}}, oats:{en:{desc:'Max HP +25'}}, turbo_socks:{en:{desc:'Move speed +15%'}},
   time_brace:{en:{desc:'XP gain +8%'}}, gold_glove:{en:{desc:'Gold gain +15%'}}, medkit:{en:{desc:'Regenerate +0.5 HP per second'}},
   battery:{en:{desc:'Attack speed +8%'}}, boss_buster:{en:{desc:'Damage to bosses and elites +15%'}}, ice_crystal:{en:{desc:'Attacks gain +10% freeze chance'}},
+  frost_shard:{en:{desc:'Freeze chance +6%'}}, frozen_heart:{en:{desc:'Freeze duration +35%'}}, ice_crown:{en:{desc:'Damage to frozen or slowed enemies +18%'}},
   clover:{en:{desc:'Luck +7.5%, improving good drops'}}, wrench:{en:{desc:'Chest cost -8% per stack'}}, slip_ring:{en:{desc:'Evasion +15%'}},
   lucky_charm:{en:{desc:'Critical chance +5%'}}, dash_boots:{en:{desc:'Dash cooldown -10%'}}, magnet_coil:{en:{desc:'Pickup magnet range +18%'}},
   swift_oil:{en:{desc:'Projectile/object speed +10%'}}, backpack:{en:{desc:'All weapon projectile/object count +1'}},
@@ -549,6 +555,7 @@ function spawnTrail(x,z,color,scale,life){
   trails.push({ mesh:m, life:life||0.16, max:life||0.16, core, glow });
 }
 const rings = [];
+const signatureFxs = [];
 const bossAoEs = [];
 const bossImpactFx = [];
 const challengeRoomVisuals = [];
@@ -560,6 +567,19 @@ function spawnRing(x, z, color, maxR, life){
   }));
   m.position.set(x, groundHeight(x,z)+0.12, z); scene.add(m);
   rings.push({ mesh:m, maxR:maxR||5, life:life||0.5, max:life||0.5 });
+}
+function spawnSignatureFx(kind, x, z, scale, life, color){
+  const map=tex['fx_sig_'+kind];
+  if(!map) return false;
+  capEffectList(signatureFxs,24);
+  const mat=new THREE.MeshBasicMaterial({map,color:color||0xffffff,transparent:true,opacity:0.94,alphaTest:0.04,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});
+  const mesh=new THREE.Mesh(EFFECT_PLANE_GEO,mat);
+  const s=scale||2.4;
+  mesh.position.set(x,groundHeight(x,z)+0.16,z);
+  mesh.scale.set(s,s,s);
+  scene.add(mesh);
+  signatureFxs.push({mesh,life:life||0.55,max:life||0.55,base:s});
+  return true;
 }
 function spawnObjectPulse(x, z, color, maxR, life){
   capEffectList(rings, MAX_RINGS);
@@ -887,10 +907,12 @@ function overtimeLevel(){
 }
 function overtimeTier(){ const level=overtimeLevel(); return level ? level+1 : 1; }
 function otPowerMul(){ return overtimeTier(); }
-// Overtime count stays dramatic, but combat power ramps more gently so the
-// player is pressured by crowds without being deleted by the first hit.
-function otHpMul(){ const tier=overtimeTier(); return tier>1 ? 1+Math.min(1.50,(tier-1)*0.30) : 1; }
-function otAtkMul(){ const tier=overtimeTier(); return tier>1 ? 1+Math.min(0.75,(tier-1)*0.15) : 1; }
+// Overtime uses the displayed tier for both enemy HP and ATK so the danger
+// label stays honest: x2 means double combat power, x3 means triple, and so on.
+// Overtime enemy HP follows the displayed combat tier directly: x2, x3, x4...
+// This keeps the danger label honest instead of increasing only enemy count.
+function otHpMul(){ return overtimeTier(); }
+function otAtkMul(){ return overtimeTier(); }
 function otCombatPowerMul(){
   return otHpMul();
 }
@@ -1188,6 +1210,7 @@ function tryDash(){
 }
 function quitToTitle(){
   clearTimeout(deathCinematicTimer);
+  if(typeof clearRunDelayedEvents==='function') clearRunDelayedEvents();
   if(typeof stopChallengeRandom==='function') stopChallengeRandom();
   if(typeof clearLocalCoop==='function') clearLocalCoop();
   started=false; userPaused=false; paused=false; gameOver=false; deathCinematic=false; won=false; pendingUps=0;
@@ -1218,9 +1241,10 @@ function countryFlag(code){
   return '<i class="'+cls+'" title="'+cc+'"><b>'+cc+'</b></i>';
 }
 function resetRunStats(){
-  runStats = { startedAt:Date.now(), weaponDamage:{}, itemStats:{}, damageTakenBy:{}, damageTakenByType:{}, playerHits:[], eliteModifiers:{}, lastHit:null, deathCause:null };
+  runStats = { startedAt:Date.now(), weaponDamage:{}, itemStats:{}, damageTakenBy:{}, damageTakenByType:{}, playerHits:[], eliteModifiers:{}, critHits:0, freezeHits:0, lastHit:null, deathCause:null };
 }
 function statName(kind,key){
+  if(typeof SIGNATURE_STAT_NAMES!=='undefined' && SIGNATURE_STAT_NAMES[key]) return SIGNATURE_STAT_NAMES[key];
   if(kind==='weapon'){
     return weaponName(key)||key||'Unknown Weapon';
   }
@@ -1286,24 +1310,20 @@ function closeAuthChoice(){
 }
 function whatsNewItems(){
   if(gameLang()==='en') return [
-    ['One-page Run Setup','Character, player identity, difficulty, Pacts, Pet, and Divine Spirit are now configured on one screen. Your last loadout is remembered.'],
-    ['Soul Market','Pet purchases, Pet Boxes, and all ten Divine Spirits now live in one market. Each Divine Spirit costs 1,500 Soul Coins.'],
-    ['Death penalty','Dying now reduces final score: -20% normally, -15% after Overtime, and -10% on Map 3. Clears are not penalized.'],
-    ['Overtime rules','All difficulties now start Overtime at 10:00. Crowd pressure begins at x2, then rises to x3, x4, x5 every 45 seconds; enemy HP and ATK ramp more gently.'],
-    ['Score summary','Run Summary now shows final score, base score, and Death Penalty so you can see exactly why points changed. Ranking uses the final score.'],
-    ['Difficulty balance','Casual, Normal, and Hard keep their own enemy/score settings, but Overtime timing is shared so runs are easier to compare.'],
-    ['Challenge rooms','Mystery gates can lead to Treasure Vault, Cursed Shrine Room, Butcher Arena, Soul Trial, or Merchant Trap.'],
-    ['Guide refresh','Combat guide, Ranking rules, Codex, Shrine, Pets, Achievements, and How to Play were refreshed for the current systems.']
+    ['Fresh assets every update','Characters, effects, comics, UI art, and map props now use content-based release versions so old browser caches cannot keep stale art.'],
+    ['Safer Ranking runs','New runs receive a server-issued session token. Older tabs remain compatible while session adoption is monitored.'],
+    ['Cloud progress protection','Soul Coin mutations remain idempotent, and Player Progress is backed up automatically every day with seven rotating restore points.'],
+    ['Weekly corrected','Covenant Crucible now documents all five chests, two Shrines, one magnet pillar, and the correct 1,000 Soul Coin clear reward.'],
+    ['Production diagnostics','Anonymous error reports now identify failed assets, score submissions, and progress sync failures without sending names, email addresses, or unlock data.'],
+    ['Stronger release checks','Every deployment now runs browser smoke, full map journey, mobile layout, and Weekly Arena regression tests before publishing.']
   ];
   return [
-    ['เตรียมรันในหน้าเดียว','เลือกตัวละคร ชื่อผู้เล่น ประเทศ ระดับความยาก Pact, Pet และวิญญาณเทพได้ในหน้าเดียว พร้อมจำชุดที่ใช้ล่าสุด'],
-    ['ตลาดวิญญาณ','รวมการซื้อ Pet กล่องสุ่ม และวิญญาณเทพทั้ง 10 องค์ไว้ที่เดียว วิญญาณเทพราคาองค์ละ 1,500 Soul Coins'],
-    ['คะแนนเมื่อตาย','ตายแล้วคะแนนสุดท้ายจะลดลง: ปกติ -20%, หลัง Overtime -15%, และ Map 3 -10% ถ้าเคลียร์สำเร็จจะไม่โดนหัก'],
-    ['กติกา Overtime','ทุกระดับความยากเริ่ม Overtime ที่ 10:00 เหมือนกัน จำนวนมอนเริ่ม x2 แล้วเพิ่มเป็น x3, x4, x5 ทุก 45 วินาที ส่วน HP และ ATK จะเพิ่มช้ากว่าเดิม'],
-    ['สรุปคะแนนชัดขึ้น','หน้า Run Summary แสดงคะแนนสุดท้าย คะแนนก่อนหัก และ Death Penalty เพื่อให้รู้ว่าคะแนนหายไปเท่าไหร่ Ranking ใช้คะแนนหลังหัก'],
-    ['ปรับสมดุลระดับความยาก','Casual, Normal และ Hard ยังมีค่าสถานะ/คะแนนต่างกัน แต่เวลา Overtime เท่ากันเพื่อให้เปรียบเทียบรันง่ายขึ้น'],
-    ['Challenge Room','ประตูลึกลับพาไป Treasure Vault, Cursed Shrine Room, Butcher Arena, Soul Trial หรือ Merchant Trap'],
-    ['คู่มืออัปเดต','อัปเดต Combat Guide, Ranking, Codex, Shrine, Pets, Achievements และ How to Play ให้ตรงกับระบบปัจจุบัน']
+    ['ภาพใหม่ขึ้นครบทุกเครื่อง','ตัวละคร เอฟเฟกต์ Comic UI และฉากใช้ release version ตามเนื้อหาแล้ว จึงไม่ติดภาพเก่าจาก browser cache'],
+    ['Ranking ปลอดภัยขึ้น','รันใหม่ได้รับ session token จาก server ส่วนแท็บเกมรุ่นเก่ายังส่งคะแนนได้ระหว่างช่วงเปลี่ยนผ่าน'],
+    ['ป้องกันข้อมูลผู้เล่น','Soul Coins ยังใช้ mutation กันการหัก/แจกซ้ำ และสำรอง Player Progress อัตโนมัติทุกวันแบบหมุนเวียน 7 ชุด'],
+    ['Weekly ตรงกับเกมจริง','คู่มือ Covenant Crucible ระบุหีบ 5 ใบ Shrine 2 จุด เสาแม่เหล็ก 1 ต้น และรางวัลเคลียร์ 1,000 Soul Coins ถูกต้องแล้ว'],
+    ['ตรวจปัญหาบนเว็บจริง','เพิ่มรายงาน error แบบไม่ระบุตัวตนสำหรับภาพโหลดไม่ขึ้น คะแนนส่งไม่ได้ และ progress sync ล้ม โดยไม่ส่งชื่อ อีเมล หรือข้อมูลปลดล็อก'],
+    ['ตรวจเข้มก่อนเผยแพร่','ทุก deploy ต้องผ่าน browser smoke, เส้นทางครบทุก Map, mobile layout และ Weekly Arena regression ก่อนขึ้นเว็บ']
   ];
 }
 function renderWhatsNew(){
@@ -1861,7 +1881,8 @@ function previewCharacter(key, preview){
   preview.innerHTML='<div class="charpreviewhero"><div class="charpreviewglow"></div><img src="'+characterPortrait(key)+'" alt=""></div>'+
     '<div class="charpreviewcopy"><span class="charprevieweyebrow">'+escHtml(locked?tr('locked'):(gameLang()==='en'?'Ready for the covenant':'พร้อมเข้าสู่พันธสัญญา'))+'</span>'+
     '<h3>'+escHtml(name)+'</h3>'+(bio?'<p class="charpreviewbio">'+escHtml(bio)+'</p>':'')+
-    '<dl><div><dt>'+escHtml(tr('common.weapon'))+'</dt><dd>'+escHtml(weapon)+'</dd></div><div><dt>'+escHtml(tr('common.passive'))+'</dt><dd>'+escHtml(passive)+'</dd></div></dl>'+
+    '<dl><div><dt>'+escHtml(tr('common.weapon'))+'</dt><dd>'+escHtml(weapon)+'</dd></div><div><dt>'+escHtml(tr('common.passive'))+'</dt><dd>'+escHtml(passive)+'</dd></div>'+
+    ((typeof signatureDesc==='function'&&signatureDesc(key))?'<div><dt>'+escHtml(gameLang()==='en'?'Character Ability':'ความสามารถประจำตัว')+'</dt><dd>'+escHtml(signatureDesc(key))+'</dd></div>':'')+'</dl>'+
     '<div class="charstats">'+statRows.map(row=>'<span><b>'+escHtml(row[0])+'</b>'+escHtml(row[1])+'</span>').join('')+'</div>'+
     (locked?'<div class="charunlock"><b>'+escHtml(lockedLabel)+'</b><span>'+escHtml(unlockRequirementLine('character',key))+'</span></div>':'')+
     '<button class="charselectconfirm" type="button"'+(locked?' disabled':'')+'>'+escHtml(locked?tr('locked'):chooseLabel)+'</button></div>';
@@ -2043,13 +2064,33 @@ function restoreGuidePetPosition(opts){
     }
   });
 }
-function guideCharacterCard(img, name, bio, weapon, passive, stats, cls){
+const CHARACTER_COMIC_ART={
+  paladin:{full:'assets/character-comics/comic_paladin.webp',thumb:'assets/character-comics/comic_paladin_thumb.webp'},
+  huntress:{full:'assets/character-comics/comic_huntress.webp',thumb:'assets/character-comics/comic_huntress_thumb.webp'},
+  sorceress:{full:'assets/character-comics/comic_sorceress.webp',thumb:'assets/character-comics/comic_sorceress_thumb.webp'},
+  templar:{full:'assets/character-comics/comic_templar.webp',thumb:'assets/character-comics/comic_templar_thumb.webp'},
+  ranger:{full:'assets/character-comics/comic_ranger.webp',thumb:'assets/character-comics/comic_ranger_thumb.webp'},
+  necromancer:{full:'assets/character-comics/comic_necromancer.webp',thumb:'assets/character-comics/comic_necromancer_thumb.webp'},
+  slayer:{full:'assets/character-comics/comic_slayer.webp',thumb:'assets/character-comics/comic_slayer_thumb.webp'},
+  priestess:{full:'assets/character-comics/comic_priestess.webp',thumb:'assets/character-comics/comic_priestess_thumb.webp'},
+  stormcaller:{full:'assets/character-comics/comic_stormcaller.webp',thumb:'assets/character-comics/comic_stormcaller_thumb.webp'},
+  assassin:{full:'assets/character-comics/comic_assassin.webp',thumb:'assets/character-comics/comic_assassin_thumb.webp'},
+  kuro_raijin:{full:'assets/character-comics/comic_kuro_raijin.webp',thumb:'assets/character-comics/comic_kuro_raijin_thumb.webp'},
+  it_support:{full:'assets/character-comics/comic_it_support.webp',thumb:'assets/character-comics/comic_it_support_thumb.webp'},
+  striker:{full:'assets/character-comics/comic_striker.webp',thumb:'assets/character-comics/comic_striker_thumb.webp'},
+  bamboo_man:{full:'assets/character-comics/comic_bamboo_man.webp',thumb:'assets/character-comics/comic_bamboo_man_thumb.webp'},
+  frost_warden:{full:'assets/character-comics/comic_frost_warden.webp',thumb:'assets/character-comics/comic_frost_warden_thumb.webp'}
+};
+function guideCharacterCard(key, img, name, bio, weapon, passive, signature, stats, cls){
+  const comic=CHARACTER_COMIC_ART[key];
   return '<div class="guidecard character '+(cls||'')+'"><img src="'+escHtml(img)+'" loading="lazy"><div class="gctxt">'
     +'<b>'+escHtml(name)+'</b>'
     +(bio?'<p class="gcbio">'+escHtml(bio)+'</p>':'')
     +'<div class="gcrow"><span>'+escHtml(tr('common.weapon'))+'</span><strong>'+escHtml(weapon)+'</strong></div>'
     +'<div class="gcrow passive"><span>'+escHtml(tr('common.passive'))+'</span><strong>'+escHtml(passive)+'</strong></div>'
+    +(signature?'<div class="gcrow signature"><span>'+escHtml(gameLang()==='en'?'Character Ability':'ความสามารถประจำตัว')+'</span><strong>'+escHtml(signature)+'</strong></div>':'')
     +(stats?'<small>'+escHtml(stats)+'</small>':'')
+    +(comic?'<button class="comicstorybutton" type="button" data-comic-key="'+escHtml(key)+'"><img src="'+escHtml(assetSrc(comic.thumb))+'" loading="lazy" alt=""><span>▣ '+(gameLang()==='en'?'Read character story':'อ่านเรื่องราวตัวละคร')+'</span></button>':'')
     +'</div></div>';
 }
 function guideUnitCard(img, name, desc, meta, cls){
@@ -2109,7 +2150,6 @@ function guideItemCard(it){
 }
 function unitSpritePath(sprite){
   if(MANIFEST[sprite+'_8dir']) return spriteSrc(sprite+'_8dir');
-  if(MANIFEST[sprite+'_walk']) return spriteSrc(sprite+'_walk');
   return spriteSrc(sprite);
 }
 function itemGuideTagLabel(tag){
@@ -2345,7 +2385,7 @@ function renderLocalizedGuide(kind, guide, body, opts){
     const note=gameLang()==='en'
       ? `${owned}/${DIVINE_OFFERINGS.length} owned · Buy for ${DIVINE_OFFERING_PRICE.toLocaleString()} Soul Coins each · Equip one per run · Press Q to invoke`
       : `มีแล้ว ${owned}/${DIVINE_OFFERINGS.length} · ราคาองค์ละ ${DIVINE_OFFERING_PRICE.toLocaleString()} Soul Coins · เลือกได้ 1 องค์ต่อรัน · กด Q เพื่อใช้`;
-    const cards=DIVINE_OFFERINGS.map(o=>guideCard(`assets/sprites/deity_${o.id}.png`,`${o.name} · ${o.title}`,`${gameLang()==='en'?'Offering cost':'เครื่องบูชา'}: ${o.cost} · ${o.effect}`,`${o.short}${divineOfferingScalingText(o.id)?' · '+divineOfferingScalingText(o.id):''} · Cooldown ${divineOfferingCooldown(o.id)}s · ${isDivineOfferingOwned(o.id)?(gameLang()==='en'?'Owned':'มีแล้ว'):(gameLang()==='en'?'Not owned':'ยังไม่มี')}`,'legendary')).join('');
+    const cards=DIVINE_OFFERINGS.map(o=>guideCard(assetSrc(`assets/sprites/deity_${o.id}.png`),`${o.name} · ${o.title}`,`${gameLang()==='en'?'Offering cost':'เครื่องบูชา'}: ${o.cost} · ${o.effect}`,`${o.short}${divineOfferingScalingText(o.id)?' · '+divineOfferingScalingText(o.id):''} · Cooldown ${divineOfferingCooldown(o.id)}s · ${isDivineOfferingOwned(o.id)?(gameLang()==='en'?'Owned':'มีแล้ว'):(gameLang()==='en'?'Not owned':'ยังไม่มี')}`,'legendary')).join('');
     body.innerHTML=guideHeader(tr('guide.divine'),tr('guide.divine.desc')+' · '+note,kind)+'<button class="guide-market-link" data-open-soul-market="divine">'+(gameLang()==='en'?'Open Divine Market':'เปิดตลาดวิญญาณเทพ')+'</button><div class="guidegrid divine">'+cards+'</div>';
     bindGuideChrome(body);
     body.querySelector('[data-open-soul-market]').onclick=()=>{ closeGuide(); openSoulMarket('divine',false); };
@@ -2381,6 +2421,18 @@ function renderLocalizedGuide(kind, guide, body, opts){
   return false;
 }
 
+function openCharacterComic(key){
+  const guide=document.getElementById('guide'), body=document.getElementById('guidebody');
+  const comic=CHARACTER_COMIC_ART[key], c=CHARACTERS[key];
+  if(!guide||!body||!comic||!c) return;
+  const title=charField(key,'name',c.name||key);
+  body.innerHTML='<div class="guidehead comichead"><div class="guidepath"><button class="guidecrumb" data-comic-back="1">‹ '+(gameLang()==='en'?'Characters':'ตัวละคร')+'</button><span class="guidechev">›</span><h2>'+escHtml(title)+'</h2></div><span>'+escHtml(gameLang()==='en'?'Character story':'เรื่องราวตัวละคร')+'</span></div>'+
+    '<div class="charactercomicviewer"><img src="'+escHtml(assetSrc(comic.full))+'" alt="'+escHtml(title)+' character story" loading="eager" decoding="async"></div>';
+  bindGuideChrome(body);
+  const back=body.querySelector('[data-comic-back]');
+  if(back) back.onclick=()=>openGuide('characters');
+  guide.style.display='flex';
+}
 function openGuide(kind, opts){
   const guide=document.getElementById('guide'), body=document.getElementById('guidebody');
   if(!guide||!body) return;
@@ -2428,7 +2480,7 @@ function openGuide(kind, opts){
       ].filter(Boolean).join(' / ');
       const locked=!isCharacterUnlocked(key);
       const meta=statLine+(locked?(statLine?' / ':'')+unlockRequirementLine('character', key):'');
-      return guideCharacterCard(characterPortrait(key), locked?charField(key,'name',c.name)+' ('+tr('common.locked')+')':charField(key,'name',c.name), charField(key,'bio',c.bio||''), weaponName(c.weapon)||c.weapon, charField(key,'passive',c.passive.desc), meta, locked?'locked':'');
+      return guideCharacterCard(key, characterPortrait(key), locked?charField(key,'name',c.name)+' ('+tr('common.locked')+')':charField(key,'name',c.name), charField(key,'bio',c.bio||''), weaponName(c.weapon)||c.weapon, charField(key,'passive',c.passive.desc), typeof signatureDesc==='function'?signatureDesc(key):'', meta, locked?'locked':'');
     }).join('');
   } else if(kind==='weapons'){
     title='อาวุธ';
@@ -2546,7 +2598,7 @@ function openGuide(kind, opts){
       guideTextCard('ขนาดสกิล (Skill Size)','เพิ่มขนาดภาพและ hitbox ของกระสุน ความกว้างอาวุธใกล้ และรัศมี AOE แต่ไม่เพิ่มระยะเดินทางหรือดาเมจโดยตรง','มี diminishing return: กระสุนสูงสุด x1.40 · อาวุธใกล้ x1.60 · AOE สูงสุด x1.75'),
       guideTextCard('ระยะสกิล (Range)','เพิ่มระยะเล็งและระยะเดินทางของกระสุน ระยะแทง/ฟัน ตำแหน่งวางสกิล ระยะชิ่ง และวงโคจร แต่ไม่ทำให้วง AOE ใหญ่ขึ้น','ระยะอาวุธใกล้และวงโคจรสูงสุด x1.60 · ระยะชิ่งสูงสุด x1.50'),
       guideTextCard('Duration / Projectile Speed','Duration ทำให้กระสุนหรือพื้นที่อยู่นานขึ้น ส่วน Projectile Speed ทำให้วัตถุเคลื่อนที่เร็วขึ้น ทั้งสองค่าไม่ขยาย hitbox','Range และ Duration อาจช่วยระยะเดินทางร่วมกัน แต่ทำหน้าที่คนละแบบ'),
-      guideTextCard('Weekly Challenge','Weekly ใช้ระดับ Hard พร้อม modifier 3 อันที่เบาลง และเล่นใน Covenant Crucible โดยใช้กติกาเดียวกันทุกคนตลอดสัปดาห์','Mini 4:00 · Duo 8:00 · OT 10:00 · Boss 12:00 · หีบ 5 ใบ · Relic 1 ชิ้น · 300 Soul Coins เมื่อเคลียร์'),
+      guideTextCard('Weekly Challenge','Weekly ใช้ระดับ Hard พร้อม modifier 3 อันที่เบาลง และเล่นใน Covenant Crucible โดยใช้กติกาเดียวกันทุกคนตลอดสัปดาห์','Mini 4:00 · Duo 8:00 · OT 10:00 · Boss 12:00 · หีบ 5 ใบ · Shrine 2 จุด · Relic 1 ชิ้น · 1,000 Soul Coins เมื่อเคลียร์'),
       guideTextCard('Endless Mode','หลังฆ่า Overlord เลือก Endless Gate แทน Final Portal เพื่อเล่นต่อ บอสใหม่เกิดทุก 2 นาทีและแรงขึ้นทุกครั้ง','คะแนนถูกแยกไปกระดาน Endless'),
       guideTextCard('โอกาสคริติคอล','โอกาสที่การโจมตีจะติดคริติคอล Focus Tome และบางตัวละครช่วยเพิ่มค่านี้','มี pity เล็กน้อย ถ้าดวงไม่ติดหลายครั้ง โอกาสครั้งถัดไปจะดีขึ้น'),
       guideTextCard('ดาเมจคริติคอล','ตัวคูณดาเมจเมื่อโจมตีติดคริติคอล Execution Tome และ Stormcaller ช่วยเพิ่มค่านี้','คริติคอลต่อเนื่องเกิด chain bonus และทำให้ศัตรูติด Rend เลือดไหลสั้น ๆ'),
@@ -2555,7 +2607,7 @@ function openGuide(kind, opts){
       guideTextCard('บิลด์ Ricochet','Football เด้งต่อเป้าหมาย, Shield Toss ทะลุก่อนเด้ง, Bone Boomerang ยิงเป็นโค้งคู่, Bouncing Bomb ทิ้งแรงระเบิด','Ricochet ไม่ส่งผลกับ melee, nova, orbit, smite หรือ lightning'),
       guideTextCard('Knockback','แรงผลักศัตรู ยิ่งเข้า Overtime ศัตรูยิ่งต้านแรงผลักมากขึ้น','ผู้เล่นเองก็โดนมอนสเตอร์ตีจนกระเด็นได้'),
       guideTextCard('Guard','Orbiting Skull บล็อกดาเมจได้ หัวกะโหลกจะหายไปเมื่อบล็อกแล้วค่อยฟื้นตามคูลดาวน์','มีกะโหลกมากเท่ากับกันตายได้มากขึ้น'),
-      guideTextCard('Overtime','หลัง 10:00 จำนวนศัตรูจะเริ่มที่ x2 แล้วเพิ่มเป็น x3, x4, x5 ทุก 45 วินาที Map 3 เริ่มหลังบอสสุดท้ายตาย','ทุกโหมดใช้เวลาเริ่มและจังหวะเพิ่มระดับเดียวกัน ส่วน HP และ ATK เพิ่มแบบนุ่มลงเพื่อไม่ให้เกิดวันช็อต')
+      guideTextCard('Overtime','หลัง 10:00 มอนสเตอร์จะเริ่มที่ x2 แล้วเพิ่มเป็น x3, x4, x5 ทุก 45 วินาที Map 3 เริ่มหลังบอสสุดท้ายตาย','ทุกโหมดใช้เวลาเริ่มและจังหวะเพิ่มระดับเดียวกัน โดย HP และ ATK ใช้ตัวคูณเดียวกับระดับ Overtime')
     ].join('');
   } else if(kind==='shrine'){
     title='Shrine';
@@ -2633,6 +2685,7 @@ function openGuide(kind, opts){
   body.querySelectorAll('[data-pet-box-open]').forEach(btn=>btn.onclick=()=>openPetBox());
   body.querySelectorAll('[data-pet-buy]').forEach(btn=>btn.onclick=()=>buyPet(btn.getAttribute('data-pet-buy')||''));
   body.querySelectorAll('[data-pet-select]').forEach(btn=>btn.onclick=()=>selectPet(btn.getAttribute('data-pet-select')||''));
+  body.querySelectorAll('[data-comic-key]').forEach(btn=>btn.onclick=()=>openCharacterComic(btn.getAttribute('data-comic-key')||''));
   guide.style.display='flex';
   if(kind==='pets') restoreGuidePetPosition(opts);
 }
@@ -2708,6 +2761,14 @@ async function beginSelectedRun(){
   document.getElementById('pactselect').style.display='none';
   started=true;
   if(typeof prefetchTextureKeys==='function') await prefetchTextureKeys(characterTextureKeys(currentChar));
+  // Signature FX: block run start only on the selected hero's texture (~0.5 MB).
+  // The other heroes' FX stream in quietly after the run begins; every FX call
+  // site has a non-texture fallback, so a cache miss is cosmetic only.
+  if(typeof prefetchTextureKeys==='function' && typeof signatureFxKeysFor==='function'){
+    await prefetchTextureKeys(signatureFxKeysFor(currentChar));
+    const rest=Object.keys(MANIFEST).filter(k=>k.startsWith('fx_sig_') && !signatureFxKeysFor(currentChar).includes(k));
+    setTimeout(()=>{ if(started) prefetchTextureKeys(rest); }, 5000);
+  }
   if(typeof weeklyArenaActive==='function'&&weeklyArenaActive()&&typeof stageTextureKeys==='function') await prefetchTextureKeys(stageTextureKeys(WEEKLY_ARENA.stage));
   const p = (typeof petById==='function') ? petById(selectedPetId()) : null;
   if(p && typeof prefetchTextureKeys==='function') await prefetchTextureKeys([p.sprite,p.sheet].filter(Boolean));
@@ -3316,7 +3377,10 @@ function isLazyTextureKey(k){
     || k.startsWith('floor_challenge_') || k.startsWith('prop_challenge_')
     || k.startsWith('boss_') || k.startsWith('miniboss_')
     || k.startsWith('pet_')
+    || k.startsWith('fx_sig_')
     || /^char_.+_(walk|idle|portrait)$/.test(k)
+    || /^enemy_.+_walk$/.test(k)
+    || /^miniboss_.+_walk$/.test(k)
     || k==='obj_normal_portal' || k==='obj_challenge_gate'
     || deferredStageUnitKeys.has(k);
 }
@@ -3338,6 +3402,7 @@ function loadTextureKey(k){
   const p=new Promise(resolve=>{
     loader.load(spriteSrc(k), t=>resolve(installTexture(k,t)), undefined, ()=>{
       console.warn('tex load fail', spriteSrc(k));
+      if(typeof reportClientEvent==='function') reportClientEvent('asset_load','Texture failed to load',{key,path:spriteSrc(k)});
       lazyTextureLoads.delete(k);
       resolve(null);
     });
@@ -3349,7 +3414,9 @@ function prefetchTextureKeys(keys){
   return Promise.allSettled([...new Set(keys)].filter(k=>MANIFEST[k] && !tex[k]).map(loadTextureKey));
 }
 function unitTextureKeys(base){
-  return [base, base+'_8dir', base+'_walk'].filter(k=>MANIFEST[k]);
+  // Enemies, minibosses, and bosses are 8-direction assets only. Keep walk
+  // sheets reserved for playable characters so legacy enemy art cannot load.
+  return [base, base+'_8dir'].filter(k=>MANIFEST[k]);
 }
 const deferredStageUnitKeys=new Set(
   ENEMY_TYPES.filter(e=>(e.tier||0)>0).flatMap(e=>unitTextureKeys(e.sprite))
@@ -3411,7 +3478,10 @@ for (const [k,f] of Object.entries(MANIFEST)) {
 }
 bootIfReady();
 mgr.onLoad = bootIfReady;
-mgr.onError = (u) => console.warn('tex load fail', u);
+mgr.onError = (u) => {
+  console.warn('tex load fail', u);
+  if(typeof reportClientEvent==='function') reportClientEvent('asset_load','Boot texture failed to load',{path:String(u||'').slice(0,240)});
+};
 
 function prewarmEffectTextures(){
   try{
@@ -4320,10 +4390,10 @@ function makeLootBeacon(color,tier,type){
 // Until the sheet image loads, the entity uses its single static sprite.
 const WALK_SHEETS = { 'enemy_abyssal_horror':{sheet:'enemy_abyssal_horror_walk',frames:4,fps:7}, 'enemy_blight_treant':{sheet:'enemy_blight_treant_walk',frames:4,fps:7}, 'enemy_bog_elemental':{sheet:'enemy_bog_elemental_walk',frames:4,fps:7}, 'enemy_bog_fiend':{sheet:'enemy_bog_fiend_walk',frames:4,fps:7}, 'enemy_chaos_wisp':{sheet:'enemy_chaos_wisp_walk',frames:4,fps:7}, 'enemy_dark_apostle':{sheet:'enemy_dark_apostle_walk',frames:4,fps:7}, 'enemy_dire_bat':{sheet:'enemy_dire_bat_walk',frames:4,fps:7}, 'enemy_fen_stalker':{sheet:'enemy_fen_stalker_walk',frames:4,fps:7}, 'enemy_leech_swarm':{sheet:'enemy_leech_swarm_walk',frames:4,fps:7}, 'enemy_marsh_lurker':{sheet:'enemy_marsh_lurker_walk',frames:4,fps:7}, 'enemy_muck_slime':{sheet:'enemy_muck_slime_walk',frames:4,fps:7}, 'enemy_nether_drake':{sheet:'enemy_nether_drake_walk',frames:4,fps:7}, 'enemy_oblivion_orb':{sheet:'enemy_oblivion_orb_walk',frames:4,fps:7}, 'enemy_plague_rat':{sheet:'enemy_plague_rat_walk',frames:4,fps:7}, 'enemy_rift_phantom':{sheet:'enemy_rift_phantom_walk',frames:4,fps:7}, 'enemy_rot_hound':{sheet:'enemy_rot_hound_walk',frames:4,fps:7}, 'enemy_shade':{sheet:'enemy_shade_walk',frames:4,fps:7}, 'enemy_shadow_weaver':{sheet:'enemy_shadow_weaver_walk',frames:4,fps:7}, 'enemy_swamp_witch':{sheet:'enemy_swamp_witch_walk',frames:4,fps:7}, 'enemy_toxic_spore':{sheet:'enemy_toxic_spore_walk',frames:4,fps:7}, 'enemy_void_reaper':{sheet:'enemy_void_reaper_walk',frames:4,fps:7}, 'enemy_void_walker':{sheet:'enemy_void_walker_walk',frames:4,fps:7}, 'enemy_willow_wisp':{sheet:'enemy_willow_wisp_walk',frames:4,fps:7}, 'enemy_wraith':{sheet:'enemy_wraith_walk',frames:4,fps:7}, 'miniboss_colossus':{sheet:'miniboss_colossus_walk',frames:4,fps:7}, 'miniboss_executioner':{sheet:'miniboss_executioner_walk',frames:4,fps:7}, 'miniboss_horror':{sheet:'miniboss_horror_walk',frames:4,fps:7}, 'miniboss_skeleton_lord':{sheet:'miniboss_skeleton_lord_walk',frames:4,fps:7}, 'miniboss_troll':{sheet:'miniboss_troll_walk',frames:4,fps:7}, 'miniboss_warden':{sheet:'miniboss_warden_walk',frames:4,fps:7} };  // enemy 4-frame walk strips
 const DIR_SHEETS = { 'enemy_shade':{key:'enemy_shade_8dir',cols:1,rows:8,fps:1},'enemy_wraith':{key:'enemy_wraith_8dir',cols:1,rows:8,fps:1},'enemy_dire_bat':{key:'enemy_dire_bat_8dir',cols:1,rows:8,fps:1},'enemy_rot_hound':{key:'enemy_rot_hound_8dir',cols:1,rows:8,fps:1},'enemy_plague_rat':{key:'enemy_plague_rat_8dir',cols:1,rows:8,fps:1},'enemy_marsh_lurker':{key:'enemy_marsh_lurker_8dir',cols:1,rows:8,fps:1},'enemy_swamp_witch':{key:'enemy_swamp_witch_8dir',cols:1,rows:8,fps:1},'enemy_bog_fiend':{key:'enemy_bog_fiend_8dir',cols:1,rows:8,fps:1},'enemy_leech_swarm':{key:'enemy_leech_swarm_8dir',cols:1,rows:8,fps:1},'enemy_willow_wisp':{key:'enemy_willow_wisp_8dir',cols:1,rows:8,fps:1},'enemy_fen_stalker':{key:'enemy_fen_stalker_8dir',cols:1,rows:8,fps:1},'enemy_blight_treant':{key:'enemy_blight_treant_8dir',cols:1,rows:8,fps:1},'enemy_muck_slime':{key:'enemy_muck_slime_8dir',cols:1,rows:8,fps:1},'enemy_bog_elemental':{key:'enemy_bog_elemental_8dir',cols:1,rows:8,fps:1},'enemy_void_walker':{key:'enemy_void_walker_8dir',cols:1,rows:8,fps:1},'enemy_abyssal_horror':{key:'enemy_abyssal_horror_8dir',cols:1,rows:8,fps:1},'enemy_nether_drake':{key:'enemy_nether_drake_8dir',cols:1,rows:8,fps:1},'enemy_rift_phantom':{key:'enemy_rift_phantom_8dir',cols:1,rows:8,fps:1},'enemy_oblivion_orb':{key:'enemy_oblivion_orb_8dir',cols:1,rows:8,fps:1},'enemy_dark_apostle':{key:'enemy_dark_apostle_8dir',cols:1,rows:8,fps:1},'miniboss_executioner':{key:'miniboss_executioner_8dir',cols:1,rows:8,fps:1},'miniboss_horror':{key:'miniboss_horror_8dir',cols:1,rows:8,fps:1},'miniboss_skeleton_lord':{key:'miniboss_skeleton_lord_8dir',cols:1,rows:8,fps:1},'miniboss_troll':{key:'miniboss_troll_8dir',cols:1,rows:8,fps:1},'miniboss_warden':{key:'miniboss_warden_8dir',cols:1,rows:8,fps:1},'enemy_toxic_spore':{key:'enemy_toxic_spore_8dir',cols:1,rows:8,fps:1},'enemy_chaos_wisp':{key:'enemy_chaos_wisp_8dir',cols:1,rows:8,fps:1},'enemy_shadow_weaver':{key:'enemy_shadow_weaver_8dir',cols:1,rows:8,fps:1},'enemy_void_reaper':{key:'enemy_void_reaper_8dir',cols:1,rows:8,fps:1},'miniboss_colossus':{key:'miniboss_colossus_8dir',cols:1,rows:8,fps:1},'boss_lich':{key:'boss_lich_8dir',cols:1,rows:8,fps:1},'boss_behemoth':{key:'boss_behemoth_8dir',cols:1,rows:8,fps:1},'boss_reaper':{key:'boss_reaper_8dir',cols:1,rows:8,fps:1},'boss_dragon':{key:'boss_dragon_8dir',cols:1,rows:8,fps:1},'boss_overlord':{key:'boss_overlord_8dir',cols:1,rows:8,fps:1} };  // PixelLab 8-dir rotations
-// Auto-fill DIR/WALK sheet configs from the rosters (only missing keys; guarded by tex[] at use sites).
+// Auto-fill 8-direction configs from the rosters. Enemy walk sheets are legacy
+// assets and are intentionally not registered or selected by the runtime.
 DIR_SHEETS.boss_butcher={key:'boss_butcher_8dir',cols:1,rows:8,fps:1};
 [].concat(ENEMY_TYPES, MINIBOSS_TYPES, BOSS_TYPES).forEach(t=>{ if(!DIR_SHEETS[t.sprite]) DIR_SHEETS[t.sprite]={key:t.sprite+'_8dir',cols:1,rows:8,fps:1}; });
-[].concat(ENEMY_TYPES, MINIBOSS_TYPES).forEach(t=>{ if(!WALK_SHEETS[t.sprite]) WALK_SHEETS[t.sprite]={sheet:t.sprite+'_walk',frames:4,fps:7}; });
 // 8-direction grid sheets: rows = direction, cols = animation frame.
 // dirRows maps movement direction index -> sheet row.
 // dir index: 0=S 1=SE 2=E 3=NE 4=N 5=NW 6=W 7=SW  (matches PixelLab row order here)
@@ -4400,6 +4470,12 @@ const SHEETS = {
     visible: { w:0.72, h:1.35 },
     dirRows: [0,7,6,5,4,3,2,1],
   },
+  frost_warden: {
+    walk: { key:'char_frost_warden_walk', cols:8, rows:8, fps:10 },
+    idle: { key:'char_frost_warden_idle', cols:4, rows:8, fps:6 },
+    visible: { w:0.72, h:1.35 },
+    dirRows: [0,7,6,5,4,3,2,1],
+  },
 };
 
 // ---- Playable characters: signature weapon + base stats + per-level passive ----
@@ -4410,7 +4486,7 @@ const CHARACTERS = {
   huntress:    { name:'Huntress',    sheet:'huntress',    weapon:'spread',
                  stats:{ maxHp:70, spd:5.8 }, passive:{ desc:'ความเร็วโจมตี +1%, ดาเมจ +1% / Lv', apply:p=>{ p.rateMul *= 1.01; p.dmgMul *= 1.01; } } },
   sorceress:   { name:'Sorceress',   sheet:'sorceress',   weapon:'nova',
-                 stats:{ maxHp:65 }, passive:{ desc:'ดาเมจ +2% / Lv', apply:p=>{ p.dmgMul *= 1.02; } } },
+                 stats:{ maxHp:65 }, passive:{ desc:'ดาเมจ +2% / Lv', apply:p=>{ const before=p.sorceressPassiveMul||1; const next=Math.min(2.40,before*1.02); p.sorceressPassiveMul=next; p.dmgMul*=next/before; } } },
   templar:     { name:'Oathbone',    sheet:'templar',     weapon:'orbit',
                  stats:{ maxHp:110, spd:5.2, def:7 }, passive:{ desc:'ดาเมจ +1%, เลือดสูงสุด +4 / Lv', apply:p=>{ p.dmgMul *= 1.01; p.maxHp += 4; p.hp += 4; } } },
   ranger:      { name:'Ranger',      sheet:'ranger',      weapon:'arrow',
@@ -4433,6 +4509,8 @@ const CHARACTERS = {
                  stats:{ maxHp:76, spd:5.7, magnet:3.4, critChance:0.06 }, passive:{ desc:'ความเร็วเดิน +0.5%, ความเร็วกระสุน/วัตถุโจมตี +2% / Lv', apply:p=>{ p.spd *= 1.005; p.projSpeedMul *= 1.02; } } },
   bamboo_man:  { name:'Bamboo Shoot Man', sheet:'bamboo_man', weapon:'bamboo_spikes', portrait:'bamboo_man',
                  stats:{ maxHp:84, spd:5.25, magnet:3.6, rateMul:0.96 }, passive:{ desc:'ขนาดสกิล +1%, ระยะเวลาพื้นที่ +1% / Lv', apply:p=>{ p.projScale *= 1.01; p.areaLifeMul *= 1.01; } } },
+  frost_warden:{ name:'Frost Warden', sheet:'frost_warden', weapon:'frost_familiar', portrait:'frost_warden',
+                 stats:{ maxHp:92, spd:5.0, freezeChance:0.08 }, passive:{ desc:'โอกาสแช่แข็ง +0.5% และเกราะ +1 / Lv', apply:p=>{ p.freezeChance=(p.freezeChance||0)+0.005; p.def += 1; } } },
 };
 Object.assign(CHARACTERS.templar, {
   stats:{ maxHp:116, spd:5.0, def:8, rateMul:1.08 },
@@ -4512,6 +4590,15 @@ Object.assign(CHARACTERS.bamboo_man, {
     level:['หน่อไม้โตขึ้นแบบไม่ขออนุญาต','อัปเลเวลแล้ว ขอจิ้มน้ำพริกหน่อย','นี่ไม่ใช่สกิล นี่คือเกษตรกรรมเชิงรุก'],
     loot:['ของดรอปดีเหมือนเจอหน่อไม้อ่อน','เอาไปหมักก่อน เดี๋ยวค่อยใช้'],
     hurt:['โอ๊ย หน่อไม้ติดคอ เอ้ย โดนตี','อย่าตีคนถือผักสิครับ','เจ็บนะ แต่ยังกรอบอยู่']
+  }
+});
+Object.assign(CHARACTERS.frost_warden, {
+  bio:'ผู้คุมความหนาวที่หยุดมอนสเตอร์ได้เก่งกว่าหยุดแอร์ในออฟฟิศ',
+  quips:{
+    start:['อุณหภูมิลดลงแล้ว ขอให้มอนตั้งสติดี ๆ','ไม้เท้าพร้อม น้ำแข็งพร้อม คนเล่นพร้อมไหม'],
+    level:['แช่แข็งเพิ่มขึ้น ไม่ใช่แค่ความรู้สึกตอนเปิดค่าไฟ'],
+    loot:['ของชิ้นนี้เก็บในช่องแช่แข็งได้ไหม'],
+    hurt:['โดนตีแล้วละลายความสุภาพไปนิดหนึ่ง','ใครเปิดฮีตเตอร์ครับ']
   }
 });
 let currentChar = 'paladin';
@@ -4766,6 +4853,9 @@ const ACHIEVEMENTS = [
   { id:'map2_reached', name:'ข้ามแดนต้องสาป', desc:'เข้าสู่ Map 2 และฆ่าศัตรูอย่างน้อย 250 ตัวในรันเดียว',
     rewards:[{type:'character',key:'priestess'},{type:'weapon',key:'smite'},{type:'item',key:'holy_book'},{type:'coins',amount:50}],
     test:c=>(c.stage>=2 && c.kills>=250) || c.won },
+  { id:'frostbound', name:'หนาวจนมอนขอผ้าห่ม', desc:'แช่แข็งมอนสเตอร์ 100 ตัวในรันเดียว',
+    rewards:[{type:'character',key:'frost_warden'},{type:'coins',amount:60}],
+    test:c=>c.freezeHits>=100 },
   { id:'first_evolution', name:'ช่างตีอาวุธเงา', desc:'วิวัฒน์อาวุธ 1 ชิ้น และไปถึงเลเวล 25 ในรันเดียว',
     rewards:[{type:'character',key:'templar'},{type:'weapon',key:'orbit'},{type:'item',key:'spiky_shield'},{type:'item',key:'mirror'},{type:'item',key:'runic_lens'},{type:'coins',amount:50}],
     test:c=>c.evolved && c.level>=25 },
@@ -5356,7 +5446,8 @@ function achievementContext(){
     butcherKills:butcherKills||0,
     bossKills:runBossKills||0,
     minibossKills:runMinibossKills||0,
-    critHits:(runStats&&runStats.critHits)||0
+    critHits:(runStats&&runStats.critHits)||0,
+    freezeHits:(runStats&&runStats.freezeHits)||0
   };
 }
 function completeAchievement(a){
@@ -5422,7 +5513,9 @@ function animBillboard(sheetKey, height, frames) {
   return s;
 }
 
-// Returns { spr, anim }. Uses the walk sheet if available, else the static sprite.
+// Returns { spr, anim }. Unit sprites are intentionally 8-dir-first: a walk
+// strip must never replace a directional sheet when the latter is late or
+// missing, otherwise the entity can appear to turn or animate incorrectly.
 function entitySprite(baseKey, height) {
   const D = DIR_SHEETS[baseKey];
   if (D && tex[D.key]) {
@@ -5434,8 +5527,8 @@ function entitySprite(baseKey, height) {
     spr.center.set(0.5, 0); spr.scale.set(height*ar, height, 1);
     return { spr, anim: { grid:true, walk:st, idle:st, dirRows:[0,7,6,5,4,3,2,1] } };
   }
-  const w = WALK_SHEETS[baseKey];
-  if (w && tex[w.sheet]) return { spr: animBillboard(w.sheet, height, w.frames), anim: { frames: w.frames, fps: w.fps } };
+  // Keep a missing/late 8-dir asset from silently switching to a different
+  // animation layout. The dedicated static sprite is a safer temporary view.
   if(tex[baseKey]) return { spr: billboard(baseKey, height), anim: null };
   // A transient CDN miss must never create a permanently invisible enemy.
   // Keep it visible with boot art while retrying the dedicated unit textures.
@@ -5592,7 +5685,7 @@ function makePlayer() {
   scene.add(spr); scene.add(sh);
   const p = { x:0, z:0, hp:80, maxHp:80, def:5, spd:PLAYER_SPEED,
            level:1, xp:0, xpToNext:xpRequired(1), gold:0, alive:true, moving:false, dir:0,
-           invuln:0, flash:0, hpBarUntil:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, dashCdMul:1, dashDistMul:1, dashInvulnBonus:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, ricochetBonus:0, lifesteal:0, lifestealPct:0, knockbackMul:0, armorMul:1, lifeMul:1, areaLifeMul:1, projSpeedMul:1, projScale:1, buffDurationMul:1, pickupSpeedBoost:0, pickupSpeedTimer:0, pickupDmgBoost:0, pickupDmgTimer:0, critChance:0.05, critDmg:1.5, tomeCount:{}, bansRemaining:choiceBansPerRun(), bannedChoices:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, relics:[], char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh, hpbar };
+            invuln:0, flash:0, hpBarUntil:0, cd:0, runTime:0, dashTime:0, dashCd:0, dashX:0, dashZ:0, dashCdMul:1, dashDistMul:1, dashInvulnBonus:0, ldx:0, ldz:0, knockX:0, knockZ:0, trailT:0, magnet:PICKUP_MAGNET, regen:0, xpMul:1, goldMul:1, dmgMul:1, rateMul:1, rangeMul:1, countBonus:0, ricochetBonus:0, lifesteal:0, lifestealPct:0, knockbackMul:0, armorMul:1, lifeMul:1, areaLifeMul:1, freezeDurationMul:1, frostbiteMul:0, projSpeedMul:1, projScale:1, buffDurationMul:1, pickupSpeedBoost:0, pickupSpeedTimer:0, pickupDmgBoost:0, pickupDmgTimer:0, critChance:0.05, critDmg:1.5, tomeCount:{}, bansRemaining:choiceBansPerRun(), bannedChoices:{}, weapons:[makeWeapon(C.weapon)], items:[], itemCounts:{}, relics:[], char:currentChar, passive:C.passive, bw:spr.scale.x, bh:spr.scale.y, born:0, face:1, anim, spr, sh, hpbar };
   const st = C.stats || {};
   if (st.maxHp!=null){ p.maxHp=st.maxHp; p.hp=st.maxHp; }
   if (st.spd!=null)   p.spd=st.spd;
@@ -5980,4 +6073,3 @@ function spawnTrees(n) {
     placed++;
   }
 }
-

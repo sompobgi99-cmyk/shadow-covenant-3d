@@ -47,6 +47,8 @@ try {
   browser = await chromium.launch({ headless: true, executablePath });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   const errors = [];
+  const requestedUrls = [];
+  page.on("request", (request) => requestedUrls.push(request.url()));
   page.on("console", (msg) => {
     if (msg.type() === "error") errors.push(msg.text());
   });
@@ -80,7 +82,7 @@ try {
     gameTime=500;const tier2=[...new Set(enemyPool().map(e=>e.tier))];
     gameTime=600;const otStart=overtimeTier();
     gameTime=720;const otBoss=overtimeTier(),combatOt=otCombatPowerMul();
-    challenge.weeklyBalance=stageHpMul()===1.7&&stageAtkMul()===1.25&&overtimeStep()===60&&otStart===2&&otBoss===4&&combatOt===2.5&&activePactIds.length===0&&tier0.join(',')==='0'&&tier1.join(',')==='0,1'&&tier2.join(',')==='0,1,2';
+    challenge.weeklyBalance=stageHpMul()===1.45&&stageAtkMul()===1.15&&overtimeStep()===60&&otStart===2&&otBoss===4&&combatOt===4&&activePactIds.length===0&&tier0.join(',')==='0'&&tier1.join(',')==='0,1'&&tier2.join(',')==='0,1,2';
     activeDifficultyId=weeklySaved.difficulty;mapStage=weeklySaved.stage;gameTime=weeklySaved.time;stageStartTime=weeklySaved.stageStart;activePactIds=weeklySaved.pacts;pactMultiplier=calcPactMultiplier(activePactIds);
     const previousRequested=localCoopRequested;
     localCoopRequested=true;
@@ -151,7 +153,7 @@ try {
     const original = localStorage.getItem(LEADERBOARD_KEY);
     localStorage.setItem(LEADERBOARD_KEY, '{broken-json');
     const brokenRows = readLocalLeaderboard();
-    localStorage.setItem(LEADERBOARD_KEY, JSON.stringify([null, 7, { score:42, difficultyId:'normal', runMode:'standard' }]));
+    localStorage.setItem(LEADERBOARD_KEY, JSON.stringify([null, 7, { score:42, build:window.SHADOW_BUILD_VERSION, difficultyId:'normal', runMode:'standard' }]));
     const cleanRows = readLocalLeaderboard();
     if(original==null) localStorage.removeItem(LEADERBOARD_KEY); else localStorage.setItem(LEADERBOARD_KEY,original);
     return { brokenRows:brokenRows.length, cleanRows:cleanRows.length, score:cleanRows[0]&&cleanRows[0].score };
@@ -179,6 +181,7 @@ try {
     localStorage.removeItem(queueKey);
     let attempts = 0;
     window.fetch = async (_input, init = {}) => {
+      if (!String(_input).includes("/api/leaderboard")) return originalFetch(_input, init);
       if (String(init.method || "GET").toUpperCase() !== "POST") {
         return new Response(JSON.stringify({ rows:[] }), {
           status:200,
@@ -260,17 +263,21 @@ try {
       pactMultiplier:1,
       build:window.SHADOW_BUILD_VERSION,
     };
-    window.fetch = async () => new Response(JSON.stringify({ error:"Rejected test score" }), {
-      status:400,
-      headers:{ "Content-Type":"application/json" },
-    });
+    window.fetch = async (input, init = {}) => String(input).includes("/api/leaderboard")
+      ? new Response(JSON.stringify({ error:"Rejected test score" }), {
+          status:400,
+          headers:{ "Content-Type":"application/json" },
+        })
+      : originalFetch(input, init);
     let failed = false;
     try { await saveOnlineScore(entry); } catch (_) { failed = true; }
     const blockedRows = JSON.parse(localStorage.getItem(queueKey) || "[]");
-    window.fetch = async () => new Response(JSON.stringify({ ok:true, verified:false, listed:false, display_limit:8 }), {
-      status:200,
-      headers:{ "Content-Type":"application/json" },
-    });
+    window.fetch = async (input, init = {}) => String(input).includes("/api/leaderboard")
+      ? new Response(JSON.stringify({ ok:true, verified:false, listed:false, display_limit:8 }), {
+          status:200,
+          headers:{ "Content-Type":"application/json" },
+        })
+      : originalFetch(input, init);
     const retried = await saveOnlineScore(entry);
     const remaining = JSON.parse(localStorage.getItem(queueKey) || "[]").length;
     window.fetch = originalFetch;
@@ -424,8 +431,8 @@ try {
     return { initialPending, newsPending, firstClaim, secondClaim, afterFirst, afterSecond, claimed, newClaim, afterNewClaim, repeatedNewClaim, afterRepeatedNewClaim, newClaimed, latestClaim, afterLatestClaim, repeatedLatestClaim, afterRepeatedLatestClaim, latestClaimed, deleteUnclaimed, deleteClaimed, latestDeleted, latestVisible, legacyClaimed };
   });
   if (
-    mailboxRegression.initialPending !== 4 ||
-    mailboxRegression.newsPending !== 3 ||
+    mailboxRegression.initialPending !== 5 ||
+    mailboxRegression.newsPending !== 4 ||
     mailboxRegression.firstClaim !== true ||
     mailboxRegression.secondClaim !== false ||
     mailboxRegression.afterFirst !== 1100 ||
@@ -528,6 +535,31 @@ try {
   }
 
   await page.locator("#guestchoice").click().catch(() => {});
+  const comicFullMarker = "/assets/character-comics/comic_frost_warden.webp";
+  const comicThumbMarker = "/assets/character-comics/comic_frost_warden_thumb.webp";
+  if (requestedUrls.some(url => url.includes(comicFullMarker))) throw new Error("Full character comic loaded during boot");
+  await page.evaluate(() => openGuide("characters"));
+  await page.locator('[data-comic-key="frost_warden"]').waitFor({ state: "visible", timeout: 5000 });
+  await page.waitForFunction(() => {
+    const image = document.querySelector('[data-comic-key="frost_warden"] img');
+    return image && image.complete && image.naturalWidth > 0;
+  });
+  if (!requestedUrls.some(url => url.includes(comicThumbMarker))) throw new Error("Character comic thumbnail did not lazy-load in Guide");
+  if (requestedUrls.some(url => url.includes(comicFullMarker))) throw new Error("Full character comic loaded before opening it");
+  await page.locator('[data-comic-key="frost_warden"]').click();
+  await page.waitForFunction((marker) => {
+    const image = document.querySelector(".charactercomicviewer img");
+    return image && image.src.includes(marker) && image.complete && image.naturalWidth > 0;
+  }, comicFullMarker);
+  if (!requestedUrls.some(url => url.includes(comicFullMarker))) throw new Error("Full character comic did not load after click");
+  const comicLayout = await page.locator(".charactercomicviewer img").evaluate((image) => ({
+    width: image.getBoundingClientRect().width,
+    maxHeight: getComputedStyle(image).maxHeight,
+    guideScrollable: document.querySelector("#guidebody").scrollHeight > document.querySelector("#guidebody").clientHeight,
+  }));
+  if (comicLayout.width < 700 || comicLayout.maxHeight !== "none" || !comicLayout.guideScrollable) {
+    throw new Error(`Character comic must be wide and vertically scrollable on desktop: ${JSON.stringify(comicLayout)}`);
+  }
   await page.evaluate(() => openGuide("items"));
   await page.locator("#guide").waitFor({ state: "visible", timeout: 5000 });
   if (!(await page.locator("#guide").innerText()).includes("Item Ban ก่อนเริ่มรัน")) throw new Error("Item Guide is missing Item Ban rules");

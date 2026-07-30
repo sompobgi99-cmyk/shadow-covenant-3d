@@ -3,11 +3,12 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
-const root = process.cwd();
+const projectRoot = process.cwd();
+const root = process.env.STATIC_ROOT ? path.resolve(projectRoot, process.env.STATIC_ROOT) : projectRoot;
 const port = Number(process.env.PORT || process.argv[2] || 8888);
 
 async function loadDotEnv() {
-  const file = path.join(root, '.env');
+  const file = path.join(projectRoot, '.env');
   if (!existsSync(file)) return;
   const raw = await readFile(file, 'utf8');
   for (const line of raw.split(/\r?\n/)) {
@@ -63,6 +64,22 @@ createServer(async (req, res) => {
         enabled: !!(supabaseUrl && anonKey),
         url: supabaseUrl,
         anonKey,
+      });
+    }
+
+    if (url.pathname === '/api/client-events') {
+      return sendJson(res, { ok: true, accepted: true, local: true }, 202);
+    }
+
+    if (url.pathname === '/api/run-session') {
+      if (req.method !== 'POST') return sendJson(res, { error: 'Method not allowed' }, 405);
+      const now = Date.now();
+      return sendJson(res, {
+        ok: true,
+        token: 'local-development-session',
+        issued_at: now,
+        expires_at: now + 60 * 60 * 1000,
+        local: true,
       });
     }
 

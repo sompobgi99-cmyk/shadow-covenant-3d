@@ -66,3 +66,21 @@ Expected fields include:
 ```
 
 Then confirm the player's row in `player_progress` and corresponding IDs in `player_progress_mutations`.
+
+## 6. Daily backup
+
+`netlify/functions/progress-backup.mts` runs once per day and copies all `player_progress` rows into the private Netlify Blobs store:
+
+```text
+shadow-covenant-progress-backups
+```
+
+It keeps `latest` plus seven rotating keys (`daily-0` through `daily-6`). The backup uses the existing Supabase server secret and is not accessible from browser code.
+
+For an on-demand local backup:
+
+```powershell
+npm run backup:progress
+```
+
+Before restoring, download and inspect the JSON backup, pause player-progress writes, and restore into a staging table first. Do not overwrite the live table without checking `user_id`, `revision`, and Soul Coin mutation consistency.

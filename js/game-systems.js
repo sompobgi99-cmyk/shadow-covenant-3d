@@ -236,7 +236,9 @@ function spawnProjectile(dx,dz,s){
     spawnRing(player.x, player.z, s.color||0x9fd8ff, 0.9*sc, 0.14);
     spawnBurst(player.x, player.z, s.color||0x9fd8ff, 4, 0.32);
   }
-  projectiles.push({ x:player.x, z:player.z, dx, dz, dmg:s.dmg, pierce:s.pierce, speed:s.speed, life:s.life, scale:sc, color:s.color, sourceKey:s.sourceKey, shape:projectileShape, hitRadius, noTrail, spin, orient, trailScale, trailEvery, bouncesLeft:s.bounces||0, bounceRadius:s.bounceRadius||0, bounceDmgMul:s.bounceDmgMul||0.88, impactRadius:s.impactRadius||0, impactDmgMul:s.impactDmgMul||0, charge:Math.max(0,s.charge||0), chargeMesh, activated:projectileShape!=='chidori', alive:true, hit:new Set(), mesh:m });
+  const proj={ x:player.x, z:player.z, dx, dz, dmg:s.dmg, pierce:s.pierce, speed:s.speed, life:s.life, scale:sc, color:s.color, sourceKey:s.sourceKey, shape:projectileShape, hitRadius, noTrail, spin, orient, trailScale, trailEvery, bouncesLeft:s.bounces||0, bounceRadius:s.bounceRadius||0, bounceDmgMul:s.bounceDmgMul||0.88, impactRadius:s.impactRadius||0, impactDmgMul:s.impactDmgMul||0, charge:Math.max(0,s.charge||0), chargeMesh, activated:projectileShape!=='chidori', alive:true, hit:new Set(), mesh:m };
+  if(typeof signatureModifyProjectile==='function') signatureModifyProjectile(proj);
+  projectiles.push(proj);
 }
 function spawnStabProjectile(dx,dz,s){
   const sc=s.skillSizeMul||1;
@@ -280,7 +282,13 @@ function spawnStabProjectile(dx,dz,s){
   });
 }
 function killEnemy(e){
+  // Damage-over-time, AoE and chained procs can reach the same corpse from
+  // different update paths in one frame. Count the death once, even when a
+  // caller already flipped alive=false (for example Midas).
+  if(!e || e._killCounted) return false;
+  e._killCounted=true;
   e.alive=false; kills++;
+  if(typeof signatureOnKill==='function') signatureOnKill(e);
   if(typeof gainDivineSoul==='function') gainDivineSoul();
   if(e.isStageBoss) runBossKills++;
   else if(e.isBoss && e.elite) runMinibossKills++;
@@ -437,6 +445,7 @@ function killEnemy(e){
       else if (buffRoll < 0.006) dropPickup(e.x, e.z, 'might', 12);
     }
   }
+  return true;
 }
 function makeBorder(){
   const B=MAP_BOUND+0.9;
@@ -595,7 +604,9 @@ function spawnObject(type, tier, fixed){
 }
 function makeWorldObjects(){
   for (const tier of [0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2]) spawnObject('chest', tier);
-  for (let i=0;i<3;i++) spawnObject('shrine',Math.floor(Math.random()*5));
+  // Add more shrine choices as the maps get larger, while keeping Map 3 focused on its boss.
+  const shrineCount = mapStage===2 ? 5 : 4;
+  for (let i=0;i<shrineCount;i++) spawnObject('shrine',Math.floor(Math.random()*5));
   spawnObject('merchant',0);
   const pillars = mapStage===2 ? 1 + (Math.random()<0.5 ? 1 : 0) : 1;
   for (let i=0;i<pillars;i++) spawnObject('magnet_pillar',0);
@@ -711,6 +722,7 @@ function activateNearby(){
   else if (best.type==='endless_door') enterEndlessDoor(best);
 }
 function clearCombatActors(){
+  if(typeof clearFamiliarSummons==='function') clearFamiliarSummons();
   for (const e of enemies){ scene.remove(e.spr); freeObj(e.spr); removeShadow(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } if(e.cursedEyeMark){ scene.remove(e.cursedEyeMark); freeObj(e.cursedEyeMark); } }
   for (const p of projectiles){ scene.remove(p.mesh); freeObj(p.mesh); }
   for (const sh of enemyShots){ scene.remove(sh.mesh); freeObj(sh.mesh); }
@@ -741,6 +753,7 @@ async function transitionToStage(stage){
     const level=document.getElementById('levelup'); if(level) level.style.display='none';
     pendingRelicPortal=null; paused=false; userPaused=false;
     challengeRoom=null;
+    clearRunDelayedEvents();   // pending telegraphs belong to the map we just left
     clearCombatActors();
     clearWorldObjects();
     removeAltar();
@@ -1112,6 +1125,7 @@ async function startChallengeRoom(room,nextStage){
   const relic=document.getElementById('relicup'); if(relic) relic.style.display='none';
   const level=document.getElementById('levelup'); if(level) level.style.display='none';
   paused=false; userPaused=false; pendingRelicPortal=null;
+  clearRunDelayedEvents();   // pending telegraphs belong to the map we just left
   clearCombatActors();
   clearWorldObjects();
   removeAltar();
@@ -1142,7 +1156,7 @@ async function startChallengeRoom(room,nextStage){
     butcherRunEligible=true;
     butcherAppeared=false;
     nextButcherAt=Infinity;
-    setTimeout(()=>spawnButcher(true),520);
+    runDelayed(()=>spawnButcher(true),0.52);
   }
   for(let i=0;i<Math.min(12,Math.max(4,room.batch*2));i++) spawnChallengeEnemy();
   return true;
@@ -1184,6 +1198,7 @@ function completeChallengeRoom(success){
   if(!challengeRoom || challengeRoom.completed) return;
   const room=challengeRoom;
   room.completed=true;
+  clearRunDelayedEvents();   // drop pending arena spawns (e.g. Butcher telegraph)
   hordeRemaining=0; hordeSpawnTimer=0; hordeWarned=false;
   const cleanTitle='Challenge complete: '+room.name;
   for(const e of enemies){ scene.remove(e.spr); freeObj(e.spr); removeShadow(e.sh); if(e.aura){ scene.remove(e.aura); freeObj(e.aura); } if(e.cursedEyeMark){ scene.remove(e.cursedEyeMark); freeObj(e.cursedEyeMark); } }
@@ -1235,6 +1250,27 @@ function completeChallengeRoom(success){
   spawnObjectPulse(player.x,player.z,room.color,8,0.7);
   spawnBurst(player.x,player.z,room.color,24,1.0);
 }
+// ---- Gameplay delayed-event queue ----
+// setTimeout runs on wall-clock: it keeps ticking while the game is paused and
+// survives scene changes, so a pending Mimic/Butcher could pop on the wrong map
+// or during pause. This queue runs on gameTime inside update(), which only
+// advances during active play — pause-safe and death-safe by construction —
+// and is cleared explicitly on every scene change. Non-gameplay timers
+// (preloads, toasts, the death cinematic, sync debounce) stay on setTimeout.
+const runDelayedEvents=[];
+function runDelayed(fn,seconds){
+  runDelayedEvents.push({ at:gameTime+Math.max(0,seconds||0), fn });
+}
+function clearRunDelayedEvents(){ runDelayedEvents.length=0; }
+function updateRunDelayedEvents(){
+  for(let i=runDelayedEvents.length-1;i>=0;i--){
+    const ev=runDelayedEvents[i];
+    if(gameTime>=ev.at){
+      runDelayedEvents.splice(i,1);
+      try{ ev.fn(); }catch(err){ console.warn('delayed event failed',err); }
+    }
+  }
+}
 const SPECIAL_SPAWN_DELAY_MS = 2000;
 function telegraphSpecialSpawn(x,z,color,label,opts){
   opts=opts||{};
@@ -1246,10 +1282,10 @@ function telegraphSpecialSpawn(x,z,color,label,opts){
   spawnObjectPulse(x,z,color,opts.pulse||4.2,opts.life||0.5);
   spawnBurst(x,z,color,opts.burst||16,opts.scale||0.85);
   shake(opts.shakeDur||0.16,opts.shake||0.12);
-  setTimeout(()=>{
+  runDelayed(()=>{
     if(gameOver || won) return;
     if(opts.done) opts.done();
-  }, delayMs);
+  }, delayMs/1000);
 }
 function openChest(o){
   const cost=chestCost(o.tier);
@@ -1341,8 +1377,8 @@ function activateShrine(o){
   showToast(names[type],1.5);
   sfx('shrine');
   spawnBurst(o.x,o.z,cols[type],14,0.9);
-  // 1 second delay before effect
-  setTimeout(()=>resolveShrineEffect(type,o),1000);
+  // 1 second delay before effect; canceled if the player dies in the window
+  runDelayed(()=>{ if(player && player.alive) resolveShrineEffect(type,o); },1);
 }
 function activateMagnetPillar(o){
   o.used=true;
@@ -2245,10 +2281,28 @@ function dropPickup(x,z,type,value,eventTag){
   const pickupHeight=type==='xp'?0.47:type==='gold'?0.60:type==='haste'||type==='might'||type==='magnet'?0.78:0.55;
   const spr=billboard(key,pickupHeight);
   scene.add(spr);
+  // Common loot gets time to be collected, while boss/event rewards stay
+  // longer. gameTime is simulation time, so pause does not burn the timer.
+  const important=eventTag==='boss'||eventTag==='butcher'||eventTag==='merchant';
+  const ttl=important ? 300 : type==='gold' ? 180 : type==='xp' ? 120 : 0;
+  const priority=important ? 2 : type==='xp'||type==='gold' ? 0 : 1;
+  // cull() removes dead pickup entries every frame; avoid scanning the whole
+  // array for every kill during dense Overtime waves.
+  const alivePickups=pickups.length;
+  if(alivePickups>=1000){
+    let oldest=null;
+    for(const pk of pickups){
+      if(!pk.alive || pk.priority>0) continue;
+      if(!oldest || pk.bornAt<oldest.bornAt) oldest=pk;
+    }
+    if(!oldest) for(const pk of pickups) if(pk.alive && (!oldest || pk.bornAt<oldest.bornAt)) oldest=pk;
+    if(oldest) oldest.alive=false;
+  }
   pickups.push({
     x:x+Math.cos(a)*0.3, z:z+Math.sin(a)*0.3,
     vx:Math.cos(a)*pop, vz:Math.sin(a)*pop,
-    type, value, eventTag, alive:true, homing:false, spr, glow:makePickupGlow(type)
+    type, value, eventTag, alive:true, homing:false, spr, glow:makePickupGlow(type),
+    bornAt:gameTime, expiresAt:ttl ? gameTime+ttl : 0, priority
   });
 }
 function breakBreakable(b, color){
@@ -2320,6 +2374,37 @@ function applyMagnetPickup(duration){
   sfx('pickup');
 }
 function collect(pk){ pk.alive=false; if(pk.type==='gold'){ const g=Math.round(pk.value*player.goldMul); player.gold+=g; if(pk.eventTag==='goldrain') goldRainCollected+=g; } else if(pk.type==='hp'){ const before=player.hp; player.hp=Math.min(healCap(player), player.hp+scaledHeal(pk.value)); recordRunItem('hp_orb',{ heal:Math.max(0,player.hp-before), procs:1 }); } else if(pk.type==='haste'||pk.type==='might'){ applyPickupBuff(pk.type,pk.value); } else if(pk.type==='magnet'){ applyMagnetPickup(pk.value); } else { let v=pk.value; if(player.echoChance && Math.random()<player.echoChance){ v*=2; recordRunItem('echo_shard',{ procs:1 }); } addXP(v); } }
+function mergeNearbyPickups(){
+  if(pickups.length<2) return;
+  const cellSize=1.2, cells=new Map();
+  for(const pk of pickups){
+    if(!pk.alive || pk.homing || (pk.type!=='xp' && pk.type!=='gold')) continue;
+    const cx=Math.floor(pk.x/cellSize), cz=Math.floor(pk.z/cellSize), key=cx+','+cz;
+    let bucket=cells.get(key); if(!bucket){ bucket=[]; cells.set(key,bucket); }
+    bucket.push(pk);
+  }
+  for(const [key,bucket] of cells){
+    const [cx,cz]=key.split(',').map(Number);
+    for(let i=0;i<bucket.length;i++){
+      const a=bucket[i]; if(!a.alive) continue;
+      for(let ox=-1;ox<=1;ox++) for(let oz=-1;oz<=1;oz++){
+        const other=cells.get((cx+ox)+','+(cz+oz)); if(!other) continue;
+        for(const b of other){
+          if(b===a || !b.alive || b.type!==a.type || b.priority!==a.priority || b.homing) continue;
+          if(b.bornAt<a.bornAt) continue;
+          const dx=b.x-a.x, dz=b.z-a.z;
+          if(dx*dx+dz*dz>0.72*0.72) continue;
+          const total=Math.max(1,(a.value||0)+(b.value||0));
+          a.x=(a.x*(a.value||0)+b.x*(b.value||0))/total;
+          a.z=(a.z*(a.value||0)+b.z*(b.value||0))/total;
+          a.value=total;
+          a.expiresAt=Math.max(a.expiresAt||0,b.expiresAt||0);
+          b.alive=false;
+        }
+      }
+    }
+  }
+}
 function addXP(v){ player.xp += Math.round(v*player.xpMul*worldEventXpMul()); while(player.xp>=player.xpToNext){ levelUp(); } }
 function levelUp(){
   if (player.level>=MAX_LEVEL){ player.xp=0; player.xpToNext=Infinity; return; }   // hard cap
@@ -2345,6 +2430,7 @@ function hurtPlayer(amt,dx,dz,force,src,kind){
       if(blocked>0) spawnDmg(player.x,player.z,'BLOOD SHIELD',0xd55278,false,'guard');
     }
   }
+  if(typeof signatureModifyPlayerDamage==='function') amt=signatureModifyPlayerDamage(amt);
   if(amt<=0){ player.invuln=Math.max(player.invuln,0.16); return; }
   sfx('hurt');
   // armor = percentage mitigation (stays useful as def scales), never below 1
@@ -2689,7 +2775,8 @@ function saveScore(){
   const pet = player.petId && typeof petById==='function' ? petById(player.petId) : null;
   const dp=deathPenalty || { rate:0, percent:0, baseScore:score, finalScore:score, amount:0, reason:'' };
   const currentRunMode=endlessMode?'endless':(typeof challengeRunMode==='function'?challengeRunMode():'standard');
-  const entry = { name:cleanPlayerName(playerName), country_code:cleanCountryCode(playerCountry), character, build:window.SHADOW_BUILD_VERSION||'', score, scoreBeforePenalty:dp.baseScore||score, deathPenaltyRate:Number(dp.rate||0), deathPenaltyPercent:Number(dp.percent||0), deathPenaltyAmount:Number(dp.amount||0), deathPenaltyReason:dp.reason||'', kills, time: Math.floor(gameTime), won, level:player.level, stage:mapStage, damage:Math.round(damageTaken), items:player.items.length, petId:player.petId||'', petName:pet?pet.name:'', difficultyId:diff.id||'normal', difficultyName:diff.name||'Normal', difficultyMultiplier:Number(diff.mult||1), pactIds:pact.ids, pactMultiplier:pact.multiplier, pactLabel:pact.label, pactCount:pact.count, runMode:currentRunMode, endlessTime:endlessMode?Math.max(0,Math.floor(gameTime-endlessStartedAt)):0, challengeKey:currentRunMode==='weekly'&&typeof challengePeriodKey==='function'?challengePeriodKey():'', challengeSummary:typeof challengeSummary==='function'?challengeSummary():'', date: new Date().toISOString() };
+  const runSession=typeof currentRunSession==='function'?currentRunSession():{};
+  const entry = { name:cleanPlayerName(playerName), country_code:cleanCountryCode(playerCountry), character, build:window.SHADOW_BUILD_VERSION||'', score, scoreBeforePenalty:dp.baseScore||score, deathPenaltyRate:Number(dp.rate||0), deathPenaltyPercent:Number(dp.percent||0), deathPenaltyAmount:Number(dp.amount||0), deathPenaltyReason:dp.reason||'', kills, time: Math.floor(gameTime), won, level:player.level, stage:mapStage, damage:Math.round(damageTaken), items:player.items.length, petId:player.petId||'', petName:pet?pet.name:'', difficultyId:diff.id||'normal', difficultyName:diff.name||'Normal', difficultyMultiplier:Number(diff.mult||1), pactIds:pact.ids, pactMultiplier:pact.multiplier, pactLabel:pact.label, pactCount:pact.count, runMode:currentRunMode, endlessTime:endlessMode?Math.max(0,Math.floor(gameTime-endlessStartedAt)):0, challengeKey:currentRunMode==='weekly'&&typeof challengePeriodKey==='function'?challengePeriodKey():'', challengeSummary:typeof challengeSummary==='function'?challengeSummary():'', run_id:runSession.runId||'', run_token:runSession.token||'', date: new Date().toISOString() };
   if(typeof saveRunTelemetry==='function'){
     const telemetry = saveRunTelemetry(entry);
     if(telemetry && telemetry.id) entry.run_id = telemetry.id;
@@ -2717,6 +2804,7 @@ function saveScore(){
     .then(res=>{
       entry.onlineSaved=true;
       entry.onlineVerified=!!(res&&res.verified);
+      entry.runSessionVerified=!!(res&&res.runSessionVerified);
       entry.onlineListed=res&&res.listed!==false;
       entry.onlineRank=Number(res&&res.rank||0);
       entry.onlineStatus=entry.onlineVerified?'verified':'guest';
@@ -2894,8 +2982,10 @@ function renderRunSummary(){
   el.innerHTML=`<div class="summarypanel ${won?'victory':'defeat'}"><div class="summaryhead"><div><span>RUN SUMMARY</span><h2>${won?'COVENANT CLEARED':'RUN ENDED'}</h2></div><b>${won?'Victory':'Death Cause'}<small>${escHtml(deathText)}</small></b></div><div class="summarycols${unlockHtml||pactHtml||soulHtml?' hasunlock':''}">${scoreHtml}${deathRecapHtml}<section class="summaryweapons"><h3>Weapon DPS</h3>${weaponHtml}</section><section class="summaryitems"><h3>Best Items</h3>${itemHtml}</section>${petHtml}${divineHtml}${soulHtml}${pactHtml}${unlockHtml}</div></div>`;
 }
 function restart(){
+  if(typeof clearFamiliarSummons==='function') clearFamiliarSummons();
   if(deathCinematic) return;
   clearTimeout(deathCinematicTimer); deathCinematic=false;
+  clearRunDelayedEvents();
   if(typeof startChallengeRandom==='function') startChallengeRandom();
   if(typeof clearLocalCoop==='function') clearLocalCoop();
   { const dfx=document.getElementById('deathfx'); if(dfx) dfx.style.display='none'; }
@@ -2945,4 +3035,9 @@ function restart(){
   { const ds=document.getElementById('difficultyselect'); if(ds) ds.style.display='none'; }
   for (let i=0;i<(weeklyRun?8:4);i++) spawnEnemy();
   if(weeklyRun){spawnObjectPulse(altar.x,altar.z,0x58e7ff,8,0.8);showToast('WEEKLY: COVENANT CRUCIBLE',3.2);}
+  if(typeof startOnlineRunSession==='function') startOnlineRunSession({
+    difficultyId:activeDifficultyId,
+    runMode:weeklyRun?'weekly':'standard',
+    challengeKey:weeklyRun&&typeof challengePeriodKey==='function'?challengePeriodKey():''
+  });
 }

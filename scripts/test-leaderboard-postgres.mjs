@@ -35,6 +35,10 @@ const missingBuild = leaderboardContract.cleanScore({ ...validInput, build: "" }
 assert.match(leaderboardContract.validateScore(missingBuild), /Missing game build/);
 const longRun = leaderboardContract.cleanScore({ ...validInput, time: 7200, kills: 50000 }, null);
 assert.equal(leaderboardContract.validateScore(longRun), "", "long overtime runs should remain rankable");
+const hardWaveRun = leaderboardContract.cleanScore({ ...validInput, difficulty_id:"hard", difficulty_multiplier:1.4, stage:3, time:600, kills:10000 }, null);
+assert.equal(leaderboardContract.validateScore(hardWaveRun), "", "Hard Horde runs should remain rankable");
+const impossibleKills = leaderboardContract.cleanScore({ ...hardWaveRun, kills:100000 }, null);
+assert.match(leaderboardContract.validateScore(impossibleKills), /Kill count is outside the accepted range/);
 
 const createdAt = "2026-07-10T03:00:00.000Z";
 const firstKey = leaderboardContract.scoreDedupeKey(entry, "guest:abc", createdAt);

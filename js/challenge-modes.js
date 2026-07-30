@@ -6,6 +6,7 @@ let activeChallengeSeed=0;
 let activeChallengeKeyValue='';
 let activeChallengeRules=[];
 let challengeRandomActive=false;
+let challengeSignatureRand=null;
 
 const WEEKLY_ARENA={stage:4,minibossAt:240,duoAt:480,overtimeAt:600,bossAt:720};
 
@@ -57,8 +58,12 @@ function applyChallengeToPlayer(p){
 function startChallengeRandom(){
   if(activeChallengeMode==='standard'){stopChallengeRandom();return;}
   const rand=challengePrng(activeChallengeSeed);Math.random=rand;challengeRandomActive=true;
+  // Signature rolls use an independent stream so adding a hero proc cannot
+  // shift Weekly loot, Mimic, spawn, or boss randomness for the same seed.
+  challengeSignatureRand=challengePrng(challengeHash('shadow-covenant:signature:'+activeChallengeMode+':'+activeChallengeKeyValue));
 }
-function stopChallengeRandom(){if(challengeRandomActive)Math.random=CHALLENGE_NATIVE_RANDOM;challengeRandomActive=false;}
+function stopChallengeRandom(){if(challengeRandomActive)Math.random=CHALLENGE_NATIVE_RANDOM;challengeRandomActive=false;challengeSignatureRand=null;}
+function signatureRandom(){ return challengeRandomActive && challengeSignatureRand ? challengeSignatureRand() : Math.random(); }
 function challengeRunMode(){return activeChallengeMode==='weekly'?'weekly':'standard';}
 function challengePeriodKey(){ return activeChallengeMode==='standard' ? '' : (activeChallengeKeyValue || challengeKey(activeChallengeMode)); }
 function challengeSummary(){const cfg=challengeConfig(activeChallengeMode);return cfg.mode==='standard'?'Standard':cfg.mode.toUpperCase()+' '+challengePeriodKey()+' · '+cfg.rules.map(r=>r.name).join(' + ');}

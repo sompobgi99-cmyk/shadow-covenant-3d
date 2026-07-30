@@ -1,5 +1,6 @@
 import { getStore } from "@netlify/blobs";
 import { createHash } from "node:crypto";
+import { runSessionSecret, verifyRunSession } from "../lib/run-session.mts";
 
 const STORE_NAME = "shadow-covenant-ranking";
 const SCORE_KEY = "scores-v6";
@@ -10,7 +11,7 @@ const MAX_BODY_BYTES = 4096;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 8;
 const RATE_STORE_MAX = 500;
-const REQUIRED_BUILD = "20260716-legacy-score-compat";
+const REQUIRED_BUILD = "20260730-system-hardening";
 const RANKED_DIFFICULTY_MULTIPLIERS = {
   normal: 1,
   hard: 1.4,
@@ -140,6 +141,7 @@ function cleanScore(input, authUser) {
     challenge_key: cleanText(input.challenge_key || input.challengeKey, "", 24),
     endless_time: cleanInt(input.endless_time || input.endlessTime, 0, 999999),
     run_id: cleanId(input.run_id || input.runId),
+    run_token: cleanText(input.run_token || input.runToken, "", 1600),
     client_id: cleanId(input.client_id || input.clientId),
     build: cleanBuild(input.build),
     user_id: authUser ? authUser.id : "",
@@ -180,10 +182,45 @@ function rankedDifficultyMultiplier(id) {
 }
 
 function plausibleKillsCap(entry) {
-  const minutes = Math.max(1, Math.ceil((entry.time || 0) / 60));
-  const pace = entry.run_mode === "weekly" ? 820 : entry.difficulty_id === "hard" ? 760 : 650;
-  const overtimeBonus = Math.max(0, minutes - 10) * 260;
-  return 500 + minutes * pace + overtimeBonus + (entry.stage || 1) * 250;
+  const time = Math.max(0, Math.floor(entry.time || 0));
+  const minutes = Math.max(1, Math.ceil(time / 60));
+  const legacyPace = entry.run_mode === "weekly" ? 1200 : entry.difficulty_id === "hard" ? 1100 : 900;
+  const legacyCap = 1000 + minutes * legacyPace + Math.max(0, minutes - 10) * 500
+    + (entry.stage || 1) * 400 + (entry.run_mode === "weekly" ? 2500 : 0);
+
+  // Mirror the live progression profile conservatively. The game ramps by
+  // spawning a batch at an interval, and Overtime changes both values. The
+  // old validator only added a small linear bonus, which rejected legitimate
+  // long Overtime runs (especially with Ravenous Horde).
+  const normalSegments = [
+    [0, 60, 3.4, 2], [60, 120, 3.0, 3], [120, 240, 2.6, 4],
+    [240, 360, 2.1, 5], [360, 480, 1.7, 6], [480, 600, 1.35, 8],
+  ];
+  let expected = 0;
+  for (const [start, end, interval, batch] of normalSegments) {
+    const seconds = Math.max(0, Math.min(time, end) - start);
+    expected += seconds / interval * batch;
+  }
+
+  const overtimeSeconds = Math.max(0, time - 600);
+  const step = entry.run_mode === "weekly" ? 60 : 45;
+  const ravenous = Array.isArray(entry.pact_ids) && entry.pact_ids.includes("ravenous_horde");
+  for (let cursor = 0; cursor < overtimeSeconds; ) {
+    const tier = 2 + Math.floor(cursor / step); // displayed x2, x3, x4...
+    const seconds = Math.min(step, overtimeSeconds - cursor);
+    const batch = Math.min(96, 10 * tier);
+    const interval = Math.max(0.25, 1.1 / tier);
+    expected += seconds / interval * batch * (ravenous ? 1.22 : 1);
+    cursor += seconds;
+  }
+
+  expected += (entry.stage || 1) * 400;
+  expected += entry.run_mode === "weekly" ? 2500 : 0;
+  // Allow for Horde waves, challenge rooms, despawn/respawn timing and
+  // imperfect synchronisation without turning the check into an unlimited
+  // client-controlled value.
+  const safety = ravenous ? 1.65 : 1.5;
+  return Math.ceil(Math.max(legacyCap, expected * safety));
 }
 
 function validateMultipliers(entry) {
@@ -218,12 +255,33 @@ function validateScore(entry) {
   if (entry.run_mode === "endless" && entry.stage !== MAX_RANKED_STAGE) return "Endless runs must reach Map 3";
   if (entry.run_mode === "daily" && !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(entry.challenge_key)) return "Daily challenge period key is invalid";
   if (entry.run_mode === "weekly" && !/^[0-9]{4}-W[0-9]{2}$/.test(entry.challenge_key)) return "Weekly challenge period key is invalid";
-  if (entry.kills > plausibleKillsCap(entry)) return "Kill count is outside the accepted range";
+  const killsCap = plausibleKillsCap(entry);
+  if (entry.kills > killsCap) return `Kill count is outside the accepted range (${killsCap} max for this run)`;
   const multiplierProblem = validateMultipliers(entry);
   if (multiplierProblem) return multiplierProblem;
   const scoreToCheck = Math.max(entry.score || 0, entry.score_before_penalty || 0);
   if (scoreToCheck > looseScoreCap(entry)) return "Score is outside the accepted range";
   return "";
+}
+
+function validateRunSessionToken(entry) {
+  if (!entry.run_token) return { ok: true, verified: false, reason: "legacy" };
+  const checked = verifyRunSession(entry.run_token, runSessionSecret());
+  if (!checked.ok) return { ok: false, verified: false, reason: checked.reason };
+  const claims = checked.claims;
+  if (claims.runId !== entry.run_id || claims.clientId !== entry.client_id) {
+    return { ok: false, verified: false, reason: "identity" };
+  }
+  if (claims.difficulty !== entry.difficulty_id) return { ok: false, verified: false, reason: "difficulty" };
+  if (claims.mode !== entry.run_mode && !(claims.mode === "standard" && entry.run_mode === "endless")) {
+    return { ok: false, verified: false, reason: "mode" };
+  }
+  if (entry.run_mode === "weekly" && claims.challengeKey !== entry.challenge_key) {
+    return { ok: false, verified: false, reason: "challenge" };
+  }
+  const elapsedMs = Date.now() - claims.issuedAt;
+  if (entry.time * 1000 > elapsedMs + 30_000) return { ok: false, verified: false, reason: "elapsed" };
+  return { ok: true, verified: true, reason: "" };
 }
 
 async function readScores(store) {
@@ -498,6 +556,8 @@ export default async (req) => {
     const entry = cleanScore(body, auth.user);
     const problem = validateScore(entry);
     if (problem) return json({ error: problem, required_build: REQUIRED_BUILD }, problem.startsWith("Outdated") ? 426 : 400);
+    const runSession = validateRunSessionToken(entry);
+    if (!runSession.ok) return json({ error: `Run session is invalid (${runSession.reason})` }, 400);
     if (!postgresReady()) {
       return json({ error: "Ranking database is temporarily unavailable. The score will retry automatically." }, 503);
     }
@@ -515,7 +575,8 @@ export default async (req) => {
       const payload = databaseScore(entry, dedupeKey);
       const inserted = await insertPostgresRows([payload]);
       const placement = await postgresTopStatus(dedupeKey, payload.source);
-      return json({ ok: true, duplicate: inserted.length === 0, verified: entry.verified, storage: "postgres", ...placement });
+      console.log("ranking-run-session", JSON.stringify({ verified: runSession.verified, reason: runSession.reason, mode: entry.run_mode, difficulty: entry.difficulty_id }));
+      return json({ ok: true, duplicate: inserted.length === 0, verified: entry.verified, run_session_verified: runSession.verified, storage: "postgres", ...placement });
     } catch (error) {
       console.warn("leaderboard postgres write unavailable", error && error.message ? error.message : error);
       try { await markBlobMigrationPending(store); } catch (markerError) {
@@ -539,6 +600,7 @@ export const leaderboardContract = {
   cleanScore,
   validateScore,
   scoreDedupeKey,
+  validateRunSessionToken,
   databaseScore,
   databaseToPublicScore,
   scoreSource,

@@ -138,6 +138,7 @@ function onlineScorePayload(entry, includeBuild){
     challenge_key: entry.challengeKey || '',
     endless_time: entry.endlessTime|0,
     run_id: entry.run_id || '',
+    run_token: entry.run_token || '',
     client_id: rankingClientId(),
   };
   // The API is the only ranked write path. Always include the build so a
@@ -163,7 +164,7 @@ async function submitOnlineScore(entry){
     if(apiRes.ok) {
       let data = {};
       try { data = await apiRes.json(); } catch (_) {}
-      return { ok:true, verified:!!data.verified, duplicate:!!data.duplicate, listed:data.listed!==false, rank:Number(data.rank||0), displayLimit:Number(data.display_limit||ONLINE_LEADERBOARD.limit) };
+      return { ok:true, verified:!!data.verified, runSessionVerified:!!data.run_session_verified, duplicate:!!data.duplicate, listed:data.listed!==false, rank:Number(data.rank||0), displayLimit:Number(data.display_limit||ONLINE_LEADERBOARD.limit) };
     }
     let detail={};
     try{ detail=await apiRes.json(); }catch(_){}
@@ -191,6 +192,7 @@ async function saveOnlineScore(entry){
     return result;
   }catch(error){
     markPendingOnlineScoreError(queued,error);
+    if(typeof reportClientEvent==='function') reportClientEvent('ranking_error',String(error&&error.message||'Ranking submission failed'),{status:Number(error&&error.status||0),queued:!permanentOnlineScoreError(error)});
     if(!permanentOnlineScoreError(error)){
       error.queued=true;
       scheduleOnlineScoreRetry(error);
@@ -217,6 +219,7 @@ async function flushPendingOnlineScores(){
         reflectFlushedOnlineScore(queued,result);
       }catch(error){
         markPendingOnlineScoreError(queued,error);
+        if(typeof reportClientEvent==='function') reportClientEvent('ranking_error',String(error&&error.message||'Ranking retry failed'),{status:Number(error&&error.status||0),retry:true});
         if(permanentOnlineScoreError(error) && !onlinePermanentErrorNotified && typeof showToast==='function'){
           showToast(String(error&&error.message||'ส่งคะแนนไม่สำเร็จ'),3.2);
           onlinePermanentErrorNotified=true;

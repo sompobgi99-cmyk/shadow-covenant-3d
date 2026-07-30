@@ -11,6 +11,7 @@ const ACHIEVEMENT_IDS = new Set([
   "swift_survivor",
   "assassin_trial",
   "cursed_eye_trial",
+  "frostbound",
   "soul_collector",
   "shop_regular",
   "rich_striker",

@@ -162,6 +162,7 @@
       return { ok:true, imported: imported || [] };
     } catch (err) {
       state.lastError = (err && err.message) || 'Progress sync failed';
+      if(typeof reportClientEvent==='function') reportClientEvent('progress_sync_error',state.lastError,{reason:reason||'sync'});
       if(reason === 'manual' && typeof showToast === 'function') showToast(state.lastError, 2.5);
       return { error: state.lastError };
     } finally {
@@ -206,9 +207,43 @@
   window.recordSoulCoinMutation = recordSoulCoinMutation;
   window.pendingSoulCoinDelta = pendingSoulCoinDelta;
 
+  // Pagehide fast-path: the normal sync does GET -> merge -> POST, but during
+  // pagehide the browser can kill any request after the first await. Fire one
+  // synchronous keepalive POST instead — no GET (server deep-merges and derives
+  // soulCoins from the mutation, not the body), no state.syncing guard (server
+  // dedupes by mutation_id, a double-post is harmless), and no acknowledge
+  // (the queued mutation re-syncs on next launch; the server ignores replays).
+  function flushProgressOnPagehide(){
+    try {
+      const token = typeof getCachedAuthAccessToken === 'function' ? getCachedAuthAccessToken() : '';
+      if(!token) return false;
+      const queued = readMutationQueue()[0] || null;
+      if(!state.dirty && !queued) return false;
+      const payload = localPayload();
+      payload.mutation = { id: queued ? queued.id : mutationId(), soulCoinDelta: queued ? queued.soulCoinDelta : 0 };
+      fetch(ONLINE_PROGRESS.apiEndpoint, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token },
+        keepalive:true,
+        body: JSON.stringify(payload),
+      }).catch(()=>{});
+      return true;
+    } catch (_) { return false; }
+  }
+
   window.addEventListener('pagehide',()=>{
-    if((state.dirty || readMutationQueue().length) && typeof currentAuthUser==='function' && currentAuthUser()) {
-      syncOnlineAchievements('pagehide');
+    if(typeof currentAuthUser==='function' && currentAuthUser()) flushProgressOnPagehide();
+  });
+
+  // A device can finish OAuth while its network is still coming online. Retry
+  // the authoritative cloud merge when connectivity returns or the tab becomes
+  // visible again; this is safe because the server mutation id is idempotent.
+  window.addEventListener('online',()=>{
+    if(typeof currentAuthUser==='function' && currentAuthUser()) queueOnlineAchievementSync('network_online');
+  });
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible' && typeof currentAuthUser==='function' && currentAuthUser()){
+      queueOnlineAchievementSync('tab_visible');
     }
   });
 })();

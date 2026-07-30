@@ -43,3 +43,13 @@ The response should include:
 ```
 
 On the first request, the function imports existing `scores-v5` rows from Netlify Blobs with atomic conflict handling. Blobs remain only for rate limiting and temporary fallback.
+
+## 4. Signed run sessions
+
+The browser requests `/api/run-session` when a run starts and attaches the signed token when it submits a score. Set an independent Netlify secret when possible:
+
+```text
+RANKING_RUN_SECRET=LONG_RANDOM_SERVER_ONLY_VALUE
+```
+
+The service validates the run identity, difficulty, mode, Weekly key, and elapsed time. Runs without a token remain in temporary compatibility mode for older open tabs; a supplied but invalid token is rejected.

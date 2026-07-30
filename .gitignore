@@ -3,6 +3,8 @@ node_modules/
 .env.*
 !.env.example
 output/
+outputs/
+tmp/
 .playwright-cli/
 assets/sprites/_*.bin
 assets/sprites/_debug_*
@@ -11,6 +13,18 @@ js/_synctest.txt
 test-output/
 test-results/
 artifacts/
+backups/
+js/*.min.js
+dist/
+scripts/__pycache__/
+assets/character-bank/
+assets/pipeline/
+assets/character-comics/*.png
+assets/sprites/*_source.png
+assets/sprites/fx-signature/*.png
+character-animation-review.html
+frost-warden-walk-preview.html
+tools/*_xlsx*.py
 
 # Local Netlify folder
 .netlify

@@ -190,7 +190,23 @@ if (!runtimeSource.includes("Object.keys(CHARACTERS).length") || !runtimeSource.
 if (!indexSource.includes('data-content-count="characters"') || !indexSource.includes('data-content-count="maps"')) {
   fail("index title metadata must use dynamic content-count placeholders");
 }
-if (!cssSource.includes("assets/ui/title-covenant.webp")) fail("title screen must use the optimized WebP background");
+if (!runtimeSource.includes("/assets/ui/title-covenant.webp") || !cssSource.includes("var(--title-bg)")) {
+  fail("title screen must use the release-versioned optimized WebP background");
+}
+const comicRefs = [...runtimeSource.matchAll(/assets\/character-comics\/comic_[a-z0-9_]+(?:_thumb)?\.webp/g)].map(match=>match[0]);
+const uniqueComicRefs = [...new Set(comicRefs)];
+if (/assets\/character-comics\/[^'"]+\.png/.test(runtimeSource)) {
+  fail("character comics must use WebP instead of PNG");
+}
+if (uniqueComicRefs.length !== Object.keys(characters).length * 2) {
+  fail(`character comics must provide one full WebP and one thumbnail per character (${uniqueComicRefs.length}/${Object.keys(characters).length * 2})`);
+}
+for (const file of uniqueComicRefs) {
+  if (!fs.existsSync(path.join(root, file))) fail(`character comic asset is missing: ${file}`);
+}
+if (!runtimeSource.includes("comic.full") || !runtimeSource.includes("comic.thumb") || !runtimeSource.includes('loading="eager" decoding="async"')) {
+  fail("character comics must lazy-load thumbnails and request full artwork only when opened");
+}
 for (const key of ["map2_ground", "map2_border_wall", "map3_ground", "map3_border_wall", "floor_challenge_treasure"]) {
   if (!String(manifest[key] || "").endsWith(".webp")) fail(`MANIFEST.${key} must use its lossless WebP asset`);
 }
@@ -210,6 +226,14 @@ const apiBuild = (leaderboardSource.match(/REQUIRED_BUILD\s*=\s*"([^"]+)"/) || [
 if (!versionJson.version) fail("version.json has no version");
 if (htmlBuild !== versionJson.version) fail(`index.html build ${htmlBuild || "(missing)"} does not match version.json ${versionJson.version}`);
 if (apiBuild !== versionJson.version) fail(`leaderboard REQUIRED_BUILD ${apiBuild || "(missing)"} does not match version.json ${versionJson.version}`);
+const versionedIndexAssets = [...indexSource.matchAll(/\b(?:src|href)="([^"]+\.(?:js|css))\?v=([^"]+)"/g)];
+if (!versionedIndexAssets.length) fail("index.html has no versioned JavaScript or CSS assets");
+for (const [, asset, version] of versionedIndexAssets) {
+  if (version !== versionJson.version) fail(`${asset} uses stale cache version ${version}; expected ${versionJson.version}`);
+}
+if (!indexSource.includes('js/error-telemetry.js?v=') || !indexSource.includes('js/run-session.js?v=')) {
+  fail("index.html must load production error telemetry and Ranking run-session support");
+}
 if (!leaderboardSource.includes('SUPABASE_SERVICE_ROLE_KEY') || !leaderboardSource.includes('insertPostgresRows') || !leaderboardSource.includes('storage: "postgres"')) {
   fail("leaderboard function must use server-side Supabase Postgres storage");
 }
@@ -218,6 +242,23 @@ if (!leaderboardMigration.includes("dedupe_key text not null unique") || !leader
 }
 if (!runtimeSource.includes("const APP_VERSION = window.SHADOW_BUILD_VERSION || 'dev';")) {
   fail("game-runtime.js APP_VERSION must read window.SHADOW_BUILD_VERSION so the reload prompt can clear after refresh");
+}
+if (!runtimeSource.includes("function assetSrc(path)") || !runtimeSource.includes("return assetSrc(src)") || !runtimeSource.includes("--title-bg")) {
+  fail("runtime images must use the release-aware assetSrc helper, including the title background");
+}
+if (!read("package.json").includes('"playtest:weekly"') || !read("package.json").includes('"test:hardening"')) {
+  fail("the verification pipeline must include Weekly and system-hardening tests");
+}
+for (const requiredFile of [
+  "js/error-telemetry.js",
+  "js/run-session.js",
+  "netlify/functions/client-events.mts",
+  "netlify/functions/run-session.mts",
+  "netlify/functions/progress-backup.mts",
+  "netlify/lib/run-session.mts",
+  "scripts/test-hardening-contracts.mjs",
+]) {
+  if (!fs.existsSync(path.join(root, requiredFile))) fail(`system-hardening file is missing: ${requiredFile}`);
 }
 if (!runtimeSource.includes("challengeRoomTextureKeys") || !runtimeSource.includes("const fallback=tex.px_rock_small") || !runtimeSource.includes("s.userData.hydratedWidth")) {
   fail("deferred enemies and scenery must prefetch, stay visible, and hydrate their requested art");
@@ -352,21 +393,34 @@ for (const [owner, names] of Object.entries({ ...bossSkills, ...minibossSkills }
 const spriteFiles = fs.readdirSync(spriteDir).filter((file) => /\.(png|webp)$/i.test(file));
 const spriteBytes = spriteFiles.reduce((sum, file) => sum + fs.statSync(path.join(spriteDir, file)).size, 0);
 const deferredUnits = new Set(enemyTypes.filter((e) => (e.tier || 0) > 0).flatMap((e) => [e.sprite, `${e.sprite}_8dir`, `${e.sprite}_walk`]));
+// Keep this list in sync with isLazyTextureKey() in js/game-runtime.js —
+// counting a runtime-deferred key as boot inflates the boot estimate.
 const isBootLazy = (key) => key.startsWith("map2_") || key.startsWith("map3_")
   || key.startsWith("weekly_") || key.startsWith("obj_weekly_")
   || key.startsWith("floor_challenge_") || key.startsWith("prop_challenge_")
   || key.startsWith("boss_") || key.startsWith("miniboss_") || key.startsWith("pet_")
+  || key.startsWith("fx_sig_")
   || /^char_.+_(walk|idle|portrait)$/.test(key)
   || key === "obj_normal_portal" || key === "obj_challenge_gate" || deferredUnits.has(key);
 const bootFiles = new Set(Object.entries(derivedManifest).filter(([key]) => !isBootLazy(key)).map(([, file]) => stripAssetQuery(file)));
 const bootSpriteBytes = [...bootFiles].reduce((sum, file) => sum + (assetExists(file) ? fs.statSync(assetPath(file)).size : 0), 0);
 const titleAsset = path.join(root, "assets", "ui", "title-covenant.webp");
 const initialVisualBytes = bootSpriteBytes + (fs.existsSync(titleAsset) ? fs.statSync(titleAsset).size : 0);
+// First-run payload: run start blocks only on the selected hero's signature FX
+// (one texture); the rest stream in the background. Track worst case + total.
+const fxSigSizes = Object.entries(derivedManifest)
+  .filter(([key]) => key.startsWith("fx_sig_"))
+  .map(([, file]) => stripAssetQuery(file))
+  .map((file) => (assetExists(file) ? fs.statSync(assetPath(file)).size : 0));
+const fxSigTotal = fxSigSizes.reduce((sum, size) => sum + size, 0);
+const fxSigMax = fxSigSizes.reduce((max, size) => Math.max(max, size), 0);
 
 console.log(`Audit: ${Object.keys(derivedManifest).length} manifest assets, ${weaponEntries.length} weapons, ${items.length} items, ${enemyTypes.length} enemies, ${minibossTypes.length} minibosses, ${bossTypes.length} bosses.`);
 console.log(`Sprites: ${spriteFiles.length} PNG/WebP files, ${(spriteBytes / 1024 / 1024).toFixed(2)} MB.`);
-console.log(`Initial visual payload estimate: ${(initialVisualBytes / 1024 / 1024).toFixed(2)} MB (${bootFiles.size} boot textures + title).`);
-if (initialVisualBytes > 6 * 1024 * 1024) warn(`Initial visual payload exceeds 6 MB: ${(initialVisualBytes / 1024 / 1024).toFixed(2)} MB`);
+console.log(`Boot payload estimate: ${(initialVisualBytes / 1024 / 1024).toFixed(2)} MB (${bootFiles.size} boot textures + title).`);
+console.log(`First-run payload (signature FX): worst hero ${(fxSigMax / 1024 / 1024).toFixed(2)} MB blocking, ${(fxSigTotal / 1024 / 1024).toFixed(2)} MB total (background).`);
+if (initialVisualBytes > 6 * 1024 * 1024) warn(`Boot payload exceeds 6 MB: ${(initialVisualBytes / 1024 / 1024).toFixed(2)} MB`);
+if (fxSigMax > 0.75 * 1024 * 1024) warn(`A signature FX texture exceeds 0.75 MB and will delay run start: ${(fxSigMax / 1024 / 1024).toFixed(2)} MB`);
 if (warnings.length) {
   console.warn(`Warnings (${warnings.length}):`);
   for (const message of warnings) console.warn(`- ${message}`);
